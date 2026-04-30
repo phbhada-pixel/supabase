@@ -123,64 +123,124 @@ function getProgressiveTargetMonthsAndYears(selM, selY) {
 }
 
 // 🟢 REPORT FETCHING LOGIC
+// 🟢 REPORT FETCHING LOGIC (Supabase Logic)
 async function fetchReportData() {
-    const formID = document.getElementById('reportFormSelect').value; const selMonth = document.getElementById('reportMonth').value; const selYear = document.getElementById('reportYear').value;
+    const formID = document.getElementById('reportFormSelect').value; 
+    const selMonth = document.getElementById('reportMonth').value; 
+    const selYear = document.getElementById('reportYear').value;
+    
     if(!formID) { alert("कृपया अहवाल निवडा"); return; }
-    let filterRole = "सर्व"; if((user.role === "Admin" || user.role === "VIEWER" || user.role === "MANAGER") && document.getElementById('reportRoleFilter')) { filterRole = document.getElementById('reportRoleFilter').value; }
-    document.getElementById('reportLoader').style.display = "block"; document.getElementById('reportContentArea').classList.add('hidden'); document.getElementById('reportTableContainer').innerHTML = "";
-    try {
-        const payload = { formID: formID, role: user.role, subcenter: user.subcenter, mobileNo: user.mobile, filterRole: filterRole };
-        const r = await fetch(GAS_URL, { method: "POST", body: JSON.stringify({action:"getReportData", payload}) });
-        const textResponse = await r.text(); const d = JSON.parse(textResponse);
-        document.getElementById('reportLoader').style.display = "none";
-        if(d.success && d.reports) {
-            let finalReports = [];
-            d.reports.forEach(rep => {
-                let headers = rep.data[0]; if(!headers) return;
-                let validData = [headers];
-                for(let i=1; i<rep.data.length; i++) { let isNil = rep.data[i].some(cell => String(cell).includes("निरंक (Nil Report)")); if(!isNil) validData.push(rep.data[i]); }
-                rep.data = validData;
-                const formObj = masterData.forms.find(x => x.FormName === rep.formName);
-                let formTypeStr = formObj ? String(formObj.FormType).trim() : "";
-                let isProgressive = formTypeStr.includes('ProgressiveStats'); let isVertical = formTypeStr.includes('Vertical'); let isList = formTypeStr.includes('List'); 
-                let monthIdx = headers.indexOf("महिना"); let yearIdx = headers.indexOf("वर्ष"); let villageIdx = headers.indexOf("गाव"); if(villageIdx === -1) villageIdx = headers.indexOf("Village"); 
-                let fData = []; let dataRows = [];
-                if (isProgressive && !isVertical && selMonth !== "सर्व" && selYear !== "सर्व") {
-                    let flatFields = extractFieldsFromForm(formObj); let numericLabels = flatFields.filter(f => f.orig.type === 'number' || f.orig.type === 'sum').map(f => f.label);
-                    let newHeaders = []; let numMap = {}; headers.forEach((h, i) => { if (numericLabels.includes(h)) { newHeaders.push(`${h} - मासिक`); newHeaders.push(`${h} - प्रगत`); numMap[i] = true; } else { newHeaders.push(h); } });
-                    fData.push(newHeaders); let targetPeriods = getProgressiveTargetMonthsAndYears(selMonth, selYear); let villageData = {};
-                    for(let i=1; i<rep.data.length; i++) {
-                        let row = rep.data[i]; let m = String(row[monthIdx]).trim(); let y = String(row[yearIdx]).trim(); let v = String(row[villageIdx] || "").trim();
-                        if(targetPeriods.some(p => p.m === m && p.y === y)) {
-                            let sc = headers.indexOf("उपकेंद्र") > -1 ? String(row[headers.indexOf("उपकेंद्र")]).trim() : ""; let mob = headers.indexOf("मोबाईल क्र.") > -1 ? String(row[headers.indexOf("मोबाईल क्र.")]).trim() : ""; let gKey = `${sc}_${mob}_${v}`;
-                            if(!villageData[gKey]) { villageData[gKey] = { baseRow: Array(headers.length).fill("-"), progressive: {}, monthly: {} }; headers.forEach((_, cIdx) => { if(!numMap[cIdx]) villageData[gKey].baseRow[cIdx] = row[cIdx]; }); }
-                            if (m === selMonth && y === selYear) { headers.forEach((_, cIdx) => { if(!numMap[cIdx]) villageData[gKey].baseRow[cIdx] = row[cIdx]; }); }
-                            headers.forEach((_, cIdx) => { if (numMap[cIdx]) { let val = parseFloat(row[cIdx]); if(!isNaN(val)) { villageData[gKey].progressive[cIdx] = (villageData[gKey].progressive[cIdx] || 0) + val; if (m === selMonth && y === selYear) { villageData[gKey].monthly[cIdx] = val; } } } });
-                        }
-                    }
-                    Object.keys(villageData).forEach(k => { let vData = villageData[k]; let newRow = []; headers.forEach((h, cIdx) => { if (numMap[cIdx]) { newRow.push(vData.monthly[cIdx] || 0); newRow.push(vData.progressive[cIdx] || 0); } else { newRow.push(vData.baseRow[cIdx] || "-"); } }); if(monthIdx > -1) newRow[monthIdx] = selMonth; if(yearIdx > -1) newRow[yearIdx] = selYear; dataRows.push(newRow); });
-                } else if (isProgressive && isVertical && selMonth !== "सर्व" && selYear !== "सर्व") {
-                    fData.push(headers); let targetPeriods = getProgressiveTargetMonthsAndYears(selMonth, selYear); let villageData = {}; let flatFields = extractFieldsFromForm(formObj); let numericLabels = flatFields.filter(f => f.orig.type === 'number' || f.orig.type === 'sum').map(f => f.label); let numMap = {}; headers.forEach((h, i) => { if (numericLabels.includes(h)) numMap[i] = true; });
-                    for(let i=1; i<rep.data.length; i++) {
-                        let row = rep.data[i]; let m = String(row[monthIdx]).trim(); let y = String(row[yearIdx]).trim(); let v = String(row[villageIdx] || "").trim();
-                        if(targetPeriods.some(p => p.m === m && p.y === y)) {
-                            let sc = headers.indexOf("उपकेंद्र") > -1 ? String(row[headers.indexOf("उपकेंद्र")]).trim() : ""; let mob = headers.indexOf("मोबाईल क्र.") > -1 ? String(row[headers.indexOf("मोबाईल क्र.")]).trim() : ""; let gKey = `${sc}_${mob}_${v}`;
-                            if(!villageData[gKey]) { villageData[gKey] = { baseRow: Array(headers.length).fill("-"), progressive: {}, monthly: {} }; headers.forEach((_, cIdx) => { if(!numMap[cIdx]) villageData[gKey].baseRow[cIdx] = row[cIdx]; }); }
-                            if (m === selMonth && y === selYear) { headers.forEach((_, cIdx) => { if(!numMap[cIdx]) villageData[gKey].baseRow[cIdx] = row[cIdx]; }); }
-                            headers.forEach((_, cIdx) => { if (numMap[cIdx]) { let val = parseFloat(row[cIdx]); if(!isNaN(val)) { villageData[gKey].progressive[cIdx] = (villageData[gKey].progressive[cIdx] || 0) + val; if (m === selMonth && y === selYear) { villageData[gKey].monthly[cIdx] = val; } } } });
-                        }
-                    }
-                    Object.keys(villageData).forEach(k => { let vData = villageData[k]; let newRow = []; headers.forEach((h, cIdx) => { if (numMap[cIdx]) { newRow.push({ M: vData.monthly[cIdx] || 0, P: vData.progressive[cIdx] || 0 }); } else { newRow.push(vData.baseRow[cIdx] || "-"); } }); if(monthIdx > -1) newRow[monthIdx] = selMonth; if(yearIdx > -1) newRow[yearIdx] = selYear; dataRows.push(newRow); });
-                } else {
-                    fData.push(headers); for(let i=1; i<rep.data.length; i++) { let row = rep.data[i]; if((selMonth === "सर्व" || String(row[monthIdx]).trim() === selMonth) && (selYear === "सर्व" || String(row[yearIdx]).trim() === selYear)) dataRows.push(row); }
-                }
-                fData = fData.concat(dataRows); finalReports.push({ formName: rep.formName, data: fData, isList: isList }); 
-            });
-            if(finalReports.length > 0) { currentReports = finalReports; renderMultipleTables(finalReports, selMonth, selYear); document.getElementById('reportContentArea').classList.remove('hidden'); } else { alert("डेटा उपलब्ध नाही."); }
-        }
-    } catch(e) { document.getElementById('reportLoader').style.display = "none"; alert("एरर: " + e.message); }
-}
+    
+    let filterRole = "सर्व"; 
+    if((user.role === "Admin" || user.role === "VIEWER" || user.role === "MANAGER") && document.getElementById('reportRoleFilter')) { 
+        filterRole = document.getElementById('reportRoleFilter').value; 
+    }
+    
+    document.getElementById('reportLoader').style.display = "block"; 
+    document.getElementById('reportContentArea').classList.add('hidden'); 
+    document.getElementById('reportTableContainer').innerHTML = "";
 
+    try {
+        // 1. फॉर्मचे स्ट्रक्चर लोड करणे
+        let targetForms = [];
+        if (formID === "ALL") {
+            targetForms = masterData.forms.filter(f => {
+                if (isFormInactive(f)) return false;
+                let roles = f.AllowedRoles ? f.AllowedRoles.split(',').map(r=>String(r).trim().toUpperCase()) : ["ALL"];
+                return (user.role === "Admin" || user.role === "MANAGER" || user.role === "VIEWER" || roles.includes("ALL") || roles.includes(String(user.role).toUpperCase()));
+            });
+        } else {
+            let sf = masterData.forms.find(x => x.FormID === formID);
+            if (sf) targetForms.push(sf);
+        }
+
+        if (targetForms.length === 0) throw new Error("फॉर्म आढळला नाही.");
+
+        // 2. Supabase मधून भरलेला डेटा मिळवणे
+        let query = supabase.from('filled_stats').select('*').in('formID', targetForms.map(f => f.FormID));
+        
+        // फिल्टर लावणे
+        if (selMonth !== "सर्व") query = query.eq('month', selMonth);
+        if (selYear !== "सर्व") query = query.eq('year', selYear);
+        if (user.role !== "Admin" && user.role !== "VIEWER" && user.role !== "MANAGER") {
+            query = query.eq('mobileNo', user.mobile);
+        }
+
+        const { data: filledData, error } = await query;
+        if (error) throw error;
+
+        document.getElementById('reportLoader').style.display = "none";
+
+        let finalReports = [];
+
+        targetForms.forEach(f => {
+            let isProgressive = String(f.FormType).includes('ProgressiveStats'); 
+            let isVertical = String(f.FormType).includes('Vertical'); 
+            let isList = String(f.FormType).includes('List'); 
+            
+            // फक्त या फॉर्मचा डेटा गाळणे आणि Role फिल्टर लावणे
+            let formDataRows = filledData.filter(row => {
+                if (row.formID !== f.FormID) return false;
+                if (filterRole !== "सर्व") {
+                    let employee = masterData.users.find(u => String(u.mobile) === String(row.mobileNo));
+                    if (!employee || employee.role !== filterRole) return false;
+                }
+                return true;
+            });
+
+            if (formDataRows.length === 0) return; // या फॉर्मचा डेटा नसेल तर सोडून द्या
+
+            let fields = extractFieldsFromForm(f);
+            let headers = ["तारीख", "वेळ", "महिना", "वर्ष", "मोबाईल क्र.", "कर्मचाऱ्याचे नाव", "उपकेंद्र", "गाव"];
+            fields.forEach(fld => headers.push(fld.label));
+
+            let fData = [headers]; // पहिली ओळ हेडरची
+            
+            // डेटा JSONB मधून Array मध्ये कन्व्हर्ट करणे
+            formDataRows.forEach(row => {
+                let isNil = false;
+                for (let key in row.formData) { if (String(row.formData[key]).includes("निरंक (Nil Report)")) isNil = true; }
+                if (isNil) return; // निरंक अहवाल रिपोर्टमध्ये दाखवू नका
+
+                let empName = masterData.users.find(u => String(u.mobile) === String(row.mobileNo))?.name || "Unknown";
+                
+                let dataRow = [
+                    "-", // तारीख
+                    "-", // वेळ
+                    row.month,
+                    row.year,
+                    row.mobileNo,
+                    empName,
+                    row.subCenter,
+                    row.village
+                ];
+
+                fields.forEach(fld => {
+                    let val = row.formData[fld.label];
+                    dataRow.push(val !== undefined && val !== "" ? val : "-");
+                });
+
+                fData.push(dataRow);
+            });
+
+            if (fData.length > 1) { // जर फक्त हेडर नसून डेटा असेल तरच
+                finalReports.push({ formName: f.FormName, data: fData, isList: isList });
+            }
+        });
+
+        if(finalReports.length > 0) { 
+            currentReports = finalReports; 
+            renderMultipleTables(finalReports, selMonth, selYear); 
+            document.getElementById('reportContentArea').classList.remove('hidden'); 
+        } else { 
+            alert("डेटा उपलब्ध नाही."); 
+        }
+
+    } catch(e) { 
+        document.getElementById('reportLoader').style.display = "none"; 
+        alert("एरर: " + e.message); 
+    }
+}
 // 🟢 RENDER TABLES (Handles 3 Grouping Types)
 function renderMultipleTables(reports, month, year) {
     let container = document.getElementById('reportTableContainer');
