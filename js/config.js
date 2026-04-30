@@ -2,7 +2,6 @@
 const SUPABASE_URL = 'https://drtcepdrtmzkrxzvdhrs.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_aQ44N7qI_PV5XXJuJRh_QA_YjC827rd';
 
-// बदल: इथे 'const supabase' ऐवजी फक्त 'supabase' किंवा 'window.supabase' वापरा
 window.supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const CONFIG = {
     hiddenColumns: ["तारीख", "मोबाईल क्र.", "उपकेंद्र", "महिना", "वर्ष", "मूळ डेटा (JSON)", "कर्मचाऱ्याचे नाव"]
@@ -43,7 +42,7 @@ window.onload = function() {
     }
 };
 
-// 🟢 Supabase - Fetch Data (सुपरफास्ट)
+// 🟢 Supabase - Fetch Data
 async function fetchData() {
     try {
         const [usersRes, villagesRes, formsRes, statsRes] = await Promise.all([
@@ -66,13 +65,14 @@ async function fetchData() {
         localStorage.setItem("phc_master_data", JSON.stringify(masterData)); 
         
         if(typeof updateFormDropdowns === "function") updateFormDropdowns();
-        if(typeof renderFormsListForEdit === "function") renderFormsListForEdit();
+        // 🟢 दुरुस्ती: इथे 'renderExistingFormsList' केले आहे
+        if(typeof renderExistingFormsList === "function") renderExistingFormsList();
     } catch(e) { 
         console.error("Fetch failed", e); 
     }
 }
 
-// 🟢 Supabase - Login (सुपरफास्ट)
+// 🟢 Supabase - Login
 async function handleLogin() {
     const m = document.getElementById('mob').value.trim();
     const p = document.getElementById('pwd').value.trim();
@@ -98,7 +98,7 @@ async function handleLogin() {
         showAppAfterLogin();
         document.getElementById('netStatus').innerText = "Online";
         
-        await fetchData(); // नवीन डेटा लोड करा
+        await fetchData(); 
     } catch(e) { 
         alert("लॉगिन अयशस्वी. कृपया इंटरनेट कनेक्शन तपासा."); 
         document.getElementById('netStatus').innerText = "Offline"; 
@@ -112,17 +112,21 @@ function showAppAfterLogin() {
     document.getElementById('uName').innerText = user.name + " (" + user.role + ")";
     document.getElementById('uSub').innerText = "उपकेंद्र: " + user.subcenter;
 
-    if(user.role === "Admin") {
+    // 🟢 दुरुस्ती: कॅपिटल-स्मॉल अक्षरांचा प्रश्न कायमचा सोडवला
+    let userRole = String(user.role).trim().toUpperCase();
+
+    if(userRole === "ADMIN") {
         document.getElementById('tabEntry').classList.remove('hidden');
         document.getElementById('tabEdit').classList.remove('hidden');
         document.getElementById('tabAdmin').classList.remove('hidden');
         document.getElementById('adminRoleFilterDiv').style.display = "flex";
-        if(typeof renderFormsListForEdit === "function") renderFormsListForEdit();
-    } else if (user.role === "VIEWER" || user.role === "MANAGER") {
+        // 🟢 दुरुस्ती: इथे 'renderExistingFormsList' केले आहे
+        if(typeof renderExistingFormsList === "function") renderExistingFormsList();
+    } else if (userRole === "VIEWER" || userRole === "MANAGER") {
         document.getElementById('tabEntry').classList.add('hidden');
         document.getElementById('tabEdit').classList.add('hidden');
         document.getElementById('tabAdmin').classList.add('hidden');
-        document.getElementById('adminRoleFilterDiv').style.display = "flex"; 
+        if(document.getElementById('adminRoleFilterDiv')) document.getElementById('adminRoleFilterDiv').style.display = "flex"; 
         switchTab('reports');
     } else {
         document.getElementById('tabEntry').classList.remove('hidden');
@@ -238,7 +242,7 @@ async function submitChangePassword() {
     }
 }
 
-// Global Core Logic Evaluators (Same as before)
+// Global Core Logic Evaluators
 function getFieldValueByFid(containerId, fid) {
     let container = document.getElementById(containerId);
     if(!container) return `""`;
