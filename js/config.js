@@ -2,7 +2,8 @@
 const SUPABASE_URL = 'https://drtcepdrtmzkrxzvdhrs.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_aQ44N7qI_PV5XXJuJRh_QA_YjC827rd';
 
-const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// बदल: इथे 'const supabase' ऐवजी फक्त 'supabase' किंवा 'window.supabase' वापरा
+window.supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const CONFIG = {
     hiddenColumns: ["तारीख", "मोबाईल क्र.", "उपकेंद्र", "महिना", "वर्ष", "मूळ डेटा (JSON)", "कर्मचाऱ्याचे नाव"]
 };
