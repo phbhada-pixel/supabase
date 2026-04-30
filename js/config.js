@@ -1,6 +1,8 @@
-// 🌟 Configuration 🌟
-const GAS_URL = "https://script.google.com/macros/s/AKfycby24p9iZjDKp5gGX0zLYvY98Z53pLKAPlWJt7RoZcq_OKGGG-uaXObVGPcVXoXuSVa4/exec";
+// 🌟 Supabase Configuration 🌟
+const SUPABASE_URL = 'https://drtcepdrtmzkrxzvdhrs.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_aQ44N7qI_PV5XXJuJRh_QA_YjC827rd';
 
+const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const CONFIG = {
     hiddenColumns: ["तारीख", "मोबाईल क्र.", "उपकेंद्र", "महिना", "वर्ष", "मूळ डेटा (JSON)", "कर्मचाऱ्याचे नाव"]
 };
@@ -40,38 +42,66 @@ window.onload = function() {
     }
 };
 
+// 🟢 Supabase - Fetch Data (सुपरफास्ट)
 async function fetchData() {
     try {
-        const r = await fetch(GAS_URL, { method: "POST", body: JSON.stringify({action:"getInitialData"}) });
-        const textResponse = await r.text();
-        if(textResponse.trim().startsWith("<")) throw new Error("Google Blocked Request");
-        const d = JSON.parse(textResponse);
-        if(d.success) {
-            masterData = d;
-            localStorage.setItem("phc_master_data", JSON.stringify(d)); 
-            updateFormDropdowns();
-            if(typeof renderFormsListForEdit === "function") renderFormsListForEdit();
-        }
-    } catch(e) { console.error("Fetch failed", e); }
+        const [usersRes, villagesRes, formsRes, statsRes] = await Promise.all([
+            supabase.from('users').select('*'),
+            supabase.from('villages').select('*'),
+            supabase.from('forms').select('*').eq('IsActive', true),
+            supabase.from('filled_stats').select('*')
+        ]);
+
+        if (usersRes.error) throw usersRes.error;
+        if (villagesRes.error) throw villagesRes.error;
+        if (formsRes.error) throw formsRes.error;
+        if (statsRes.error) throw statsRes.error;
+
+        masterData.users = usersRes.data || [];
+        masterData.villages = villagesRes.data || [];
+        masterData.forms = formsRes.data || [];
+        masterData.filledStats = statsRes.data || [];
+
+        localStorage.setItem("phc_master_data", JSON.stringify(masterData)); 
+        
+        if(typeof updateFormDropdowns === "function") updateFormDropdowns();
+        if(typeof renderFormsListForEdit === "function") renderFormsListForEdit();
+    } catch(e) { 
+        console.error("Fetch failed", e); 
+    }
 }
 
+// 🟢 Supabase - Login (सुपरफास्ट)
 async function handleLogin() {
     const m = document.getElementById('mob').value.trim();
     const p = document.getElementById('pwd').value.trim();
     if(!m || !p) return;
     document.getElementById('netStatus').innerText = "तपासत आहे...";
     try {
-        const r = await fetch(GAS_URL, { method: "POST", body: JSON.stringify({action:"login", mobileNo:m, password:p}) });
-        const textResponse = await r.text();
-        if(textResponse.trim().startsWith("<")) throw new Error("Google Blocked Request");
-        const d = JSON.parse(textResponse);
-        if(d.success) {
-            user = d.user; user.mobile = m;
-            localStorage.setItem("phc_user_session", JSON.stringify(user));
-            showAppAfterLogin();
-        } else { alert(d.message); }
+        const { data, error } = await supabase
+            .from('users')
+            .select('*')
+            .eq('mobile', m)
+            .eq('password', p)
+            .single();
+
+        if (error || !data) {
+            alert("लॉगिन अयशस्वी: चुकीचा मोबाईल नंबर किंवा पासवर्ड!");
+            document.getElementById('netStatus').innerText = "Online";
+            return;
+        }
+
+        user = data; 
+        user.mobile = m;
+        localStorage.setItem("phc_user_session", JSON.stringify(user));
+        showAppAfterLogin();
         document.getElementById('netStatus').innerText = "Online";
-    } catch(e) { alert("लॉगिन अयशस्वी. कृपया इंटरनेट कनेक्शन तपासा."); document.getElementById('netStatus').innerText = "Offline"; }
+        
+        await fetchData(); // नवीन डेटा लोड करा
+    } catch(e) { 
+        alert("लॉगिन अयशस्वी. कृपया इंटरनेट कनेक्शन तपासा."); 
+        document.getElementById('netStatus').innerText = "Offline"; 
+    }
 }
 
 function showAppAfterLogin() {
@@ -99,8 +129,8 @@ function showAppAfterLogin() {
         document.getElementById('tabAdmin').classList.add('hidden');
     }
 
-    updateFormDropdowns();
-    updateVillageDropdown();
+    if(typeof updateFormDropdowns === "function") updateFormDropdowns();
+    if(typeof updateVillageDropdown === "function") updateVillageDropdown();
     if(typeof updateEditVillageDropdown === "function") updateEditVillageDropdown();
 }
 
@@ -118,8 +148,8 @@ function switchTab(tab) {
     if(tab === 'entry') {
         document.getElementById('tabEntry').classList.add('active');
         document.getElementById('entrySection').classList.remove('hidden');
-        updateFormDropdowns(); 
-        updateVillageDropdown();
+        if(typeof updateFormDropdowns === "function") updateFormDropdowns(); 
+        if(typeof updateVillageDropdown === "function") updateVillageDropdown();
     } else if(tab === 'edit') {
         document.getElementById('tabEdit').classList.add('active');
         document.getElementById('editSection').classList.remove('hidden');
@@ -133,7 +163,6 @@ function switchTab(tab) {
     }
 }
 
-// Common Helper Functions
 function isMobile() { return window.innerWidth <= 768; }
 
 function isFormInactive(f) {
@@ -143,6 +172,10 @@ function isFormInactive(f) {
     }
     if (f.isActive !== undefined && f.isActive !== null) {
         let s = String(f.isActive).trim().toUpperCase();
+        return (s === "FALSE" || s === "INACTIVE");
+    }
+    if (f.IsActive !== undefined && f.IsActive !== null) {
+        let s = String(f.IsActive).trim().toUpperCase();
         return (s === "FALSE" || s === "INACTIVE");
     }
     return false;
@@ -166,6 +199,7 @@ function closeChangePassword() {
     document.getElementById('pwdMsg').innerText = "";
 }
 
+// 🟢 Supabase - Change Password
 async function submitChangePassword() {
     const oldP = document.getElementById('oldPwd').value.trim();
     const newP = document.getElementById('newPwd').value.trim();
@@ -176,23 +210,25 @@ async function submitChangePassword() {
     if(newP !== confP) { msg.style.color="red"; msg.innerText="नवीन पासवर्ड जुळत नाही!"; return; }
     if(newP.length < 4) { msg.style.color="red"; msg.innerText="नवीन पासवर्ड कमीत कमी ४ अक्षरी असावा."; return; }
 
+    if(oldP !== user.password) {
+        msg.style.color="red"; msg.innerText="सध्याचा (जुना) पासवर्ड चुकीचा आहे!"; return;
+    }
+
     const btn = document.getElementById('btnChangePwd');
     btn.disabled = true;
     msg.style.color="orange";
     msg.innerText="पासवर्ड बदलत आहे, कृपया थांबा...";
 
     try {
-        const payload = { mobileNo: user.mobile, oldPassword: oldP, newPassword: newP };
-        const r = await fetch(GAS_URL, { method: "POST", body: JSON.stringify({action:"changePassword", payload}) });
-        const d = await r.json();
-        if(d.success) {
-            msg.style.color="green";
-            msg.innerText="✅ " + d.message;
-            setTimeout(closeChangePassword, 3000);
-        } else {
-            msg.style.color="red";
-            msg.innerText="⚠️ " + d.message;
-        }
+        const { error } = await supabase.from('users').update({ password: newP }).eq('mobile', user.mobile);
+        if (error) throw error;
+        
+        user.password = newP;
+        localStorage.setItem("phc_user_session", JSON.stringify(user));
+        
+        msg.style.color="green";
+        msg.innerText="✅ पासवर्ड यशस्वीरित्या बदलला!";
+        setTimeout(closeChangePassword, 3000);
     } catch(e) {
         msg.style.color="red";
         msg.innerText="इंटरनेट एरर! कृपया पुन्हा प्रयत्न करा.";
@@ -201,7 +237,7 @@ async function submitChangePassword() {
     }
 }
 
-// Global Core Logic Evaluators
+// Global Core Logic Evaluators (Same as before)
 function getFieldValueByFid(containerId, fid) {
     let container = document.getElementById(containerId);
     if(!container) return `""`;
