@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="mr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PHC Advance Management</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#00705a">
+    
+    <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+    <div id="initialLoader">
+        <div class="spinner"></div>
+        <h3 style="color: var(--primary);">डेटा लोड होत आहे, कृपया प्रतीक्षा करा...</h3>
+    </div>
+
+    <div class="container hidden" id="mainApp">
+        <div id="netStatus" class="status-bar online">Online</div>
+
+        <div id="loginBox" class="hidden">
+            <h3>कर्मचारी लॉगिन</h3>
+            <input type="tel" id="mob" placeholder="मोबाईल नंबर">
+            <input type="password" id="pwd" placeholder="वैयक्तिक पासवर्ड">
+            <button class="btn-primary" onclick="handleLogin()">प्रवेश करा</button>
+        </div>
+
+        <div id="dashboardWrapper" class="hidden">
+            
+            <div class="header-bar">
+                <div>
+                    <h3 style="margin: 0;" id="uNameTitle">स्वागत आहे, <span id="uName"></span></h3>
+                    <p id="uSub" style="margin: 2px 0 0 0; font-size: 13px; color: gray;"></p>
+                </div>
+                <div style="display:flex; gap:5px;">
+                    <button class="btn-logout" style="background:#17a2b8;" onclick="openChangePassword()">पासवर्ड बदला</button>
+                    <button class="btn-logout" onclick="logoutUser()">Log Out</button>
+                </div>
+            </div>
+
+            <div id="changePasswordBox" class="hidden" style="background:#f4f7f6; padding:15px; border-radius:8px; border:2px solid #17a2b8; margin-bottom:20px; box-shadow:0 4px 8px rgba(0,0,0,0.1);">
+                <h3 style="color:#17a2b8; margin-top:0;">🔐 पासवर्ड बदला</h3>
+                <input type="password" id="oldPwd" placeholder="सध्याचा (जुना) पासवर्ड">
+                <input type="password" id="newPwd" placeholder="नवीन पासवर्ड (कमीत कमी ४ अक्षरे)">
+                <input type="password" id="confirmNewPwd" placeholder="नवीन पासवर्ड पुन्हा टाका">
+                <div style="display:flex; gap:10px; margin-top:10px;">
+                    <button class="btn-report" onclick="submitChangePassword()" id="btnChangePwd" style="padding:12px; border-radius:6px; flex:1;">बदल जतन करा</button>
+                    <button class="btn-logout" style="background:#6c757d; padding:12px; border-radius:6px; flex:1;" onclick="closeChangePassword()">रद्द करा</button>
+                </div>
+                <p id="pwdMsg" style="text-align:center; font-size:14px; font-weight:bold; margin-top: 10px;"></p>
+            </div>
+
+            <div class="nav-tabs">
+                <button class="nav-tab active" id="tabEntry" onclick="switchTab('entry')">📝 डेटा एंट्री</button>
+                <button class="nav-tab" id="tabEdit" onclick="switchTab('edit')">✏️ फॉर्म एडिट</button>
+                <button class="nav-tab" id="tabReports" onclick="switchTab('reports')">📊 रिपोर्ट्स</button>
+                <button class="nav-tab hidden" id="tabAdmin" onclick="switchTab('admin')">⚙️ ॲडमिन</button>
+            </div>
+
+            <div id="entrySection">
+                <label>फॉर्म निवडा:</label>
+                <select id="selForm" onchange="updateVillageDropdown(); loadDynamicFields();"></select>
+                
+                <div id="nilButtonContainer"></div>
+
+                <div class="row-flex" style="margin-top: 10px;">
+                    <div><label>महिना:</label><select id="selMonth" onchange="updateFormDropdowns(); updateVillageDropdown();">
+                        <option value="जानेवारी">जानेवारी</option><option value="फेब्रुवारी">फेब्रुवारी</option><option value="मार्च">मार्च</option><option value="एप्रिल" selected>एप्रिल</option>
+                        <option value="मे">मे</option><option value="जून">जून</option><option value="जुलै">जुलै</option><option value="ऑगस्ट">ऑगस्ट</option>
+                        <option value="सप्टेंबर">सप्टेंबर</option><option value="ऑक्टोबर">ऑक्टोबर</option><option value="नोव्हेंबर">नोव्हेंबर</option><option value="डिसेंबर">डिसेंबर</option>
+                    </select></div>
+                    <div><label>वर्ष:</label><select id="selYear" onchange="updateFormDropdowns(); updateVillageDropdown();"><option value="2025">2025</option><option value="2026" selected>2026</option></select></div>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top: 10px;">
+                    <label style="margin:0;">गाव निवडा:</label>
+                </div>
+                <select id="selVillage" onchange="loadDynamicFields()"></select>
+                
+                <div id="dynamicFormArea"></div>
+                
+                <button id="mainSaveBtn" class="btn-primary" onclick="saveDataToServer()" style="margin-top:20px;">माहिती जतन करा (Save to Cloud)</button>
+                <p id="syncStatus" style="text-align:center; font-size:14px; font-weight:bold; margin-top: 10px;"></p>
+            </div>
+
+            <div id="editSection" class="hidden">
+                <h3>सबमिट केलेले फॉर्म एडिट करा</h3>
+                <select id="editFormSelect" onchange="updateEditVillageDropdown()"></select>
+                <div class="row-flex" style="margin-top: 10px;">
+                    <div><label>महिना:</label><select id="editMonth" onchange="updateEditVillageDropdown()">
+                        <option value="जानेवारी">जानेवारी</option><option value="फेब्रुवारी">फेब्रुवारी</option><option value="मार्च">मार्च</option><option value="एप्रिल" selected>एप्रिल</option>
+                        <option value="मे">मे</option><option value="जून">जून</option><option value="जुलै">जुलै</option><option value="ऑगस्ट">ऑगस्ट</option>
+                        <option value="सप्टेंबर">सप्टेंबर</option><option value="ऑक्टोबर">ऑक्टोबर</option><option value="नोव्हेंबर">नोव्हेंबर</option><option value="डिसेंबर">डिसेंबर</option>
+                    </select></div>
+                    <div><label>वर्ष:</label><select id="editYear" onchange="updateEditVillageDropdown()"><option value="2025">2025</option><option value="2026" selected>2026</option></select></div>
+                </div>
+                <label>भरलेले गाव / रेकॉर्ड निवडा (फक्त मागील ४८ तासांतील):</label>
+                <select id="editVillageSelect"></select>
+                <button class="btn-edit-tab" id="btnFetchEdit" onclick="fetchRecordForEdit()" style="margin-top:15px; padding:12px;">माहिती मिळवा 🔍</button>
+                <div id="editLoader" style="text-align:center; color:orange; margin-top:10px; display:none; font-weight:bold;">डेटा शोधत search करत आहे...</div>
+                <div id="editDynamicFormArea" class="hidden" style="margin-top: 20px;"></div>
+                <button id="editSaveBtn" class="btn-primary hidden" onclick="saveEditedData()" style="margin-top:20px; background:#e67e22;">बदल जतन करा (Update)</button>
+                <p id="editSyncStatus" style="text-align:center; font-size:14px; font-weight:bold; margin-top: 10px;"></p>
+            </div>
+
+            <div id="reportsSection" class="hidden">
+                <h3>मासिक अहवाल डाउनलोड करा</h3>
+                
+                <!-- 🟢 ॲडमिनसाठी खास लपवलेला (Hidden) डॅशबोर्ड -->
+                <div class="row-flex" id="adminRoleFilterDiv" style="margin-bottom: 15px; display: none; background: #e8f4f8; padding: 15px; border-radius: 8px; border: 1px solid #bce8f1; gap: 15px; flex-wrap: wrap;">
+                    <div style="flex: 1; min-width: 200px;">
+                        <label style="font-weight:bold; color:#31708f;">कर्मचाऱ्याचे पद फिल्टर:</label>
+                        <select id="reportRoleFilter" style="border: 1px solid #0056b3;">
+                            <option value="सर्व">सर्व कर्मचारी (All Combined)</option>
+                            <option value="ANM">फक्त ANM चा डेटा</option>
+                            <option value="MPW">फक्त MPW चा डेटा</option>
+                            <option value="CHO">फक्त CHO चा डेटा</option>
+                        </select>
+                    </div>
+                    <!-- 🟢 अहवाल गट निवड (फक्त ॲडमिनला दिसेल) -->
+                    <div style="flex: 1; min-width: 200px;">
+                        <label style="font-weight:bold; color:#31708f;">अहवाल गट (Grouping):</label>
+                        <select id="reportGroupFilter" style="border: 1px solid #0056b3;">
+                            <option value="Village">गावनिहाय (Village Wise)</option>
+                            <option value="SubCenter">उपकेंद्रनिहाय बेरीज (Sub-Center Wise)</option>
+                            <option value="SubCenterConsolidated" style="font-weight:bold; color:#d35400;">एकत्रित उपकेंद्रनिहाय (Consolidated Format)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="row-flex" style="margin-bottom: 15px;">
+                    <div style="flex: 2;"><label>अहवाल निवडा:</label><select id="reportFormSelect"></select></div>
+                </div>
+                <div class="row-flex" style="margin-bottom: 15px;">
+                    <div><label>महिना:</label><select id="reportMonth">
+                        <option value="सर्व">सर्व महिने</option><option value="जानेवारी">जानेवारी</option><option value="फेब्रुवारी">फेब्रुवारी</option>
+                        <option value="मार्च">मार्च</option><option value="एप्रिल" selected>एप्रिल</option>
+                        <option value="मे">मे</option><option value="जून">जून</option><option value="जुलै">जुलै</option><option value="ऑगस्ट">ऑगस्ट</option>
+                        <option value="सप्टेंबर">सप्टेंबर</option><option value="ऑक्टोबर">ऑक्टोबर</option><option value="नोव्हेंबर">नोव्हेंबर</option><option value="डिसेंबर">डिसेंबर</option>
+                    </select></div>
+                    <div><label>वर्ष:</label><select id="reportYear"><option value="सर्व">सर्व वर्षे</option><option value="2025">2025</option><option value="2026" selected>2026</option></select></div>
+                </div>
+                <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                    <button class="btn-report" style="flex:1;" onclick="fetchReportData()">अहवाल तयार करा 📊</button>
+                    <button class="btn-report" style="flex:1; background:#e74c3c;" onclick="generatePendingReport()">⚠️ अपूर्ण अहवाल (Pending) तपासा</button>
+                </div>
+                <div id="reportLoader" style="text-align:center; color:orange; margin-top:10px; display:none; font-weight:bold;">डेटा लोड होत आहे, कृपया थांबा...</div>
+                
+                <div id="reportContentArea" class="hidden" style="margin-top: 20px;">
+                    <div id="downloadButtonsArea" style="text-align: right; margin-bottom: 10px;"></div>
+                    <div class="table-responsive" id="reportTableContainer"></div>
+                </div>
+            </div>
+
+            <div id="adminSection" class="hidden">
+                <button class="btn-admin" onclick="openNewFormBuilder()">➕ नवीन फॉर्म तयार करा</button>
+                <div id="existingFormsArea" style="margin-top:20px;">
+                    <h4>अस्तित्वात असलेले फॉर्म (Edit करा)</h4>
+                    <div id="formsEditList"></div>
+                </div>
+                <hr>
+                
+                <div id="formBuilder" class="hidden" style="background: #fff8f0; padding: 15px; border-radius: 8px; border: 1px solid orange;">
+                    <h3 id="builderTitle">नवीन फॉर्म तयार करा</h3>
+                    <input type="hidden" id="editFormID">
+                    <input type="text" id="newFormName" placeholder="फॉर्मचे नाव">
+
+                    <select id="newFormType" onchange="toggleLayoutOption()">
+                        <option value="Stats">गावनिहाय आकडेवारी (फक्त मासिक / Monthly Only)</option>
+                        <option value="ProgressiveStats" style="font-weight:bold; color:var(--primary);">📊 गावनिहाय आकडेवारी (मासिक + प्रगत)</option>
+                        <option value="List">गावनिहाय लिस्ट (Patient List)</option>
+                    </select>
+
+                    <div id="layoutDiv" style="margin-top:10px; background:#e1f5fe; padding:10px; border-radius:5px; border:1px solid #b3e5fc;">
+                        <label style="font-weight:bold; color:#0277bd;">अहवाल फॉरमॅट (Report Layout):</label>
+                        <select id="newFormLayout" style="margin-top:5px;">
+                            <option value="Horizontal">आडवा अहवाल (गावे उभ्या रांगेत)</option>
+                            <option value="Vertical" style="font-weight:bold; color:#0277bd;">उभा अहवाल (गावे आडव्या रांगेत)</option>
+                        </select>
+                    </div>
+
+                    <div style="margin-top:10px;">
+                        <input type="checkbox" id="formIsActive" checked> <label for="formIsActive" style="font-weight:bold; color:#d35400;">हा फॉर्म सुरू (Active) ठेवा</label>
+                    </div>
+
+                    <div style="background:#e8f4f8; padding:10px; border-radius:5px; margin-bottom:10px; margin-top:10px; border:1px solid #bce8f1;">
+                        <label style="font-weight:bold; color:#31708f;">हा फॉर्म कोणी भरावा? (Access Role):</label><br>
+                        <input type="checkbox" id="roleAll" value="ALL" checked onchange="toggleRoles(this)"> सर्वांसाठी (ALL)<br>
+                        <div id="specificRoles" style="margin-top:5px; display:none;">
+                            <input type="checkbox" class="form-role" value="ANM"> ANM &nbsp;&nbsp;
+                            <input type="checkbox" class="form-role" value="MPW"> MPW &nbsp;&nbsp;
+                            <input type="checkbox" class="form-role" value="CHO"> CHO
+                        </div>
+                    </div>
+
+                    <div id="fieldsList"></div>
+                    <button onclick="addField()" style="background:#e9ecef; color:#333; font-weight:bold; border:1px solid #ccc;">+ मुख्य प्रश्न जो ব্যক্ত करा</button>
+                    <button id="mainActionBtn" class="btn-primary" onclick="saveFullForm()" style="margin-top:15px;">फॉर्म सेव्ह करा</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script src="js/config.js?v=25"></script>
+    <script src="js/entry.js?v=25"></script>
+    <script src="js/edit.js?v=25"></script>
+    <script src="js/report.js?v=25"></script>
+    <script src="js/admin.js?v=25"></script>
+
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('./sw.js')
+            .then(reg => console.log('Service Worker registered successfully!', reg))
+            .catch(err => console.error('Service Worker registration failed:', err));
+        });
+      }
+    </script>
+</body>
+</html>
