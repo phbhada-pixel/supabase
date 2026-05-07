@@ -98,3 +98,43 @@ input.error-input::placeholder { color: #ff4d4d; font-weight: bold; }
     padding: 20px;
     font-family: 'Segoe UI', sans-serif;
 }
+
+/* ========================================= */
+/* 🟢 FIX FOR CHECKBOXES AND FORM BUILDER UI */
+/* ========================================= */
+
+input[type="checkbox"], input[type="radio"] {
+    width: auto !important;
+    margin: 0 5px 0 0 !important;
+    display: inline-block;
+    vertical-align: middle;
+    cursor: pointer;
+}
+
+.field-builder {
+    background: #f8f9fa;
+    padding: 15px;
+    margin-bottom: 15px;
+    border-radius: 8px;
+    border: 1px solid #ced4da;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.field-builder input[type="text"], .field-builder select {
+    margin: 0 !important;
+    border: 1px solid #00705a;
+}
+
+.field-builder-row {
+    display: flex; 
+    gap: 15px; 
+    align-items: center; 
+    flex-wrap: wrap;
+}
+
+@media (max-width: 768px) {
+    .field-builder-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}
