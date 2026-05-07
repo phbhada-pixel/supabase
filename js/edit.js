@@ -1,4 +1,61 @@
-// 🟢 UPDATED Supabase Fetch Logic
+// 🟢 JS/EDIT.JS - Supabase Logic
+
+function updateEditVillageDropdown() {
+    const vSel = document.getElementById('editVillageSelect');
+    const fId = document.getElementById('editFormSelect').value;
+    const month = document.getElementById('editMonth').value;
+    const year = document.getElementById('editYear').value;
+
+    vSel.innerHTML = '<option value="">-- भरलेले गाव / रेकॉर्ड निवडा --</option>';
+    if(!user || !fId) return;
+
+    if (isMonthLocked(month, year)) {
+        vSel.innerHTML = '<option value="">-- मुदत संपली आहे --</option>';
+        document.getElementById('editDynamicFormArea').classList.add('hidden');
+        document.getElementById('editSaveBtn').classList.add('hidden');
+        document.getElementById('btnFetchEdit').style.display = 'none';
+        return;
+    } else {
+        document.getElementById('btnFetchEdit').style.display = 'block';
+    }
+
+    const f = masterData.forms.find(x => x.FormID === fId);
+    let allowedRoles = f && f.AllowedRoles ? f.AllowedRoles.split(',').map(r=>String(r).trim().toUpperCase()) : ["ALL"];
+    let isAll = allowedRoles.includes("ALL");
+
+    const serverHistory = masterData.filledStats || [];
+    let addedVillages = [];
+
+    serverHistory.forEach(h => {
+        if(h.formID === fId && String(h.month).trim() === String(month).trim() && String(h.year).trim() === String(year).trim()) {
+            
+            // Note: Since we are using Supabase, we should ideally check h.created_at instead of h.timestamp
+            let timeString = h.created_at || h.timestamp; 
+            if (timeString && user.role !== "Admin") {
+                let recTime = new Date(timeString).getTime();
+                if (!isNaN(recTime)) {
+                    let diffHours = (Date.now() - recTime) / (1000 * 60 * 60);
+                    if (diffHours > 48) { return; } // Skip if older than 48 hours for non-admins
+                }
+            }
+
+            let canEdit = false;
+            if(user.role === "Admin") canEdit = true;
+            else if(isAll && String(h.subcenter).trim().toLowerCase() === String(user.subcenter).trim().toLowerCase()) canEdit = true;
+            else if(!isAll && String(h.mobileNo).trim() === String(user.mobile).trim() || String(h.mobile).trim() === String(user.mobile).trim()) canEdit = true;
+
+            if(canEdit && !addedVillages.includes(h.village)) {
+                vSel.innerHTML += `<option value="${h.village}">${h.village}</option>`;
+                addedVillages.push(h.village);
+            }
+        }
+    });
+
+    document.getElementById('editDynamicFormArea').classList.add('hidden');
+    document.getElementById('editSaveBtn').classList.add('hidden');
+}
+
+// 🟢 UPDATED Supabase Fetch Logic (Replaced Google Apps Script fetch)
 async function fetchRecordForEdit() {
     const formID = document.getElementById('editFormSelect').value;
     const month = document.getElementById('editMonth').value;
@@ -6,6 +63,7 @@ async function fetchRecordForEdit() {
     const village = document.getElementById('editVillageSelect').value;
 
     if(!formID || !village) { alert("कृपया फॉर्म आणि गाव निवडा."); return; }
+
     if (isMonthLocked(month, year)) { alert("⏳ क्षमस्व! या महिन्याची माहिती बदलण्याची मुदत (पुढील महिन्याची १० तारीख) संपली आहे."); return; }
 
     document.getElementById('editLoader').style.display = "block";
@@ -13,7 +71,7 @@ async function fetchRecordForEdit() {
     document.getElementById('editSaveBtn').classList.add('hidden');
 
     try {
-        // Fetch from Supabase instead of Google Apps Script
+        // Fetch from Supabase
         const { data, error } = await supabase
             .from('filled_stats')
             .select('*')
@@ -30,7 +88,7 @@ async function fetchRecordForEdit() {
         if(data && data.length > 0) {
             let record = data[0];
             
-            // Time Check for 48 hours
+            // Time Check for 48 hours using Supabase created_at
             if(record.created_at && user.role !== "Admin") {
                 let recTime = new Date(record.created_at).getTime();
                 if(!isNaN(recTime)) {
@@ -52,7 +110,62 @@ async function fetchRecordForEdit() {
     }
 }
 
-// 🟢 UPDATED Supabase Save Logic
+function renderEditForm(fId, formData) {
+    const area = document.getElementById('editDynamicFormArea');
+    area.innerHTML = "";
+    const f = masterData.forms.find(x => x.FormID === fId);
+    if(!f) return;
+
+    let html = "";
+    JSON.parse(f.StructureJSON).forEach((field, i) => {
+        let exactLabel = String(field.label).trim();
+        let reqStar1 = field.isRequired ? '<span class="req-star">*</span>' : '';
+
+        if (field.type === 'group') {
+            html += `<div style="margin-bottom:15px; background:#e3f2fd; padding:12px; border-radius:8px; border:1px solid #f39c12;">
+            <h4 style="margin-top:0; color:#d35400; text-align:left; border-bottom:1px solid #ccc; padding-bottom:5px;">${exactLabel}${reqStar1}</h4>`;
+            field.subFields.forEach((sf, j) => {
+                let exactSfLabel = String(sf.label).trim();
+                let reqStar2 = sf.isRequired ? '<span class="req-star">*</span>' : '';
+
+                if(sf.type === 'group') {
+                    html += `<div style="margin-bottom:10px; margin-left:10px; background:#e0f7fa; padding:10px; border-radius:5px; border-left:3px solid #00acc1;">
+                    <h5 style="margin:0 0 5px 0; color:#00838f;">${exactSfLabel}${reqStar2}</h5>`;
+                    sf.subFields.forEach((ssf, k) => {
+                        let exactSsfLabel = String(ssf.label).trim();
+                        let reqStar3 = ssf.isRequired ? '<span class="req-star">*</span>' : '';
+                        let exactSubSubLabel = `${exactLabel} - ${exactSfLabel} - ${exactSsfLabel}`;
+                        let val = formData[exactSubSubLabel] || "";
+                        html += `<div style="margin-bottom:8px;"><label style="font-size:13px; color:#555;"><b>${exactSsfLabel}${reqStar3}:</b></label>`;
+                        html += generateInputHTML(ssf, `edit_inp_${i}_${j}_${k}`, exactSubSubLabel, 'editDynamicFormArea', val);
+                        html += `</div>`;
+                    });
+                    html += `</div>`;
+                } else {
+                    let exactSubLabel = `${exactLabel} - ${exactSfLabel}`;
+                    let val = formData[exactSubLabel] || "";
+                    html += `<div style="margin-bottom:10px;"><label style="font-size:14px; color:#555;"><b>${exactSfLabel}${reqStar2}:</b></label>`;
+                    html += generateInputHTML(sf, `edit_inp_${i}_${j}`, exactSubLabel, 'editDynamicFormArea', val);
+                    html += `</div>`;
+                }
+            });
+            html += `</div>`;
+        } else {
+            let val = formData[exactLabel] || "";
+            html += `<div style="margin-bottom:15px; background:white; padding:10px; border-radius:8px; border:1px solid #ddd;"><label><b>${exactLabel}${reqStar1}:</b></label>`;
+            html += generateInputHTML(field, `edit_inp_${i}`, exactLabel, 'editDynamicFormArea', val);
+            html += `</div>`;
+        }
+    });
+    area.innerHTML = html;
+
+    area.classList.remove('hidden');
+    document.getElementById('editSaveBtn').classList.remove('hidden');
+
+    setTimeout(() => { processAllLogic('editDynamicFormArea'); }, 100);
+}
+
+// 🟢 UPDATED Supabase Update Logic (Replaced Google Apps Script fetch)
 async function saveEditedData() {
     if(isSaving) return;
     const saveBtn = document.getElementById('editSaveBtn');
@@ -110,7 +223,7 @@ async function saveEditedData() {
         statusText.style.color = "orange";
         statusText.innerText = "☁️ नवीन बदल गुगल शीटवर सेव्ह होत आहेत...";
 
-        // Update in Supabase
+        // 🟢 Update in Supabase
         const { error } = await supabase
             .from('filled_stats')
             .update({ formData: updatedFormData })
