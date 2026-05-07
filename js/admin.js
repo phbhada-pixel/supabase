@@ -187,6 +187,8 @@ async function saveFullForm() {
 
     if(structure.length === 0) { alert("कमीत कमी १ प्रश्न आवश्यक आहे!"); return; }
 
+    // ⚠️ IMPORTANT: If your columns in Supabase are all lowercase (e.g., 'formid'), 
+    // you MUST change 'FormID' to 'formid' here.
     let formPayload = {
         FormID: fId ? fId : "F_" + Date.now(),
         FormName: fName,
@@ -202,7 +204,10 @@ async function saveFullForm() {
     try {
         const { error } = await supabase.from('forms').upsert([formPayload]); // Create or Update
 
-        if (error) throw error;
+        if (error) {
+            console.error("SUPABASE ERROR DETAILS:", error); // 🟢 This will show the exact reason it failed in the console
+            throw error;
+        }
 
         alert("✅ फॉर्म यशस्वीरित्या सेव्ह झाला!");
         document.getElementById('formBuilder').classList.add('hidden');
@@ -212,7 +217,7 @@ async function saveFullForm() {
         if(user.role === 'Admin' || user.role === 'MANAGER' || user.role === 'VIEWER') renderExistingFormsList();
     } catch (error) {
         console.error("Form Save Error:", error);
-        alert("एरर: फॉर्म सेव्ह होऊ शकला नाही.");
+        alert("एरर: फॉर्म सेव्ह होऊ शकला नाही. (Console तपासा)");
         document.getElementById('mainActionBtn').innerText = "फॉर्म सेव्ह करा";
         document.getElementById('mainActionBtn').disabled = false;
     }
