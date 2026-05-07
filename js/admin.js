@@ -1,4 +1,4 @@
-// 🟢 JS/ADMIN.JS - Supabase Logic
+// 🟢 JS/ADMIN.JS - Supabase & New UI Logic
 
 function openNewFormBuilder() {
     document.getElementById('formBuilder').classList.remove('hidden');
@@ -87,27 +87,31 @@ function loadFormForEdit(f) {
     else { structure.forEach(field => addFieldToUI(field)); }
 }
 
+// 🟢 सुटसुटीत आणि User-Friendly 'मुख्य प्रश्न' डिझाईन
 function addFieldToUI(fieldData = null) {
     const list = document.getElementById('fieldsList');
     const fDiv = document.createElement('div');
     fDiv.className = "field-builder";
     let isReqChecked = (fieldData && fieldData.isRequired) ? "checked" : "";
     fDiv.innerHTML = `
-        <div style="display:flex; gap:10px; align-items:center;">
-            <button onclick="this.parentElement.parentElement.remove()" style="color:red; font-weight:bold; background:none; border:none; font-size:18px;">✖</button>
-            <input type="text" class="f-label" placeholder="प्रश्नाचे नाव" value="${fieldData ? fieldData.label : ''}" style="flex:2; padding:8px; border:1px solid #ccc; border-radius:4px;">
-            <select class="f-type" style="flex:1; padding:8px; border:1px solid #ccc; border-radius:4px;">
-                <option value="number" ${(fieldData && fieldData.type === 'number') ? 'selected' : ''}>Number</option>
-                <option value="text" ${(fieldData && fieldData.type === 'text') ? 'selected' : ''}>Text</option>
-                <option value="dropdown" ${(fieldData && fieldData.type === 'dropdown') ? 'selected' : ''}>Dropdown</option>
-                <option value="group" ${(fieldData && fieldData.type === 'group') ? 'selected' : ''}>Group (Sub-questions)</option>
+        <div class="field-builder-row">
+            <button type="button" tabindex="-1" onclick="this.parentElement.parentElement.remove()" style="color:white; background:#dc3545; border:none; padding:10px 15px; border-radius:4px; font-weight:bold; cursor:pointer; width:auto; margin:0; flex-shrink:0;">✖ काढून टाका</button>
+            
+            <input type="text" class="f-label" placeholder="येथे प्रश्नाचे नाव टाका (उदा. रुग्णाचे नाव)" value="${fieldData ? fieldData.label : ''}" style="flex:2; min-width:200px; padding:10px; border-radius:4px;">
+            
+            <select class="f-type" style="flex:1; min-width:150px; padding:10px; border-radius:4px; background:#fff;">
+                <option value="number" ${(fieldData && fieldData.type === 'number') ? 'selected' : ''}>Number (फक्त आकडे)</option>
+                <option value="text" ${(fieldData && fieldData.type === 'text') ? 'selected' : ''}>Text (अक्षरे)</option>
+                <option value="dropdown" ${(fieldData && fieldData.type === 'dropdown') ? 'selected' : ''}>Dropdown (पर्याय)</option>
+                <option value="group" ${(fieldData && fieldData.type === 'group') ? 'selected' : ''}>Group (सब-प्रश्न जोडा)</option>
             </select>
+
+            <label style="display:flex; align-items:center; font-size:14px; font-weight:bold; cursor:pointer; margin:0; flex-shrink:0; background:#e8f5e9; padding:10px; border-radius:4px; border:1px solid #28a745; color:#155724;">
+                <input type="checkbox" class="f-req" ${isReqChecked} style="width:18px; height:18px;"> आवश्यक आहे (*)
+            </label>
         </div>
-        <div style="margin-left: 30px; margin-top: 5px;">
-            <label style="font-size:12px;"><input type="checkbox" class="f-req" ${isReqChecked}> आवश्यक आहे (*)</label>
-        </div>
-        <div class="sub-fields" style="margin-left:20px; border-left:2px dashed #bbb; padding-left:10px; margin-top:10px;"></div>
-        <button class="add-sub-btn hidden" onclick="addSubField(this.parentElement)" style="margin-left:20px; background:#f8f9fa; border:1px solid #ccc; color:#333; font-size:12px; margin-top:5px;">+ सब-प्रश्न जोडा</button>
+        <div class="sub-fields" style="margin-left:30px; border-left:3px solid #17a2b8; padding-left:15px; margin-top:15px;"></div>
+        <button type="button" class="add-sub-btn hidden" onclick="addSubField(this.parentElement)" style="margin-left:30px; background:#e0f7fa; border:1px solid #00acc1; color:#00838f; font-weight:bold; padding:8px 15px; border-radius:4px; margin-top:10px; width:auto; cursor:pointer;">➕ नवीन सब-प्रश्न जोडा</button>
     `;
     list.appendChild(fDiv);
     let typeSel = fDiv.querySelector('.f-type');
@@ -122,22 +126,26 @@ function addFieldToUI(fieldData = null) {
 
 function addField() { addFieldToUI(); }
 
+// 🟢 सुटसुटीत आणि User-Friendly 'सब-प्रश्न' डिझाईन
 function addSubFieldToUI(parentDiv, sfData = null) {
     const subList = parentDiv.querySelector('.sub-fields');
     const sDiv = document.createElement('div');
-    sDiv.style.marginBottom = "10px";
+    sDiv.style.marginBottom = "12px";
     let isReqChecked = (sfData && sfData.isRequired) ? "checked" : "";
     sDiv.innerHTML = `
-        <div style="display:flex; gap:10px; align-items:center;">
-            <button onclick="this.parentElement.parentElement.remove()" style="color:orange; font-weight:bold; background:none; border:none; font-size:16px;">✖</button>
-            <input type="text" class="sf-label" placeholder="सब-प्रश्नाचे नाव" value="${sfData ? sfData.label : ''}" style="flex:2; padding:6px; border:1px solid #bbb; border-radius:4px;">
-            <select class="sf-type" style="flex:1; padding:6px; border:1px solid #bbb; border-radius:4px;">
-                <option value="number" ${(sfData && sfData.type === 'number') ? 'selected' : ''}>Number</option>
-                <option value="text" ${(sfData && sfData.type === 'text') ? 'selected' : ''}>Text</option>
+        <div class="field-builder-row" style="background:#fff; padding:10px; border-radius:6px; border:1px solid #ddd;">
+            <button type="button" tabindex="-1" onclick="this.parentElement.parentElement.remove()" style="color:#dc3545; background:none; border:none; font-weight:bold; font-size:18px; cursor:pointer; width:auto; margin:0; padding:0 10px;">✖</button>
+            
+            <input type="text" class="sf-label" placeholder="सब-प्रश्नाचे नाव" value="${sfData ? sfData.label : ''}" style="flex:2; min-width:180px; padding:8px; border:1px solid #bbb; border-radius:4px;">
+            
+            <select class="sf-type" style="flex:1; min-width:120px; padding:8px; border:1px solid #bbb; border-radius:4px;">
+                <option value="number" ${(sfData && sfData.type === 'number') ? 'selected' : ''}>Number (आकडे)</option>
+                <option value="text" ${(sfData && sfData.type === 'text') ? 'selected' : ''}>Text (अक्षरे)</option>
             </select>
-        </div>
-        <div style="margin-left: 25px; margin-top: 3px;">
-            <label style="font-size:12px;"><input type="checkbox" class="sf-req" ${isReqChecked}> आवश्यक आहे (*)</label>
+
+            <label style="display:flex; align-items:center; font-size:13px; font-weight:bold; cursor:pointer; margin:0;">
+                <input type="checkbox" class="sf-req" ${isReqChecked} style="width:16px; height:16px;"> आवश्यक (*)
+            </label>
         </div>
     `;
     subList.appendChild(sDiv);
