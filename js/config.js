@@ -43,34 +43,45 @@ window.onload = function() {
 };
 
 // 🟢 Supabase - Fetch Data
+// 🟢 UPDATED fetchData Function (Case-Sensitivity & Admin Edit Fix)
 async function fetchData() {
     try {
+        // 🟢 '.eq('IsActive', true)' काढून टाकले आहे. 
+        // यामुळे कॅपिटल/स्मॉल चा एरर येणार नाही आणि ॲडमिनला सर्व (Active/Inactive) फॉर्म्स एडिटसाठी दिसतील.
         const [usersRes, villagesRes, formsRes, statsRes] = await Promise.all([
             supabase.from('users').select('*'),
             supabase.from('villages').select('*'),
-            supabase.from('forms').select('*').eq('IsActive', true),
+            supabase.from('forms').select('*'), // 🟢 हा सर्वात महत्त्वाचा बदल
             supabase.from('filled_stats').select('*')
         ]);
 
         if (usersRes.error) throw usersRes.error;
         if (villagesRes.error) throw villagesRes.error;
-        if (formsRes.error) throw formsRes.error;
+        if (formsRes.error) {
+            console.error("Forms Fetch Error:", formsRes.error);
+            throw formsRes.error;
+        }
         if (statsRes.error) throw statsRes.error;
 
+        // डेटा मास्टर व्हेरिएबलमध्ये सेव्ह करणे
         masterData.users = usersRes.data || [];
         masterData.villages = villagesRes.data || [];
         masterData.forms = formsRes.data || [];
         masterData.filledStats = statsRes.data || [];
 
+        // ऑफलाईन वापरासाठी लोकल स्टोरेजमध्ये सेव्ह करणे
         localStorage.setItem("phc_master_data", JSON.stringify(masterData)); 
         
+        // फॉर्म सेव्ह झाल्यानंतर लगेच स्क्रीनवरील ड्रॉपडाऊन आणि लिस्ट अपडेट करणे
         if(typeof updateFormDropdowns === "function") updateFormDropdowns();
-        // 🟢 दुरुस्ती: इथे 'renderExistingFormsList' केले आहे
+        if(typeof updateVillageDropdown === "function") updateVillageDropdown();
         if(typeof renderExistingFormsList === "function") renderExistingFormsList();
-    } catch(e) { 
-        console.error("Fetch failed", e); 
+        
+    } catch (error) {
+        console.error("Fetch Data Error:", error);
     }
 }
+
 
 // 🟢 Supabase - Login
 async function handleLogin() {
