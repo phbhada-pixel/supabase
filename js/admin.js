@@ -279,38 +279,44 @@ async function saveFullForm() {
 
     if(structure.length === 0) { alert("कमीत कमी १ प्रश्न आवश्यक आहे!"); return; }
 
-    let formPayload = {
-        formid: fId ? fId : "F_" + Date.now(),
+    let finalFId = fId ? fId : "F_" + Date.now();
+    let finalStructureJson = JSON.stringify(structure);
+
+    // 🟢 1. Lowercase Format (Supabase मधील सर्वसाधारण फॉरमॅट)
+    let payloadLower = {
+        formid: finalFId,
         formname: fName,
         formtype: finalType,
         allowedroles: allowedRoles,
-        structurejson: JSON.stringify(structure),
+        structurejson: finalStructureJson,
         isactive: isActive
     };
 
-    // ⚠️ Note: If your Supabase columns are exactly 'FormID', 'FormName' etc., 
-    // change the keys above back to CamelCase. (e.g. FormID: formPayload.formid)
-    
-    // I am generating a duplicate payload matching EXACTLY your old uppercase naming convention 
-    // to prevent errors, just in case Supabase is strict on the old names.
-    let formPayloadStrict = {
-        FormID: formPayload.formid,
-        FormName: formPayload.formname,
-        FormType: formPayload.formtype,
-        AllowedRoles: formPayload.allowedroles,
-        StructureJSON: formPayload.structurejson,
-        IsActive: formPayload.isactive
+    // 🟢 2. Uppercase Format (तुमच्या जुन्या सिस्टिमप्रमाणे)
+    let payloadUpper = {
+        FormID: finalFId,
+        FormName: fName,
+        FormType: finalType,
+        AllowedRoles: allowedRoles,
+        StructureJSON: finalStructureJson,
+        IsActive: isActive
     };
 
     document.getElementById('mainActionBtn').innerText = "सेव्ह करत आहे...";
     document.getElementById('mainActionBtn').disabled = true;
 
     try {
-        const { error } = await supabase.from('forms').upsert([formPayloadStrict]); // Create or Update
+        // प्रथम 'Lowercase' वापरून सेव्ह करण्याचा प्रयत्न करू
+        let { error } = await supabase.from('forms').upsert([payloadLower]); 
 
         if (error) {
-            console.error("SUPABASE ERROR DETAILS:", error); 
-            throw error;
+            // जर कॉलम सापडत नसेल (Could not find column), तर 'Uppercase' वापरून बघू
+            if (error.message && error.message.includes("Could not find")) {
+                const retry = await supabase.from('forms').upsert([payloadUpper]);
+                if (retry.error) throw retry.error;
+            } else {
+                throw error; // दुसरा कोणताही एरर असल्यास तो पकडा
+            }
         }
 
         alert("✅ फॉर्म यशस्वीरित्या सेव्ह झाला!");
@@ -319,10 +325,16 @@ async function saveFullForm() {
         
         await fetchData(); // नवीन फॉर्म लिस्ट रिफ्रेश करा
         if(user.role === 'Admin' || user.role === 'MANAGER' || user.role === 'VIEWER') renderExistingFormsList();
+        
     } catch (error) {
         console.error("Form Save Error:", error);
-        alert("एरर: फॉर्म सेव्ह होऊ शकला नाही. (Console तपासा)");
+        
+        // 🟢 नेमका काय एरर आलाय तो मोबाईलवर अलर्ट द्वारे दाखवा
+        let errorMsg = error.message || JSON.stringify(error);
+        alert("⚠️ फॉर्म सेव्ह होऊ शकला नाही. Supabase एरर:\n\n" + errorMsg + "\n\n(जर 'row-level security policy' असा एरर असेल, तर Supabase मध्ये 'forms' टेबलसाठी Insert Policy चालू करा.)");
+        
         document.getElementById('mainActionBtn').innerText = "फॉर्म सेव्ह करा";
         document.getElementById('mainActionBtn').disabled = false;
     }
 }
+
