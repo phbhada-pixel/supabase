@@ -23,15 +23,11 @@
     </div>
 
     <script>
-        // Supabase क्लायंट सुरक्षितपणे सुरू करणे
-        let supabase;
-        try {
-            const SUPABASE_URL = 'https://qbmjsfiievcautxybaai.supabase.co';
-            const SUPABASE_KEY = 'sb_publishable_sdgZ9G8ko4H_3Mh9RouYFg_JOQ-4Mdx'; 
-            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-        } catch(err) {
-            alert("सिस्टीम लोड होण्यात अडचण: " + err.message);
-        }
+        // आपण 'supabaseClient' हे नवीन नाव वापरत आहोत जेणेकरून एरर येणार नाही
+        const SUPABASE_URL = 'https://qbmjsfiievcautxybaai.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_sdgZ9G8ko4H_3Mh9RouYFg_JOQ-4Mdx'; 
+        
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         async function login() {
             try {
@@ -47,7 +43,8 @@
                 statusLabel.style.color = "blue";
                 statusLabel.innerText = "डेटाबेसमध्ये तपासत आहे... कृपया थांबा.";
 
-                const { data, error } = await supabase
+                // डेटा शोधण्यासाठी supabaseClient वापरणे
+                const { data, error } = await supabaseClient
                     .from('employees')
                     .select('*')
                     .eq('mobile_number', mobile)
@@ -59,8 +56,12 @@
                 } else {
                     statusLabel.style.color = "green";
                     statusLabel.innerText = `लॉगिन यशस्वी! स्वागत आहे, ${data.full_name}`;
+                    
                     localStorage.setItem('loggedInUser', JSON.stringify(data));
-                    setTimeout(() => { window.location.href = "dashboard.html"; }, 1500);
+                    
+                    setTimeout(() => { 
+                        window.location.href = "dashboard.html"; 
+                    }, 1500);
                 }
             } catch (err) {
                 alert("लॉगिन करताना काहीतरी तांत्रिक अडचण आली: " + err.message);
