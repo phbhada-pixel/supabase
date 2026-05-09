@@ -3,150 +3,145 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>डायनॅमिक फॉर्म बिल्डर</title>
+    <title>अॅडव्हान्स फॉर्म बिल्डर</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body class="bg-gray-100 p-6 min-h-screen">
 
-    <!-- Header -->
     <div class="max-w-5xl mx-auto bg-white p-4 rounded-lg shadow-md flex justify-between items-center mb-6">
-        <h1 class="text-xl font-bold text-green-600">डायनॅमिक फॉर्म बिल्डर</h1>
-        <button onclick="window.location.href='dashboard.html'" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">डॅशबोर्डवर परत जा</button>
+        <h1 class="text-xl font-bold text-green-600">अॅडव्हान्स फॉर्म बिल्डर</h1>
+        <button onclick="window.location.href='dashboard.html'" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">परत जा</button>
     </div>
 
     <div class="max-w-5xl mx-auto bg-white p-6 rounded-lg shadow-md border-t-4 border-green-500">
         
-        <!-- फॉर्मची प्राथमिक माहिती -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 pb-6 border-b border-gray-200">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 pb-6 border-b">
             <div>
-                <label class="block text-gray-700 font-bold mb-2">फॉर्मचे नाव (उदा. NCD अहवाल)</label>
-                <input type="text" id="formName" class="w-full p-2 border rounded" placeholder="फॉर्मचे नाव टाका">
+                <label class="block text-gray-700 font-bold mb-2">फॉर्मचे नाव</label>
+                <input type="text" id="formName" class="w-full p-2 border rounded" placeholder="उदा. रुग्ण नोंदणी">
             </div>
             <div>
                 <label class="block text-gray-700 font-bold mb-2">फॉर्मचा प्रकार</label>
                 <select id="formType" class="w-full p-2 border rounded bg-white">
-                    <option value="list">यादी असणारे फॉर्म (List)</option>
-                    <option value="monthly">मासिक अहवाल (Monthly)</option>
-                    <option value="progressive">मासिक प्रगत अहवाल (Progressive)</option>
-                    <option value="fortnightly">पंधरवडी अहवाल (Fortnightly)</option>
+                    <option value="list">यादी (List)</option>
+                    <option value="monthly">मासिक</option>
+                    <option value="progressive">प्रगत</option>
                 </select>
             </div>
         </div>
 
-        <!-- फिल्ड्स (प्रश्नांची) यादी -->
         <div id="fieldsContainer" class="space-y-4 mb-6">
-            <h2 class="text-lg font-bold text-gray-700">फॉर्ममधील फिल्ड्स (प्रश्न)</h2>
-            <!-- नवीन फिल्ड्स इथे ऍड होतील -->
+            <h2 class="text-lg font-bold text-gray-700">फॉर्ममधील प्रश्न (Fields)</h2>
         </div>
 
-        <!-- कंट्रोल्स -->
         <div class="flex gap-4">
-            <button onclick="addField()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 font-bold">+ नवीन फिल्ड जोडा</button>
-            <button onclick="saveForm()" class="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700 font-bold ml-auto">संपूर्ण फॉर्म सेव्ह करा</button>
+            <button onclick="addField()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">+ नवीन प्रश्न जोडा</button>
+            <button onclick="saveForm()" class="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700 font-bold ml-auto">फॉर्म सेव्ह करा</button>
         </div>
-
     </div>
 
     <script>
-        // Supabase जोडणी
         const SUPABASE_URL = 'https://qbmjsfiievcautxybaai.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_sdgZ9G8ko4H_3Mh9RouYFg_JOQ-4Mdx'; 
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         let fieldCount = 0;
 
-        // पेज लोड झाल्यावर ऑथेंटिकेशन चेक
-        window.onload = function() {
-            const user = JSON.parse(localStorage.getItem('loggedInUser') || '{}');
-            if (user.role !== 'admin') {
-                alert("तुम्हाला या पानावर जाण्याची परवानगी नाही!");
-                window.location.href = "index.html";
-            }
-            // सुरुवातीला एक फिल्ड आपोआप ऍड करणे
-            addField();
-        };
+        window.onload = () => { addField(); };
 
-        // नवीन फिल्डचा बॉक्स बनवणे
         function addField() {
             fieldCount++;
-            const fieldId = `field_${fieldCount}`;
+            const fId = `f${fieldCount}`;
             
-            const fieldHtml = `
-                <div id="${fieldId}_box" class="flex flex-wrap items-end gap-4 bg-gray-50 p-4 border rounded-lg relative">
-                    <div class="w-full md:w-1/3">
-                        <label class="block text-sm text-gray-600 mb-1">फिल्डचे नाव (प्रश्न)</label>
-                        <input type="text" id="${fieldId}_label" class="w-full p-2 border rounded" placeholder="उदा. रुग्णाचे नाव">
+            const html = `
+                <div id="${fId}_box" class="bg-gray-50 p-4 border rounded-lg relative shadow-sm border-l-4 border-blue-500">
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                        <div>
+                            <label class="text-xs font-bold text-blue-600">Field ID: ${fId}</label>
+                            <input type="text" id="${fId}_label" class="w-full p-2 border rounded" placeholder="प्रश्नाचे नाव">
+                        </div>
+                        <div>
+                            <label class="text-xs text-gray-500">प्रकार</label>
+                            <select id="${fId}_type" onchange="toggleOptions('${fId}')" class="w-full p-2 border rounded bg-white">
+                                <option value="text">मजकूर</option>
+                                <option value="number">संख्या (Numeric)</option>
+                                <option value="phone">मोबाईल</option>
+                                <option value="yes_no">होय/नाही</option>
+                            </select>
+                        </div>
+                        <div class="flex items-center gap-2 mb-2">
+                            <input type="checkbox" id="${fId}_isSub" class="w-4 h-4">
+                            <label class="text-sm">हा उपप्रश्न आहे?</label>
+                        </div>
+                        <div class="flex items-center gap-2 mb-2">
+                            <input type="checkbox" id="${fId}_req" class="w-4 h-4">
+                            <label class="text-sm">सक्तीचे</label>
+                        </div>
                     </div>
-                    <div class="w-full md:w-1/4">
-                        <label class="block text-sm text-gray-600 mb-1">प्रश्नाचा प्रकार</label>
-                        <select id="${fieldId}_type" class="w-full p-2 border rounded bg-white">
-                            <option value="text">मजकूर (Text)</option>
-                            <option value="number">आकडेवारी (Number)</option>
-                            <option value="date">तारीख (Date)</option>
-                            <option value="phone">मोबाईल नंबर (Phone)</option>
-                            <option value="yes_no">होय/नाही (Yes/No)</option>
-                        </select>
+
+                    <!-- अ‍ॅडव्हान्स ऑप्शन्स (फक्त संख्या प्रकारासाठी) -->
+                    <div id="${fId}_adv" class="hidden mt-4 pt-4 border-t grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label class="text-xs text-gray-500">वय/संख्या मर्यादा (उदा. 15-25)</label>
+                            <div class="flex gap-1">
+                                <input type="number" id="${fId}_min" placeholder="Min" class="w-1/2 p-1 border rounded text-sm">
+                                <input type="number" id="${fId}_max" placeholder="Max" class="w-1/2 p-1 border rounded text-sm">
+                            </div>
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="text-xs text-blue-600 font-bold">फॉर्म्युला (उदा. [f1]+[f2])</label>
+                            <input type="text" id="${fId}_formula" placeholder="येथे फॉर्म्युला लिहा" class="w-full p-2 border border-blue-300 rounded bg-blue-50 text-sm">
+                        </div>
                     </div>
-                    <div class="flex items-center gap-2 mb-2">
-                        <input type="checkbox" id="${fieldId}_required" class="w-4 h-4">
-                        <label class="text-sm text-gray-600">Required (सक्तीचे)</label>
-                    </div>
-                    <button onclick="document.getElementById('${fieldId}_box').remove()" class="text-red-500 hover:text-red-700 font-bold p-2 ml-auto">X काढा</button>
+
+                    <button onclick="document.getElementById('${fId}_box').remove()" class="absolute top-1 right-2 text-red-400">X</button>
                 </div>
             `;
-            
-            document.getElementById('fieldsContainer').insertAdjacentHTML('beforeend', fieldHtml);
+            document.getElementById('fieldsContainer').insertAdjacentHTML('beforeend', html);
         }
 
-        // पूर्ण फॉर्म JSON मध्ये रूपांतरित करून डेटाबेसमध्ये सेव्ह करणे
+        function toggleOptions(id) {
+            const type = document.getElementById(`${id}_type`).value;
+            const adv = document.getElementById(`${id}_adv`);
+            type === 'number' ? adv.classList.remove('hidden') : adv.classList.add('hidden');
+        }
+
         async function saveForm() {
             const formName = document.getElementById('formName').value;
-            const formType = document.getElementById('formType').value;
+            if(!formName) return alert("नाव टाका!");
 
-            if(!formName) return alert("कृपया फॉर्मचे नाव टाका!");
+            const schema = { fields: [] };
+            const containers = document.getElementById('fieldsContainer').querySelectorAll('[id$="_box"]');
 
-            const fieldBoxes = document.getElementById('fieldsContainer').children;
-            if(fieldBoxes.length <= 1) return alert("फॉर्ममध्ये किमान १ प्रश्न असणे आवश्यक आहे!");
-
-            // JSON Schema तयार करणे
-            let schemaJson = {
-                form_title: formName,
-                fields: []
-            };
-
-            for (let i = 1; i < fieldBoxes.length; i++) {
-                const box = fieldBoxes[i];
+            containers.forEach(box => {
                 const id = box.id.replace('_box', '');
-                
                 const label = document.getElementById(`${id}_label`).value;
                 const type = document.getElementById(`${id}_type`).value;
-                const required = document.getElementById(`${id}_required`).checked;
 
                 if(label) {
-                    let fieldObj = { id: id, label: label, type: type, required: required };
-                    // मोबाईल नंबरसाठी एक्स्ट्रा व्हॅलिडेशन
-                    if(type === 'phone') fieldObj.validation = { length: 10, isNumeric: true };
-                    
-                    schemaJson.fields.push(fieldObj);
+                    schema.fields.push({
+                        id: id,
+                        label: label,
+                        type: type,
+                        required: document.getElementById(`${id}_req`).checked,
+                        is_sub: document.getElementById(`${id}_isSub`).checked,
+                        min: document.getElementById(`${id}_min`)?.value || null,
+                        max: document.getElementById(`${id}_max`)?.value || null,
+                        formula: document.getElementById(`${id}_formula`)?.value || null
+                    });
                 }
-            }
+            });
 
-            if(schemaJson.fields.length === 0) return alert("कृपया प्रश्नांची नावे भरा!");
-
-            // Supabase मध्ये सेव्ह करणे
             const { error } = await supabaseClient.from('dynamic_forms').insert([{
                 form_name: formName,
-                form_type: formType,
-                schema_json: schemaJson,
+                form_type: document.getElementById('formType').value,
+                schema_json: schema,
                 is_active: true
             }]);
 
-            if (error) alert("एरर: " + error.message);
-            else {
-                alert("फॉर्म यशस्वीरीत्या सेव्ह झाला!");
-                window.location.href = 'dashboard.html';
-            }
+            if (error) alert(error.message);
+            else { alert("यशस्वी!"); window.location.href = 'dashboard.html'; }
         }
     </script>
 </body>
