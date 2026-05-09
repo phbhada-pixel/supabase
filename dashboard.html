@@ -31,7 +31,8 @@
                     <h3 class="font-bold text-lg mb-2">डायनॅमिक फॉर्म बिल्डर</h3>
                     <p class="text-sm text-gray-600">नवीन डेटा एन्ट्री फॉर्म तयार करा.</p>
                 </div>
-                <div class="bg-white p-6 rounded-lg shadow-md border-t-4 border-purple-500 cursor-pointer hover:bg-gray-50">
+                <!-- येथे रिपोर्ट पेजची लिंक ऍड केली आहे -->
+                <div onclick="window.location.href='reports.html'" class="bg-white p-6 rounded-lg shadow-md border-t-4 border-purple-500 cursor-pointer hover:bg-gray-50">
                     <h3 class="font-bold text-lg mb-2">अहवाल आणि डेटा डाउनलोड</h3>
                     <p class="text-sm text-gray-600">भरलेला डेटा पहा आणि गुगल शीटमध्ये डाउनलोड करा.</p>
                 </div>
@@ -42,7 +43,6 @@
         <div id="userSection" class="hidden">
             <h2 class="text-lg font-bold mb-4 text-gray-700">माझे कामकाज</h2>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <!-- येथे डेटा एन्ट्रीची लिंक ऍड केली आहे -->
                 <div onclick="window.location.href='data-entry.html'" class="bg-white p-6 rounded-lg shadow-md border-t-4 border-indigo-500 cursor-pointer hover:bg-gray-50">
                     <h3 class="font-bold text-lg mb-2">नवीन माहिती भरा (डेटा एन्ट्री)</h3>
                     <p class="text-sm text-gray-600">यादी, मासिक आणि पंधरवडी अहवाल भरा.</p>
@@ -70,11 +70,10 @@
             
             document.getElementById('userName').innerText = user.full_name;
             
-            // ऍडमिन आणि युजर दोन्हीला 'माझे कामकाज' (डेटा एन्ट्री) दाखवण्यासाठी थोडा बदल
             if (user.role === 'admin') {
                 document.getElementById('userRole').innerText = "(Admin)";
                 document.getElementById('adminSection').classList.remove('hidden');
-                document.getElementById('userSection').classList.remove('hidden'); // ऍडमिनलाही फॉर्म भरता यावा म्हणून
+                document.getElementById('userSection').classList.remove('hidden'); 
             } else {
                 document.getElementById('userRole').innerText = "(कर्मचारी)";
                 document.getElementById('userSection').classList.remove('hidden');
