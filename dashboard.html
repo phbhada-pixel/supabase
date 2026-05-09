@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="mr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>डॅशबोर्ड - आरोग्य उपकेंद्र प्रणाली</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-6 min-h-screen">
+
+    <!-- Header / Navbar -->
+    <div class="max-w-5xl mx-auto bg-white p-4 rounded-lg shadow-md flex justify-between items-center mb-6">
+        <div>
+            <h1 class="text-xl font-bold text-blue-600">आरोग्य उपकेंद्र प्रणाली</h1>
+            <p class="text-sm text-gray-500">स्वागत आहे, <span id="userName" class="font-bold text-black"></span> <span id="userRole" class="text-blue-500"></span></p>
+        </div>
+        <button onclick="logout()" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition">लॉगआउट</button>
+    </div>
+
+    <div class="max-w-5xl mx-auto">
+        
+        <!-- एडमिनसाठी डॅशबोर्ड (फक्त एडमिनला दिसेल) -->
+        <div id="adminSection" class="hidden">
+            <h2 class="text-lg font-bold mb-4 text-gray-700">एडमिन कंट्रोल पॅनेल</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="bg-white p-6 rounded-lg shadow-md border-t-4 border-blue-500 cursor-pointer hover:bg-gray-50">
+                    <h3 class="font-bold text-lg mb-2">मास्टर डेटा मॅनेजमेंट</h3>
+                    <p class="text-sm text-gray-600">उपकेंद्रे, गावे आणि कर्मचारी जोडा.</p>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-md border-t-4 border-green-500 cursor-pointer hover:bg-gray-50">
+                    <h3 class="font-bold text-lg mb-2">डायनॅमिक फॉर्म बिल्डर</h3>
+                    <p class="text-sm text-gray-600">नवीन डेटा एन्ट्री फॉर्म तयार करा.</p>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-md border-t-4 border-purple-500 cursor-pointer hover:bg-gray-50">
+                    <h3 class="font-bold text-lg mb-2">अहवाल आणि डेटा डाउनलोड</h3>
+                    <p class="text-sm text-gray-600">भरलेला डेटा पहा आणि गुगल शीटमध्ये डाउनलोड करा.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- युजर/कर्मचाऱ्यांसाठी डॅशबोर्ड (फक्त युजरला दिसेल) -->
+        <div id="userSection" class="hidden">
+            <h2 class="text-lg font-bold mb-4 text-gray-700">माझे कामकाज</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="bg-white p-6 rounded-lg shadow-md border-t-4 border-indigo-500 cursor-pointer hover:bg-gray-50">
+                    <h3 class="font-bold text-lg mb-2">नवीन माहिती भरा (डेटा एन्ट्री)</h3>
+                    <p class="text-sm text-gray-600">यादी, मासिक आणि पंधरवडी अहवाल भरा.</p>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-md border-t-4 border-teal-500 cursor-pointer hover:bg-gray-50">
+                    <h3 class="font-bold text-lg mb-2">मागील अहवाल पहा</h3>
+                    <p class="text-sm text-gray-600">मी भरलेला मागील महिन्यांचा डेटा तपासा.</p>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // पेज लोड झाल्यावर युजरची माहिती चेक करणे
+        window.onload = function() {
+            // LocalStorage मधून सेव्ह केलेला युजर डेटा काढणे
+            const userDataString = localStorage.getItem('loggedInUser');
+            
+            // जर युजर डेटा नसेल (म्हणजे डायरेक्ट लिंक उघडली असेल), तर लॉगिन पेजवर पाठवा
+            if (!userDataString) {
+                window.location.href = "index.html";
+                return;
+            }
+
+            // युजरचा डेटा वाचणे
+            const user = JSON.parse(userDataString);
+            
+            // नाव आणि रोल स्क्रीनवर दाखवणे
+            document.getElementById('userName').innerText = user.full_name;
+            
+            if (user.role === 'admin') {
+                document.getElementById('userRole').innerText = "(Admin)";
+                // एडमिनचे सेक्शन दाखवा
+                document.getElementById('adminSection').classList.remove('hidden');
+            } else {
+                document.getElementById('userRole').innerText = "(कर्मचारी)";
+                // युजरचे सेक्शन दाखवा
+                document.getElementById('userSection').classList.remove('hidden');
+            }
+        };
+
+        // लॉगआउट फंक्शन
+        function logout() {
+            localStorage.removeItem('loggedInUser'); // डेटा डिलीट करा
+            window.location.href = "index.html"; // लॉगिन पेजवर परत जा
+        }
+    </script>
+</body>
+</html>
