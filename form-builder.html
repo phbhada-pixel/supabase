@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="mr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>डायनॅमिक फॉर्म बिल्डर</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="bg-gray-100 p-6 min-h-screen">
+
+    <!-- Header -->
+    <div class="max-w-5xl mx-auto bg-white p-4 rounded-lg shadow-md flex justify-between items-center mb-6">
+        <h1 class="text-xl font-bold text-green-600">डायनॅमिक फॉर्म बिल्डर</h1>
+        <button onclick="window.location.href='dashboard.html'" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">डॅशबोर्डवर परत जा</button>
+    </div>
+
+    <div class="max-w-5xl mx-auto bg-white p-6 rounded-lg shadow-md border-t-4 border-green-500">
+        
+        <!-- फॉर्मची प्राथमिक माहिती -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 pb-6 border-b border-gray-200">
+            <div>
+                <label class="block text-gray-700 font-bold mb-2">फॉर्मचे नाव (उदा. NCD अहवाल)</label>
+                <input type="text" id="formName" class="w-full p-2 border rounded" placeholder="फॉर्मचे नाव टाका">
+            </div>
+            <div>
+                <label class="block text-gray-700 font-bold mb-2">फॉर्मचा प्रकार</label>
+                <select id="formType" class="w-full p-2 border rounded bg-white">
+                    <option value="list">यादी असणारे फॉर्म (List)</option>
+                    <option value="monthly">मासिक अहवाल (Monthly)</option>
+                    <option value="progressive">मासिक प्रगत अहवाल (Progressive)</option>
+                    <option value="fortnightly">पंधरवडी अहवाल (Fortnightly)</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- फिल्ड्स (प्रश्नांची) यादी -->
+        <div id="fieldsContainer" class="space-y-4 mb-6">
+            <h2 class="text-lg font-bold text-gray-700">फॉर्ममधील फिल्ड्स (प्रश्न)</h2>
+            <!-- नवीन फिल्ड्स इथे ऍड होतील -->
+        </div>
+
+        <!-- कंट्रोल्स -->
+        <div class="flex gap-4">
+            <button onclick="addField()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 font-bold">+ नवीन फिल्ड जोडा</button>
+            <button onclick="saveForm()" class="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700 font-bold ml-auto">संपूर्ण फॉर्म सेव्ह करा</button>
+        </div>
+
+    </div>
+
+    <script>
+        // Supabase जोडणी
+        const SUPABASE_URL = 'https://qbmjsfiievcautxybaai.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_sdgZ9G8ko4H_3Mh9RouYFg_JOQ-4Mdx'; 
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        let fieldCount = 0;
+
+        // पेज लोड झाल्यावर ऑथेंटिकेशन चेक
+        window.onload = function() {
+            const user = JSON.parse(localStorage.getItem('loggedInUser') || '{}');
+            if (user.role !== 'admin') {
+                alert("तुम्हाला या पानावर जाण्याची परवानगी नाही!");
+                window.location.href = "index.html";
+            }
+            // सुरुवातीला एक फिल्ड आपोआप ऍड करणे
+            addField();
+        };
+
+        // नवीन फिल्डचा बॉक्स बनवणे
+        function addField() {
+            fieldCount++;
+            const fieldId = `field_${fieldCount}`;
+            
+            const fieldHtml = `
+                <div id="${fieldId}_box" class="flex flex-wrap items-end gap-4 bg-gray-50 p-4 border rounded-lg relative">
+                    <div class="w-full md:w-1/3">
+                        <label class="block text-sm text-gray-600 mb-1">फिल्डचे नाव (प्रश्न)</label>
+                        <input type="text" id="${fieldId}_label" class="w-full p-2 border rounded" placeholder="उदा. रुग्णाचे नाव">
+                    </div>
+                    <div class="w-full md:w-1/4">
+                        <label class="block text-sm text-gray-600 mb-1">प्रश्नाचा प्रकार</label>
+                        <select id="${fieldId}_type" class="w-full p-2 border rounded bg-white">
+                            <option value="text">मजकूर (Text)</option>
+                            <option value="number">आकडेवारी (Number)</option>
+                            <option value="date">तारीख (Date)</option>
+                            <option value="phone">मोबाईल नंबर (Phone)</option>
+                            <option value="yes_no">होय/नाही (Yes/No)</option>
+                        </select>
+                    </div>
+                    <div class="flex items-center gap-2 mb-2">
+                        <input type="checkbox" id="${fieldId}_required" class="w-4 h-4">
+                        <label class="text-sm text-gray-600">Required (सक्तीचे)</label>
+                    </div>
+                    <button onclick="document.getElementById('${fieldId}_box').remove()" class="text-red-500 hover:text-red-700 font-bold p-2 ml-auto">X काढा</button>
+                </div>
+            `;
+            
+            document.getElementById('fieldsContainer').insertAdjacentHTML('beforeend', fieldHtml);
+        }
+
+        // पूर्ण फॉर्म JSON मध्ये रूपांतरित करून डेटाबेसमध्ये सेव्ह करणे
+        async function saveForm() {
+            const formName = document.getElementById('formName').value;
+            const formType = document.getElementById('formType').value;
+
+            if(!formName) return alert("कृपया फॉर्मचे नाव टाका!");
+
+            const fieldBoxes = document.getElementById('fieldsContainer').children;
+            if(fieldBoxes.length <= 1) return alert("फॉर्ममध्ये किमान १ प्रश्न असणे आवश्यक आहे!");
+
+            // JSON Schema तयार करणे
+            let schemaJson = {
+                form_title: formName,
+                fields: []
+            };
+
+            for (let i = 1; i < fieldBoxes.length; i++) {
+                const box = fieldBoxes[i];
+                const id = box.id.replace('_box', '');
+                
+                const label = document.getElementById(`${id}_label`).value;
+                const type = document.getElementById(`${id}_type`).value;
+                const required = document.getElementById(`${id}_required`).checked;
+
+                if(label) {
+                    let fieldObj = { id: id, label: label, type: type, required: required };
+                    // मोबाईल नंबरसाठी एक्स्ट्रा व्हॅलिडेशन
+                    if(type === 'phone') fieldObj.validation = { length: 10, isNumeric: true };
+                    
+                    schemaJson.fields.push(fieldObj);
+                }
+            }
+
+            if(schemaJson.fields.length === 0) return alert("कृपया प्रश्नांची नावे भरा!");
+
+            // Supabase मध्ये सेव्ह करणे
+            const { error } = await supabaseClient.from('dynamic_forms').insert([{
+                form_name: formName,
+                form_type: formType,
+                schema_json: schemaJson,
+                is_active: true
+            }]);
+
+            if (error) alert("एरर: " + error.message);
+            else {
+                alert("फॉर्म यशस्वीरीत्या सेव्ह झाला!");
+                window.location.href = 'dashboard.html';
+            }
+        }
+    </script>
+</body>
+</html>
