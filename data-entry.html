@@ -112,58 +112,63 @@
 
         // ३. सिलेक्ट केलेला फॉर्म स्क्रीनवर बनवणे (Render)
         function renderForm() {
-            const formId = document.getElementById('formSelect').value;
-            const container = document.getElementById('dynamicFormContainer');
-            const submitBtn = document.getElementById('submitBtn');
-            
-            container.innerHTML = ''; // जुना फॉर्म पुसणे
-            selectedFormSchema = null;
+    const formId = document.getElementById('formSelect').value;
+    const container = document.getElementById('dynamicFormContainer');
+    const submitBtn = document.getElementById('submitBtn');
+    
+    container.innerHTML = ''; 
+    if(!formId) {
+        submitBtn.classList.add('hidden');
+        return;
+    }
 
-            if(!formId) {
-                container.innerHTML = '<p class="text-gray-500 text-center">कृपया वरील यादीतून फॉर्म निवडा.</p>';
-                submitBtn.classList.add('hidden');
-                return;
-            }
+    const form = activeForms.find(f => f.id === formId);
+    selectedFormSchema = form.schema_json.fields;
 
-            // फॉर्मचा JSON शोधणे
-            const form = activeForms.find(f => f.id === formId);
-            selectedFormSchema = form.schema_json.fields;
+    let formHTML = '';
+    let lastGroupName = null;
 
-            let formHTML = '';
-            
-            selectedFormSchema.forEach(field => {
-                let inputHtml = '';
-                let reqStar = field.required ? '<span class="text-red-500">*</span>' : '';
+    selectedFormSchema.forEach(field => {
+        // जर नवीन ग्रुप सुरू होत असेल, तर ग्रुपचे नाव (Header) दाखवा
+        if (field.group_name && field.group_name !== lastGroupName) {
+            formHTML += `<div class="mt-6 mb-2 p-2 bg-purple-100 text-purple-800 font-bold rounded border-l-4 border-purple-500">${field.group_name}</div>`;
+            lastGroupName = field.group_name;
+        } else if (!field.group_name) {
+            lastGroupName = null;
+        }
 
-                if (field.type === 'text') {
-                    inputHtml = `<input type="text" id="ans_${field.id}" class="w-full p-2 border rounded">`;
-                } else if (field.type === 'number') {
-                    inputHtml = `<input type="number" id="ans_${field.id}" class="w-full p-2 border rounded">`;
-                } else if (field.type === 'date') {
-                    inputHtml = `<input type="date" id="ans_${field.id}" class="w-full p-2 border rounded">`;
-                } else if (field.type === 'phone') {
-                    inputHtml = `<input type="number" id="ans_${field.id}" class="w-full p-2 border rounded" onkeypress="if(this.value.length==10) return false;">`;
-                } else if (field.type === 'yes_no') {
-                    inputHtml = `
-                        <select id="ans_${field.id}" class="w-full p-2 border rounded bg-white">
+        let inputHtml = '';
+        const fieldClass = field.group_name ? "ml-6 border-l-2 border-gray-200 pl-4 mb-4" : "mb-4";
+
+        if (field.type === 'number') {
+            inputHtml = `<input type="number" id="ans_${field.id}" 
+                         min="${field.min || ''}" max="${field.max || ''}"
+                         class="w-full p-2 border rounded focus:border-blue-500" 
+                         placeholder="${field.min ? 'मर्यादा: '+field.min+'-'+field.max : ''}">`;
+        } else if (field.type === 'yes_no') {
+            inputHtml = `<select id="ans_${field.id}" class="w-full p-2 border rounded bg-white">
                             <option value="">-- निवडा --</option>
                             <option value="Yes">होय</option>
                             <option value="No">नाही</option>
-                        </select>`;
-                }
-
-                formHTML += `
-                    <div class="mb-4">
-                        <label class="block text-gray-700 font-bold mb-1">${field.label} ${reqStar}</label>
-                        ${inputHtml}
-                    </div>
-                `;
-            });
-
-            container.innerHTML = formHTML;
-            submitBtn.classList.remove('hidden');
+                         </select>`;
+        } else {
+            inputHtml = `<input type="text" id="ans_${field.id}" class="w-full p-2 border rounded">`;
         }
 
+        formHTML += `
+            <div class="${fieldClass}">
+                <label class="block text-gray-700 font-semibold mb-1 text-sm">
+                    ${field.label} ${field.required ? '<span class="text-red-500">*</span>' : ''}
+                    <span class="text-[10px] text-gray-400 ml-2">(ID: ${field.id})</span>
+                </label>
+                ${inputHtml}
+            </div>
+        `;
+    });
+
+    container.innerHTML = formHTML;
+    submitBtn.classList.remove('hidden');
+}
         // ४. भरलेला डेटा डेटाबेसमध्ये सेव्ह करणे
         async function submitData() {
             const formId = document.getElementById('formSelect').value;
