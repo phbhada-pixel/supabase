@@ -4,9 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>आरोग्य उपकेंद्र व्यवस्थापन प्रणाली</title>
-    <!-- Tailwind CSS (डिझाईनसाठी) -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Supabase JS (डेटाबेस जोडणीसाठी) -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body class="bg-gray-100 p-6 flex items-center justify-center min-h-screen">
@@ -15,10 +13,9 @@
         <h1 class="text-2xl font-bold text-blue-600 mb-2">आरोग्य उपकेंद्र प्रणाली</h1>
         <p class="text-gray-500 mb-6">कृपया तुमचा नोंदणीकृत मोबाईल नंबर टाका</p>
         
-        <!-- लॉगिन फॉर्म -->
-        <input type="number" id="mobileNumber" placeholder="१० अंकी मोबाईल नंबर" class="w-full p-3 border border-gray-300 rounded mb-4 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" onkeypress="if(this.value.length==10) return false;">
+        <input type="number" id="mobileNumber" placeholder="१० अंकी मोबाईल नंबर" class="w-full p-3 border border-gray-300 rounded mb-4 focus:outline-none focus:border-blue-500" onkeypress="if(this.value.length==10) return false;">
         
-        <button onclick="login()" class="w-full bg-blue-600 text-white font-bold p-3 rounded hover:bg-blue-700 transition duration-200">
+        <button onclick="login()" class="w-full bg-blue-600 text-white font-bold p-3 rounded hover:bg-blue-700">
             लॉगिन करा
         </button>
         
@@ -26,29 +23,30 @@
     </div>
 
     <script>
-        // तुमची Supabase ची माहिती
-        const SUPABASE_URL = 'https://qbmjsfiievcautxybaai.supabase.co';
-        const SUPABASE_KEY = 'sb_publishable_sdgZ9G8ko4H_3Mh9RouYFg_JOQ-4Mdx'; 
-        
-        // Supabase क्लायंट सुरू करणे
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        // Supabase क्लायंट सुरक्षितपणे सुरू करणे
+        let supabase;
+        try {
+            const SUPABASE_URL = 'https://qbmjsfiievcautxybaai.supabase.co';
+            const SUPABASE_KEY = 'sb_publishable_sdgZ9G8ko4H_3Mh9RouYFg_JOQ-4Mdx'; 
+            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        } catch(err) {
+            alert("सिस्टीम लोड होण्यात अडचण: " + err.message);
+        }
 
         async function login() {
-            const mobile = document.getElementById('mobileNumber').value;
-            const statusLabel = document.getElementById('statusMessage');
-
-            // नंबर १० अंकी असल्याची खात्री करणे
-            if(mobile.length !== 10) {
-                statusLabel.style.color = "red";
-                statusLabel.innerText = "कृपया योग्य १० अंकी मोबाईल नंबर टाका.";
-                return;
-            }
-
-            statusLabel.style.color = "blue";
-            statusLabel.innerText = "डेटाबेसमध्ये तपासत आहे...";
-
             try {
-                // Supabase च्या 'employees' टेबलमध्ये नंबर शोधणे
+                const mobile = document.getElementById('mobileNumber').value;
+                const statusLabel = document.getElementById('statusMessage');
+
+                if(mobile.length !== 10) {
+                    statusLabel.style.color = "red";
+                    statusLabel.innerText = "कृपया योग्य १० अंकी मोबाईल नंबर टाका.";
+                    return;
+                }
+
+                statusLabel.style.color = "blue";
+                statusLabel.innerText = "डेटाबेसमध्ये तपासत आहे... कृपया थांबा.";
+
                 const { data, error } = await supabase
                     .from('employees')
                     .select('*')
@@ -58,23 +56,14 @@
                 if (error || !data) {
                     statusLabel.style.color = "red";
                     statusLabel.innerText = "हा मोबाईल नंबर सिस्टीममध्ये नोंदणीकृत नाही. कृपया एडमिनशी संपर्क साधा.";
-                    console.error("Error:", error?.message || "User not found");
                 } else {
                     statusLabel.style.color = "green";
-                    statusLabel.innerText = `लॉगिन यशस्वी! स्वागत आहे, ${data.full_name} (${data.role})`;
-                    
-                    // युजरचा डेटा ब्राऊझरमध्ये सेव्ह करणे (पुढील पानांवर वापरण्यासाठी)
+                    statusLabel.innerText = `लॉगिन यशस्वी! स्वागत आहे, ${data.full_name}`;
                     localStorage.setItem('loggedInUser', JSON.stringify(data));
-                    
-                    // १.५ सेकंदाने डॅशबोर्डवर घेऊन जाणे
-                    setTimeout(() => {
-                        window.location.href = "dashboard.html";
-                    }, 1500);
+                    setTimeout(() => { window.location.href = "dashboard.html"; }, 1500);
                 }
             } catch (err) {
-                statusLabel.style.color = "red";
-                statusLabel.innerText = "सर्व्हर एरर. थोड्या वेळाने प्रयत्न करा.";
-                console.error(err);
+                alert("लॉगिन करताना काहीतरी तांत्रिक अडचण आली: " + err.message);
             }
         }
     </script>
