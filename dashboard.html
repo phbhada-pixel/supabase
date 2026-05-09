@@ -5,10 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>डॅशबोर्ड - आरोग्य उपकेंद्र प्रणाली</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body class="bg-gray-100 p-6 min-h-screen">
 
-    <!-- Header / Navbar -->
     <div class="max-w-5xl mx-auto bg-white p-4 rounded-lg shadow-md flex justify-between items-center mb-6">
         <div>
             <h1 class="text-xl font-bold text-blue-600">आरोग्य उपकेंद्र प्रणाली</h1>
@@ -18,84 +18,127 @@
     </div>
 
     <div class="max-w-5xl mx-auto">
-        
-        <!-- एडमिनसाठी डॅशबोर्ड (फक्त एडमिनला दिसेल) -->
         <div id="adminSection" class="hidden">
             <h2 class="text-lg font-bold mb-4 text-gray-700">एडमिन कंट्रोल पॅनेल</h2>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
                <div onclick="window.location.href='master-data.html'" class="bg-white p-6 rounded-lg shadow-md border-t-4 border-blue-500 cursor-pointer hover:bg-gray-50">
-                    <h3 class="font-bold text-lg mb-2">मास्टर डेटा मॅनेजमेंट</h3>
+                    <h3 class="font-bold text-lg mb-2 text-blue-700">मास्टर डेटा</h3>
                     <p class="text-sm text-gray-600">उपकेंद्रे, गावे आणि कर्मचारी जोडा.</p>
                 </div>
                 <div onclick="window.location.href='form-builder.html'" class="bg-white p-6 rounded-lg shadow-md border-t-4 border-green-500 cursor-pointer hover:bg-gray-50">
-                    <h3 class="font-bold text-lg mb-2">डायनॅमिक फॉर्म बिल्डर</h3>
+                    <h3 class="font-bold text-lg mb-2 text-green-700">फॉर्म बिल्डर</h3>
                     <p class="text-sm text-gray-600">नवीन डेटा एन्ट्री फॉर्म तयार करा.</p>
                 </div>
-                <!-- येथे रिपोर्ट पेजची लिंक ऍड केली आहे -->
                 <div onclick="window.location.href='reports.html'" class="bg-white p-6 rounded-lg shadow-md border-t-4 border-purple-500 cursor-pointer hover:bg-gray-50">
-                    <h3 class="font-bold text-lg mb-2">अहवाल आणि डेटा डाउनलोड</h3>
-                    <p class="text-sm text-gray-600">भरलेला डेटा पहा आणि गुगल शीटमध्ये डाउनलोड करा.</p>
+                    <h3 class="font-bold text-lg mb-2 text-purple-700">अहवाल</h3>
+                    <p class="text-sm text-gray-600">भरलेला डेटा पहा आणि डाउनलोड करा.</p>
                 </div>
-                <!-- dashboard.html मध्ये adminSection च्या खाली हे जोडा -->
-<div id="activeFormsList" class="mt-8 bg-white p-6 rounded-lg shadow-md border-t-4 border-yellow-500 hidden">
-    <h2 class="text-lg font-bold mb-4 text-gray-700">उपलब्ध फॉर्म्स (Active Forms)</h2>
-    <div class="overflow-x-auto">
-        <table class="w-full text-left border-collapse">
-            <thead>
-                <tr class="bg-gray-100">
-                    <th class="p-2 border">नाव</th>
-                    <th class="p-2 border">प्रकार</th>
-                    <th class="p-2 border">ॲक्शन</th>
-                </tr>
-            </thead>
-            <tbody id="formsTableBody">
-                <!-- डेटा इथे लोड होईल -->
-            </tbody>
-        </table>
-    </div>
-</div>
-         
+            </div>
 
-        <!-- युजर/कर्मचाऱ्यांसाठी डॅशबोर्ड (फक्त युजरला दिसेल) -->
-        <div id="userSection" class="hidden">
-            <h2 class="text-lg font-bold mb-4 text-gray-700">माझे कामकाज</h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div onclick="window.location.href='data-entry.html'" class="bg-white p-6 rounded-lg shadow-md border-t-4 border-indigo-500 cursor-pointer hover:bg-gray-50">
-                    <h3 class="font-bold text-lg mb-2">नवीन माहिती भरा (डेटा एन्ट्री)</h3>
-                    <p class="text-sm text-gray-600">यादी, मासिक आणि पंधरवडी अहवाल भरा.</p>
-                </div>
-                <div class="bg-white p-6 rounded-lg shadow-md border-t-4 border-teal-500 cursor-pointer hover:bg-gray-50">
-                    <h3 class="font-bold text-lg mb-2">मागील अहवाल पहा</h3>
-                    <p class="text-sm text-gray-600">मी भरलेला मागील महिन्यांचा डेटा तपासा.</p>
+            <!-- उपलब्ध फॉर्म्सची यादी -->
+            <div id="activeFormsListContainer" class="bg-white p-6 rounded-lg shadow-md border-t-4 border-yellow-500 mb-8">
+                <h2 class="text-lg font-bold mb-4 text-gray-700 italic">उपलब्ध फॉर्म्स (Active Forms)</h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-gray-100 text-gray-600 text-sm">
+                                <th class="p-3 border">फॉर्मचे नाव</th>
+                                <th class="p-3 border">प्रकार</th>
+                                <th class="p-3 border text-center">ॲक्शन</th>
+                            </tr>
+                        </thead>
+                        <tbody id="formsTableBody" class="text-sm">
+                            <tr><td colspan="3" class="p-4 text-center text-gray-400">फॉर्म लोड होत आहेत...</td></tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
 
+        <div id="userSection" class="hidden">
+            <h2 class="text-lg font-bold mb-4 text-gray-700">माझे कामकाज</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div onclick="window.location.href='data-entry.html'" class="bg-white p-6 rounded-lg shadow-md border-t-4 border-indigo-500 cursor-pointer hover:bg-gray-50">
+                    <h3 class="font-bold text-lg mb-2 text-indigo-700">नवीन माहिती भरा</h3>
+                    <p class="text-sm text-gray-600">मासिक आणि इतर अहवाल भरण्यासाठी येथे जा.</p>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-md border-t-4 border-teal-500 cursor-pointer hover:bg-gray-50">
+                    <h3 class="font-bold text-lg mb-2 text-teal-700">मागील अहवाल</h3>
+                    <p class="text-sm text-gray-600">मी भरलेला जुना डेटा तपासा.</p>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
-        // पेज लोड झाल्यावर युजरची माहिती चेक करणे
+        const SUPABASE_URL = 'https://qbmjsfiievcautxybaai.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_sdgZ9G8ko4H_3Mh9RouYFg_JOQ-4Mdx'; 
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
         window.onload = function() {
             const userDataString = localStorage.getItem('loggedInUser');
-            
-            if (!userDataString) {
-                window.location.href = "index.html";
-                return;
-            }
+            if (!userDataString) { window.location.href = "index.html"; return; }
 
             const user = JSON.parse(userDataString);
-            
             document.getElementById('userName').innerText = user.full_name;
             
             if (user.role === 'admin') {
                 document.getElementById('userRole').innerText = "(Admin)";
                 document.getElementById('adminSection').classList.remove('hidden');
-                document.getElementById('userSection').classList.remove('hidden'); 
+                document.getElementById('userSection').classList.remove('hidden');
+                loadActiveForms(); // फक्त एडमिनसाठी यादी लोड करा
             } else {
                 document.getElementById('userRole').innerText = "(कर्मचारी)";
                 document.getElementById('userSection').classList.remove('hidden');
             }
         };
+
+        // डेटाबेसमधून फॉर्म्सची यादी आणणे
+        async function loadActiveForms() {
+            const { data, error } = await supabaseClient
+                .from('dynamic_forms')
+                .select('id, form_name, form_type')
+                .eq('is_active', true);
+
+            const tbody = document.getElementById('formsTableBody');
+            
+            if (error || !data || data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3" class="p-4 text-center text-red-400">अजून कोणताही फॉर्म तयार केलेला नाही.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = '';
+            data.forEach(form => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-gray-50 transition";
+                tr.innerHTML = `
+                    <td class="p-3 border font-medium">${form.form_name}</td>
+                    <td class="p-3 border uppercase text-xs text-gray-500">${form.form_type}</td>
+                    <td class="p-3 border text-center">
+                        <button onclick="editForm('${form.id}')" class="bg-blue-100 text-blue-600 px-3 py-1 rounded text-xs font-bold hover:bg-blue-200 mr-2">Edit</button>
+                        <button onclick="deleteForm('${form.id}')" class="text-red-400 hover:text-red-600 px-1">✕</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function editForm(id) {
+            // एडिटींगसाठी आपण form-builder वर ID पाठवू
+            window.location.href = `form-builder.html?edit=${id}`;
+        }
+
+        async function deleteForm(id) {
+            if(confirm("तुम्हाला खात्री आहे की हा फॉर्म डिलीट करायचा आहे? यामुळे कोणताही डेटा बदलणार नाही, फक्त फॉर्म निष्क्रिय होईल.")) {
+                const { error } = await supabaseClient
+                    .from('dynamic_forms')
+                    .update({ is_active: false })
+                    .eq('id', id);
+                
+                if(!error) loadActiveForms();
+                else alert("चूक झाली: " + error.message);
+            }
+        }
 
         function logout() {
             localStorage.removeItem('loggedInUser');
