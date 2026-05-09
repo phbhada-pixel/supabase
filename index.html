@@ -6,45 +6,76 @@
     <title>आरोग्य उपकेंद्र व्यवस्थापन प्रणाली</title>
     <!-- Tailwind CSS (डिझाईनसाठी) -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Supabase JS (डेटाबेससाठी) -->
+    <!-- Supabase JS (डेटाबेस जोडणीसाठी) -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-<body class="bg-gray-100 p-6">
+<body class="bg-gray-100 p-6 flex items-center justify-center min-h-screen">
 
-    <div class="max-w-md mx-auto bg-white p-8 rounded-lg shadow-md text-center">
-        <h1 class="text-2xl font-bold text-blue-600 mb-4">आरोग्य उपकेंद्र प्रणाली</h1>
-        <p class="text-gray-600 mb-6">सिस्टीममध्ये तुमचे स्वागत आहे</p>
+    <div class="max-w-md w-full bg-white p-8 rounded-lg shadow-lg text-center">
+        <h1 class="text-2xl font-bold text-blue-600 mb-2">आरोग्य उपकेंद्र प्रणाली</h1>
+        <p class="text-gray-500 mb-6">कृपया तुमचा नोंदणीकृत मोबाईल नंबर टाका</p>
         
-        <!-- लॉगिन फॉर्मचा सांगाडा -->
-        <input type="text" id="mobileNumber" placeholder="१० अंकी मोबाईल नंबर" class="w-full p-2 border rounded mb-4" maxlength="10">
-        <button onclick="login()" class="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600">लॉगिन करा</button>
+        <!-- लॉगिन फॉर्म -->
+        <input type="number" id="mobileNumber" placeholder="१० अंकी मोबाईल नंबर" class="w-full p-3 border border-gray-300 rounded mb-4 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" onkeypress="if(this.value.length==10) return false;">
         
-        <p id="statusMessage" class="mt-4 text-red-500"></p>
+        <button onclick="login()" class="w-full bg-blue-600 text-white font-bold p-3 rounded hover:bg-blue-700 transition duration-200">
+            लॉगिन करा
+        </button>
+        
+        <p id="statusMessage" class="mt-4 font-semibold text-sm"></p>
     </div>
 
     <script>
-        // तुमची Supabase ची माहिती येथे टाका
-        const SUPABASE_URL = 'तुमची_SUPABASE_URL_येथे_टाका';
-        const SUPABASE_KEY = 'तुमची_SUPABASE_ANON_KEY_येथे_टाका';
+        // तुमची Supabase ची माहिती
+        const SUPABASE_URL = 'https://qbmjsfiievcautxybaai.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_sdgZ9G8ko4H_3Mh9RouYFg_JOQ-4Mdx'; 
         
         // Supabase क्लायंट सुरू करणे
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        // लॉगिन फंक्शन (सॅम्पल)
         async function login() {
             const mobile = document.getElementById('mobileNumber').value;
             const statusLabel = document.getElementById('statusMessage');
 
+            // नंबर १० अंकी असल्याची खात्री करणे
             if(mobile.length !== 10) {
+                statusLabel.style.color = "red";
                 statusLabel.innerText = "कृपया योग्य १० अंकी मोबाईल नंबर टाका.";
                 return;
             }
 
-            statusLabel.style.color = "green";
-            statusLabel.innerText = "लॉगिन तपासले जात आहे...";
-            
-            // येथे आपण डेटाबेसमधून नंबर चेक करण्याचा कोड नंतर टाकू
-            console.log("Supabase Connection Ready!");
+            statusLabel.style.color = "blue";
+            statusLabel.innerText = "डेटाबेसमध्ये तपासत आहे...";
+
+            try {
+                // Supabase च्या 'employees' टेबलमध्ये नंबर शोधणे
+                const { data, error } = await supabase
+                    .from('employees')
+                    .select('*')
+                    .eq('mobile_number', mobile)
+                    .single();
+
+                if (error || !data) {
+                    statusLabel.style.color = "red";
+                    statusLabel.innerText = "हा मोबाईल नंबर सिस्टीममध्ये नोंदणीकृत नाही. कृपया एडमिनशी संपर्क साधा.";
+                    console.error("Error:", error?.message || "User not found");
+                } else {
+                    statusLabel.style.color = "green";
+                    statusLabel.innerText = `लॉगिन यशस्वी! स्वागत आहे, ${data.full_name} (${data.role})`;
+                    
+                    // युजरचा डेटा ब्राऊझरमध्ये सेव्ह करणे (पुढील पानांवर वापरण्यासाठी)
+                    localStorage.setItem('loggedInUser', JSON.stringify(data));
+                    
+                    // १.५ सेकंदाने डॅशबोर्डवर घेऊन जाणे
+                    setTimeout(() => {
+                        window.location.href = "dashboard.html";
+                    }, 1500);
+                }
+            } catch (err) {
+                statusLabel.style.color = "red";
+                statusLabel.innerText = "सर्व्हर एरर. थोड्या वेळाने प्रयत्न करा.";
+                console.error(err);
+            }
         }
     </script>
 </body>
