@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="mr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>नवीन माहिती भरा (डेटा एन्ट्री)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="bg-gray-100 p-6 min-h-screen">
+
+    <div class="max-w-4xl mx-auto bg-white p-4 rounded-lg shadow-md flex justify-between items-center mb-6">
+        <h1 class="text-xl font-bold text-indigo-600">नवीन माहिती भरा</h1>
+        <button onclick="window.location.href='dashboard.html'" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">डॅशबोर्डवर परत जा</button>
+    </div>
+
+    <div class="max-w-4xl mx-auto bg-white p-6 rounded-lg shadow-md border-t-4 border-indigo-500">
+        
+        <!-- प्राथमिक माहिती (गाव, महिना आणि फॉर्म निवडणे) -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 pb-6 border-b border-gray-200">
+            <div>
+                <label class="block text-gray-700 text-sm font-bold mb-2">अहवालाचा महिना</label>
+                <select id="reportMonth" class="w-full p-2 border rounded bg-white">
+                    <option value="1">जानेवारी</option><option value="2">फेब्रुवारी</option>
+                    <option value="3">मार्च</option><option value="4">एप्रिल</option>
+                    <option value="5">मे</option><option value="6">जून</option>
+                    <option value="7">जुलै</option><option value="8">ऑगस्ट</option>
+                    <option value="9">सप्टेंबर</option><option value="10">ऑक्टोबर</option>
+                    <option value="11">नोव्हेंबर</option><option value="12">डिसेंबर</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-gray-700 text-sm font-bold mb-2">अहवालाचे वर्ष</label>
+                <input type="number" id="reportYear" class="w-full p-2 border rounded" value="2024">
+            </div>
+            <div>
+                <label class="block text-gray-700 text-sm font-bold mb-2">गाव निवडा</label>
+                <select id="villageSelect" class="w-full p-2 border rounded bg-white">
+                    <option value="">-- गाव निवडा --</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-gray-700 text-sm font-bold mb-2">फॉर्म निवडा</label>
+                <select id="formSelect" onchange="renderForm()" class="w-full p-2 border rounded bg-white">
+                    <option value="">-- फॉर्म निवडा --</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- इथे आपला डायनॅमिक फॉर्म तयार होईल -->
+        <div id="dynamicFormContainer" class="space-y-4 mb-6">
+            <p class="text-gray-500 text-center">कृपया वरील यादीतून फॉर्म निवडा.</p>
+        </div>
+
+        <button id="submitBtn" onclick="submitData()" class="w-full bg-indigo-600 text-white font-bold p-3 rounded hover:bg-indigo-700 hidden">
+            माहिती सेव्ह करा
+        </button>
+
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://qbmjsfiievcautxybaai.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_sdgZ9G8ko4H_3Mh9RouYFg_JOQ-4Mdx'; 
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        let currentUser = null;
+        let activeForms = [];
+        let selectedFormSchema = null;
+
+        window.onload = async function() {
+            const userDataString = localStorage.getItem('loggedInUser');
+            if (!userDataString) {
+                window.location.href = "index.html";
+                return;
+            }
+            currentUser = JSON.parse(userDataString);
+            
+            // चालू वर्ष सेट करणे
+            document.getElementById('reportYear').value = new Date().getFullYear();
+            document.getElementById('reportMonth').value = new Date().getMonth() + 1;
+
+            await loadVillages();
+            await loadForms();
+        };
+
+        // १. गावे लोड करणे (फक्त कर्मचाऱ्याच्या उपकेंद्राची)
+        async function loadVillages() {
+            let query = supabaseClient.from('villages').select('id, name');
+            // जर कर्मचारी असेल तर फक्त त्याच्याच उपकेंद्राची गावे दाखवा
+            if(currentUser.sub_center_id) {
+                query = query.eq('sub_center_id', currentUser.sub_center_id);
+            }
+            
+            const { data, error } = await query;
+            if (!error && data) {
+                let options = '<option value="">-- गाव निवडा --</option>';
+                data.forEach(v => { options += `<option value="${v.id}">${v.name}</option>`; });
+                document.getElementById('villageSelect').innerHTML = options;
+            }
+        }
+
+        // २. फॉर्म्स लोड करणे
+        async function loadForms() {
+            const { data, error } = await supabaseClient.from('dynamic_forms').select('*').eq('is_active', true);
+            if (!error && data) {
+                activeForms = data;
+                let options = '<option value="">-- फॉर्म निवडा --</option>';
+                data.forEach(f => { options += `<option value="${f.id}">${f.form_name}</option>`; });
+                document.getElementById('formSelect').innerHTML = options;
+            }
+        }
+
+        // ३. सिलेक्ट केलेला फॉर्म स्क्रीनवर बनवणे (Render)
+        function renderForm() {
+            const formId = document.getElementById('formSelect').value;
+            const container = document.getElementById('dynamicFormContainer');
+            const submitBtn = document.getElementById('submitBtn');
+            
+            container.innerHTML = ''; // जुना फॉर्म पुसणे
+            selectedFormSchema = null;
+
+            if(!formId) {
+                container.innerHTML = '<p class="text-gray-500 text-center">कृपया वरील यादीतून फॉर्म निवडा.</p>';
+                submitBtn.classList.add('hidden');
+                return;
+            }
+
+            // फॉर्मचा JSON शोधणे
+            const form = activeForms.find(f => f.id === formId);
+            selectedFormSchema = form.schema_json.fields;
+
+            let formHTML = '';
+            
+            selectedFormSchema.forEach(field => {
+                let inputHtml = '';
+                let reqStar = field.required ? '<span class="text-red-500">*</span>' : '';
+
+                if (field.type === 'text') {
+                    inputHtml = `<input type="text" id="ans_${field.id}" class="w-full p-2 border rounded">`;
+                } else if (field.type === 'number') {
+                    inputHtml = `<input type="number" id="ans_${field.id}" class="w-full p-2 border rounded">`;
+                } else if (field.type === 'date') {
+                    inputHtml = `<input type="date" id="ans_${field.id}" class="w-full p-2 border rounded">`;
+                } else if (field.type === 'phone') {
+                    inputHtml = `<input type="number" id="ans_${field.id}" class="w-full p-2 border rounded" onkeypress="if(this.value.length==10) return false;">`;
+                } else if (field.type === 'yes_no') {
+                    inputHtml = `
+                        <select id="ans_${field.id}" class="w-full p-2 border rounded bg-white">
+                            <option value="">-- निवडा --</option>
+                            <option value="Yes">होय</option>
+                            <option value="No">नाही</option>
+                        </select>`;
+                }
+
+                formHTML += `
+                    <div class="mb-4">
+                        <label class="block text-gray-700 font-bold mb-1">${field.label} ${reqStar}</label>
+                        ${inputHtml}
+                    </div>
+                `;
+            });
+
+            container.innerHTML = formHTML;
+            submitBtn.classList.remove('hidden');
+        }
+
+        // ४. भरलेला डेटा डेटाबेसमध्ये सेव्ह करणे
+        async function submitData() {
+            const formId = document.getElementById('formSelect').value;
+            const villageId = document.getElementById('villageSelect').value;
+            const month = document.getElementById('reportMonth').value;
+            const year = document.getElementById('reportYear').value;
+
+            if(!villageId || !formId) return alert("कृपया आधी गाव आणि फॉर्म निवडा!");
+
+            let responseJSON = {};
+            let hasError = false;
+
+            // सर्व प्रश्नांची उत्तरे गोळा करणे
+            selectedFormSchema.forEach(field => {
+                const ans = document.getElementById(`ans_${field.id}`).value;
+                if(field.required && !ans) {
+                    hasError = true;
+                }
+                responseJSON[field.id] = { label: field.label, value: ans };
+            });
+
+            if(hasError) return alert("कृपया सर्व सक्तीचे (*) प्रश्न भरा!");
+
+            // डेटाबेसमध्ये सेव्ह करणे
+            const { error } = await supabaseClient.from('form_responses').insert([{
+                form_id: formId,
+                village_id: villageId,
+                employee_id: currentUser.id,
+                report_month: parseInt(month),
+                report_year: parseInt(year),
+                response_data: responseJSON
+            }]);
+
+            if(error) {
+                alert("एरर: " + error.message);
+            } else {
+                alert("माहिती यशस्वीरीत्या सेव्ह झाली!");
+                // फॉर्म रिकामा करणे
+                renderForm(); 
+            }
+        }
+    </script>
+</body>
+</html>
