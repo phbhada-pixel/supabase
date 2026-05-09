@@ -27,7 +27,8 @@
                     <h3 class="font-bold text-lg mb-2">मास्टर डेटा मॅनेजमेंट</h3>
                     <p class="text-sm text-gray-600">उपकेंद्रे, गावे आणि कर्मचारी जोडा.</p>
                 </div>
-                <div class="bg-white p-6 rounded-lg shadow-md border-t-4 border-green-500 cursor-pointer hover:bg-gray-50">
+                <!-- येथे फॉर्म बिल्डरची लिंक ऍड केली आहे -->
+                <div onclick="window.location.href='form-builder.html'" class="bg-white p-6 rounded-lg shadow-md border-t-4 border-green-500 cursor-pointer hover:bg-gray-50">
                     <h3 class="font-bold text-lg mb-2">डायनॅमिक फॉर्म बिल्डर</h3>
                     <p class="text-sm text-gray-600">नवीन डेटा एन्ट्री फॉर्म तयार करा.</p>
                 </div>
@@ -58,36 +59,29 @@
     <script>
         // पेज लोड झाल्यावर युजरची माहिती चेक करणे
         window.onload = function() {
-            // LocalStorage मधून सेव्ह केलेला युजर डेटा काढणे
             const userDataString = localStorage.getItem('loggedInUser');
             
-            // जर युजर डेटा नसेल (म्हणजे डायरेक्ट लिंक उघडली असेल), तर लॉगिन पेजवर पाठवा
             if (!userDataString) {
                 window.location.href = "index.html";
                 return;
             }
 
-            // युजरचा डेटा वाचणे
             const user = JSON.parse(userDataString);
             
-            // नाव आणि रोल स्क्रीनवर दाखवणे
             document.getElementById('userName').innerText = user.full_name;
             
             if (user.role === 'admin') {
                 document.getElementById('userRole').innerText = "(Admin)";
-                // एडमिनचे सेक्शन दाखवा
                 document.getElementById('adminSection').classList.remove('hidden');
             } else {
                 document.getElementById('userRole').innerText = "(कर्मचारी)";
-                // युजरचे सेक्शन दाखवा
                 document.getElementById('userSection').classList.remove('hidden');
             }
         };
 
-        // लॉगआउट फंक्शन
         function logout() {
-            localStorage.removeItem('loggedInUser'); // डेटा डिलीट करा
-            window.location.href = "index.html"; // लॉगिन पेजवर परत जा
+            localStorage.removeItem('loggedInUser');
+            window.location.href = "index.html";
         }
     </script>
 </body>
