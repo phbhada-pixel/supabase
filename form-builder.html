@@ -3,41 +3,42 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>अॅडव्हान्स फॉर्म बिल्डर</title>
+    <title>ग्रुपिंग फॉर्म बिल्डर - आरोग्य प्रणाली</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body class="bg-gray-100 p-6 min-h-screen">
 
     <div class="max-w-5xl mx-auto bg-white p-4 rounded-lg shadow-md flex justify-between items-center mb-6">
-        <h1 class="text-xl font-bold text-green-600">अॅडव्हान्स फॉर्म बिल्डर</h1>
-        <button onclick="window.location.href='dashboard.html'" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">परत जा</button>
+        <h1 class="text-xl font-bold text-green-600">प्रगत फॉर्म बिल्डर (गट प्रणाली)</h1>
+        <button onclick="window.location.href='dashboard.html'" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition">परत जा</button>
     </div>
 
     <div class="max-w-5xl mx-auto bg-white p-6 rounded-lg shadow-md border-t-4 border-green-500">
         
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 pb-6 border-b">
             <div>
-                <label class="block text-gray-700 font-bold mb-2">फॉर्मचे नाव</label>
+                <label class="block text-gray-700 font-bold mb-2">अहवाल/फॉर्मचे नाव</label>
                 <input type="text" id="formName" class="w-full p-2 border rounded" placeholder="उदा. रुग्ण नोंदणी">
             </div>
             <div>
                 <label class="block text-gray-700 font-bold mb-2">फॉर्मचा प्रकार</label>
                 <select id="formType" class="w-full p-2 border rounded bg-white">
                     <option value="list">यादी (List)</option>
-                    <option value="monthly">मासिक</option>
-                    <option value="progressive">प्रगत</option>
+                    <option value="monthly">मासिक अहवाल</option>
+                    <option value="progressive">प्रगत अहवाल</option>
                 </select>
             </div>
         </div>
 
-        <div id="fieldsContainer" class="space-y-4 mb-6">
-            <h2 class="text-lg font-bold text-gray-700">फॉर्ममधील प्रश्न (Fields)</h2>
+        <div id="fieldsContainer" class="space-y-6 mb-6">
+            <h2 class="text-lg font-bold text-gray-700">फॉर्मची रचना</h2>
         </div>
 
-        <div class="flex gap-4">
-            <button onclick="addField()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">+ नवीन प्रश्न जोडा</button>
-            <button onclick="saveForm()" class="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700 font-bold ml-auto">फॉर्म सेव्ह करा</button>
+        <div class="flex flex-wrap gap-4 border-t pt-6">
+            <button onclick="addField()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 font-bold shadow">+ स्वतंत्र प्रश्न जोडा</button>
+            <button onclick="addGroup()" class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 font-bold shadow">+ प्रश्नांचा गट (Group) जोडा</button>
+            <button onclick="saveForm()" class="bg-green-600 text-white px-8 py-2 rounded hover:bg-green-700 font-bold ml-auto shadow-lg">फॉर्म पूर्ण सेव्ह करा</button>
         </div>
     </div>
 
@@ -48,90 +49,97 @@
 
         let fieldCount = 0;
 
-        window.onload = () => { addField(); };
-
-        function addField() {
+        function addField(containerId = 'fieldsContainer', isInsideGroup = false) {
             fieldCount++;
             const fId = `f${fieldCount}`;
+            const container = document.getElementById(containerId);
             
             const html = `
-                <div id="${fId}_box" class="bg-gray-50 p-4 border rounded-lg relative shadow-sm border-l-4 border-blue-500">
+                <div id="${fId}_box" class="${isInsideGroup ? 'bg-white' : 'bg-gray-50 border-l-4 border-blue-500'} p-4 border rounded shadow-sm relative mb-3">
                     <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                        <div>
-                            <label class="text-xs font-bold text-blue-600">Field ID: ${fId}</label>
-                            <input type="text" id="${fId}_label" class="w-full p-2 border rounded" placeholder="प्रश्नाचे नाव">
+                        <div class="md:col-span-2">
+                            <label class="text-[10px] font-bold text-blue-600 uppercase">Field ID: ${fId}</label>
+                            <input type="text" id="${fId}_label" class="w-full p-2 border rounded text-sm" placeholder="प्रश्नाचे नाव">
                         </div>
                         <div>
                             <label class="text-xs text-gray-500">प्रकार</label>
-                            <select id="${fId}_type" onchange="toggleOptions('${fId}')" class="w-full p-2 border rounded bg-white">
-                                <option value="text">मजकूर</option>
-                                <option value="number">संख्या (Numeric)</option>
+                            <select id="${fId}_type" class="w-full p-2 border rounded text-sm bg-white">
+                                <option value="number">संख्या (Number)</option>
+                                <option value="text">मजकूर (Text)</option>
                                 <option value="phone">मोबाईल</option>
                                 <option value="yes_no">होय/नाही</option>
                             </select>
                         </div>
-                        <div class="flex items-center gap-2 mb-2">
-                            <input type="checkbox" id="${fId}_isSub" class="w-4 h-4">
-                            <label class="text-sm">हा उपप्रश्न आहे?</label>
-                        </div>
-                        <div class="flex items-center gap-2 mb-2">
-                            <input type="checkbox" id="${fId}_req" class="w-4 h-4">
-                            <label class="text-sm">सक्तीचे</label>
-                        </div>
-                    </div>
-
-                    <!-- अ‍ॅडव्हान्स ऑप्शन्स (फक्त संख्या प्रकारासाठी) -->
-                    <div id="${fId}_adv" class="hidden mt-4 pt-4 border-t grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                            <label class="text-xs text-gray-500">वय/संख्या मर्यादा (उदा. 15-25)</label>
-                            <div class="flex gap-1">
-                                <input type="number" id="${fId}_min" placeholder="Min" class="w-1/2 p-1 border rounded text-sm">
-                                <input type="number" id="${fId}_max" placeholder="Max" class="w-1/2 p-1 border rounded text-sm">
+                        <div class="flex items-center gap-4 h-10">
+                            <div class="flex items-center gap-1">
+                                <input type="checkbox" id="${fId}_req" class="w-4 h-4">
+                                <label class="text-xs">सक्तीचे</label>
                             </div>
-                        </div>
-                        <div class="md:col-span-2">
-                            <label class="text-xs text-blue-600 font-bold">फॉर्म्युला (उदा. [f1]+[f2])</label>
-                            <input type="text" id="${fId}_formula" placeholder="येथे फॉर्म्युला लिहा" class="w-full p-2 border border-blue-300 rounded bg-blue-50 text-sm">
+                            <button onclick="document.getElementById('${fId}_box').remove()" class="text-red-500 text-sm font-bold ml-auto">काढा</button>
                         </div>
                     </div>
+                    <div class="mt-2 grid grid-cols-1 md:grid-cols-3 gap-4">
+                         <input type="text" id="${fId}_formula" placeholder="फॉर्म्युला उदा. [f1]+[f2]" class="md:col-span-2 p-1 border border-blue-100 bg-blue-50 text-xs rounded">
+                         <div class="flex gap-1">
+                             <input type="number" id="${fId}_min" placeholder="Min" class="w-1/2 p-1 border text-xs rounded">
+                             <input type="number" id="${fId}_max" placeholder="Max" class="w-1/2 p-1 border text-xs rounded">
+                         </div>
+                    </div>
+                </div>
+            `;
+            container.insertAdjacentHTML('beforeend', html);
+        }
 
-                    <button onclick="document.getElementById('${fId}_box').remove()" class="absolute top-1 right-2 text-red-400">X</button>
+        function addGroup() {
+            fieldCount++;
+            const gId = `g${fieldCount}`;
+            const html = `
+                <div id="${gId}_group" class="border-2 border-purple-200 rounded-lg p-5 bg-purple-50 shadow-md mb-6">
+                    <div class="flex justify-between items-center mb-4 border-b border-purple-200 pb-2">
+                        <div class="flex-1">
+                            <label class="text-[10px] font-bold text-purple-600 uppercase">Group Header</label>
+                            <input type="text" id="${gId}_label" class="w-full font-bold text-purple-800 bg-transparent focus:outline-none text-lg" placeholder="गटाचे मुख्य नाव (उदा. एकूण रुग्णांची संख्या)">
+                        </div>
+                        <button onclick="document.getElementById('${gId}_group').remove()" class="bg-red-100 text-red-600 px-3 py-1 rounded text-xs font-bold hover:bg-red-200">गट हटवा</button>
+                    </div>
+                    <div id="${gId}_subContainer" class="space-y-2">
+                        <!-- उपप्रश्न इथे येतील -->
+                    </div>
+                    <button onclick="addField('${gId}_subContainer', true)" class="mt-4 text-sm bg-purple-600 text-white px-4 py-1 rounded hover:bg-purple-700 shadow-sm">+ या गटात उपप्रश्न जोडा</button>
                 </div>
             `;
             document.getElementById('fieldsContainer').insertAdjacentHTML('beforeend', html);
         }
 
-        function toggleOptions(id) {
-            const type = document.getElementById(`${id}_type`).value;
-            const adv = document.getElementById(`${id}_adv`);
-            type === 'number' ? adv.classList.remove('hidden') : adv.classList.add('hidden');
-        }
-
         async function saveForm() {
             const formName = document.getElementById('formName').value;
-            if(!formName) return alert("नाव टाका!");
+            if(!formName) return alert("फॉर्मला नाव द्या!");
 
             const schema = { fields: [] };
-            const containers = document.getElementById('fieldsContainer').querySelectorAll('[id$="_box"]');
+            
+            // सर्व एलिमेंट्स (स्वतंत्र प्रश्न आणि ग्रुप्स) तपासणे
+            const container = document.getElementById('fieldsContainer');
+            const items = container.querySelectorAll(':scope > div');
 
-            containers.forEach(box => {
-                const id = box.id.replace('_box', '');
-                const label = document.getElementById(`${id}_label`).value;
-                const type = document.getElementById(`${id}_type`).value;
-
-                if(label) {
-                    schema.fields.push({
-                        id: id,
-                        label: label,
-                        type: type,
-                        required: document.getElementById(`${id}_req`).checked,
-                        is_sub: document.getElementById(`${id}_isSub`).checked,
-                        min: document.getElementById(`${id}_min`)?.value || null,
-                        max: document.getElementById(`${id}_max`)?.value || null,
-                        formula: document.getElementById(`${id}_formula`)?.value || null
+            items.forEach(item => {
+                if(item.id.endsWith('_box')) {
+                    // स्वतंत्र प्रश्न
+                    const fId = item.id.replace('_box', '');
+                    schema.fields.push(extractFieldData(fId, null));
+                } else if(item.id.endsWith('_group')) {
+                    // ग्रुप आणि त्याचे उपप्रश्न
+                    const gId = item.id.replace('_group', '');
+                    const gLabel = document.getElementById(`${gId}_label`).value;
+                    
+                    const subFields = item.querySelectorAll('[id$="_box"]');
+                    subFields.forEach(sub => {
+                        const fId = sub.id.replace('_box', '');
+                        schema.fields.push(extractFieldData(fId, gLabel));
                     });
                 }
             });
+
+            if(schema.fields.length === 0) return alert("फॉर्ममध्ये किमान एक प्रश्न हवा!");
 
             const { error } = await supabaseClient.from('dynamic_forms').insert([{
                 form_name: formName,
@@ -140,8 +148,21 @@
                 is_active: true
             }]);
 
-            if (error) alert(error.message);
-            else { alert("यशस्वी!"); window.location.href = 'dashboard.html'; }
+            if (error) alert("एरर: " + error.message);
+            else { alert("फॉर्म यशस्वीरीत्या सेव्ह झाला!"); window.location.href = 'dashboard.html'; }
+        }
+
+        function extractFieldData(fId, parentLabel) {
+            return {
+                id: fId,
+                label: document.getElementById(`${fId}_label`).value,
+                type: document.getElementById(`${fId}_type`).value,
+                required: document.getElementById(`${fId}_req`).checked,
+                group_name: parentLabel, // हा प्रश्न कोणत्या गटात आहे ते इथे सेव्ह होईल
+                min: document.getElementById(`${fId}_min`).value || null,
+                max: document.getElementById(`${fId}_max`).value || null,
+                formula: document.getElementById(`${fId}_formula`).value || null
+            };
         }
     </script>
 </body>
