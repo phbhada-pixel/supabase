@@ -36,8 +36,25 @@
                     <h3 class="font-bold text-lg mb-2">अहवाल आणि डेटा डाउनलोड</h3>
                     <p class="text-sm text-gray-600">भरलेला डेटा पहा आणि गुगल शीटमध्ये डाउनलोड करा.</p>
                 </div>
-            </div>
-        </div>
+                <!-- dashboard.html मध्ये adminSection च्या खाली हे जोडा -->
+<div id="activeFormsList" class="mt-8 bg-white p-6 rounded-lg shadow-md border-t-4 border-yellow-500 hidden">
+    <h2 class="text-lg font-bold mb-4 text-gray-700">उपलब्ध फॉर्म्स (Active Forms)</h2>
+    <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+            <thead>
+                <tr class="bg-gray-100">
+                    <th class="p-2 border">नाव</th>
+                    <th class="p-2 border">प्रकार</th>
+                    <th class="p-2 border">ॲक्शन</th>
+                </tr>
+            </thead>
+            <tbody id="formsTableBody">
+                <!-- डेटा इथे लोड होईल -->
+            </tbody>
+        </table>
+    </div>
+</div>
+         
 
         <!-- युजर/कर्मचाऱ्यांसाठी डॅशबोर्ड (फक्त युजरला दिसेल) -->
         <div id="userSection" class="hidden">
