@@ -35,13 +35,13 @@
             <div>
                 <label class="block text-gray-700 text-sm font-bold mb-2">गाव निवडा</label>
                 <select id="villageSelect" class="w-full p-2 border rounded bg-white">
-                    <option value="">-- गाव निवडा --</option>
+                    <option value="">-- लोड होत आहे... --</option>
                 </select>
             </div>
             <div>
                 <label class="block text-gray-700 text-sm font-bold mb-2">फॉर्म निवडा</label>
                 <select id="formSelect" onchange="renderForm()" class="w-full p-2 border rounded bg-white">
-                    <option value="">-- फॉर्म निवडा --</option>
+                    <option value="">-- लोड होत आहे... --</option>
                 </select>
             </div>
         </div>
@@ -73,34 +73,54 @@
             document.getElementById('reportYear').value = new Date().getFullYear();
             document.getElementById('reportMonth').value = new Date().getMonth() + 1;
 
+            // प्रथम गावे आणि फॉर्म्स डेटाबेसमधून पूर्ण लोड होऊ द्या
             await loadVillages();
             await loadForms();
         };
 
-        // कर्मचारी लॉगिन सुलभ करण्यासाठी सुधारित गावे लोड करण्याचे फंक्शन
+        // 🟢 सुरक्षित गावे लोड करणे (आता युजर अडकणार नाही)
         async function loadVillages() {
-            let query = supabaseClient.from('villages').select('id, name');
-            
-            // जर कर्मचारी असेल आणि त्याचे उपकेंद्र डेटाबेसमध्ये सेट असेल तरच फिल्टर करा
-            if(currentUser.role !== 'admin' && currentUser.sub_center_id) {
-                query = query.eq('sub_center_id', currentUser.sub_center_id);
-            }
-            
-            const { data, error } = await query;
-            if (!error && data) {
+            try {
+                let query = supabaseClient.from('villages').select('id, name');
+                
+                // जर कर्मचारी असेल आणि त्याला उपकेंद्र जोडलेले असेल, तरच फिल्टर करा
+                if (currentUser && currentUser.role !== 'admin' && currentUser.sub_center_id) {
+                    query = query.eq('sub_center_id', currentUser.sub_center_id);
+                }
+                
+                const { data, error } = await query;
+                
                 let options = '<option value="">-- गाव निवडा --</option>';
-                data.forEach(v => { options += `<option value="${v.id}">${v.name}</option>`; });
+                if (!error && data && data.length > 0) {
+                    data.forEach(v => { options += `<option value="${v.id}">${v.name}</option>`; });
+                } else {
+                    options = '<option value="">-- कोणतेही गाव सापडले नाही --</option>';
+                    console.log("गाव लोड एरर किंवा डेटा निरंक:", error);
+                }
                 document.getElementById('villageSelect').innerHTML = options;
+            } catch (err) {
+                console.error("गाव लोड करताना गंभीर चूक:", err);
+                document.getElementById('villageSelect').innerHTML = '<option value="">-- लोड एरर --</option>';
             }
         }
 
+        // 🟢 फॉर्म्स लोड करणे
         async function loadForms() {
-            const { data, error } = await supabaseClient.from('dynamic_forms').select('*').eq('is_active', true);
-            if (!error && data) {
-                activeForms = data;
+            try {
+                const { data, error } = await supabaseClient.from('dynamic_forms').select('*').eq('is_active', true);
+                
                 let options = '<option value="">-- फॉर्म निवडा --</option>';
-                data.forEach(f => { options += `<option value="${f.id}">${f.form_name}</option>`; });
+                if (!error && data && data.length > 0) {
+                    activeForms = data;
+                    data.forEach(f => { options += `<option value="${f.id}">${f.form_name}</option>`; });
+                } else {
+                    options = '<option value="">-- कोणतेही फॉर्म्स उपलब्ध नाहीत --</option>';
+                    console.log("फॉर्म लोड एरर किंवा डेटा निरंक:", error);
+                }
                 document.getElementById('formSelect').innerHTML = options;
+            } catch (err) {
+                console.error("फॉर्म लोड करताना गंभीर चूक:", err);
+                document.getElementById('formSelect').innerHTML = '<option value="">-- लोड एरर --</option>';
             }
         }
 
@@ -134,7 +154,6 @@
                                  class="w-full p-2 border rounded focus:border-blue-500 formula-input" 
                                  placeholder="${field.formula ? 'हा आकडा फॉर्म्युलाद्वारे आपोआप येईल' : (field.min ? 'मर्यादा: '+field.min+'-'+field.max : '')}">`;
                 } else if (field.type === 'date') {
-                    // तारीख (Date) प्रकारासाठी इनपुट बॉक्स
                     inputHtml = `<input type="date" id="ans_${field.id}" class="w-full p-2 border rounded focus:border-blue-500">`;
                 } else if (field.type === 'yes_no') {
                     inputHtml = `<select id="ans_${field.id}" class="w-full p-2 border rounded bg-white">
