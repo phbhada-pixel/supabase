@@ -16,7 +16,6 @@
 
     <div class="max-w-4xl mx-auto bg-white p-6 rounded-lg shadow-md border-t-4 border-indigo-500">
         
-        <!-- प्राथमिक माहिती (गाव, महिना आणि फॉर्म निवडणे) -->
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 pb-6 border-b border-gray-200">
             <div>
                 <label class="block text-gray-700 text-sm font-bold mb-2">अहवालाचा महिना</label>
@@ -47,7 +46,6 @@
             </div>
         </div>
 
-        <!-- इथे आपला डायनॅमिक फॉर्म तयार होईल -->
         <div id="dynamicFormContainer" class="space-y-4 mb-6">
             <p class="text-gray-500 text-center">कृपया वरील यादीतून फॉर्म निवडा.</p>
         </div>
@@ -83,10 +81,9 @@
             await loadForms();
         };
 
-        // १. गावे लोड करणे (फक्त कर्मचाऱ्याच्या उपकेंद्राची)
+        // १. गावे लोड करणे
         async function loadVillages() {
             let query = supabaseClient.from('villages').select('id, name');
-            // जर कर्मचारी असेल तर फक्त त्याच्याच उपकेंद्राची गावे दाखवा
             if(currentUser.sub_center_id) {
                 query = query.eq('sub_center_id', currentUser.sub_center_id);
             }
@@ -112,64 +109,113 @@
 
         // ३. सिलेक्ट केलेला फॉर्म स्क्रीनवर बनवणे (Render)
         function renderForm() {
-    const formId = document.getElementById('formSelect').value;
-    const container = document.getElementById('dynamicFormContainer');
-    const submitBtn = document.getElementById('submitBtn');
-    
-    container.innerHTML = ''; 
-    if(!formId) {
-        submitBtn.classList.add('hidden');
-        return;
-    }
+            const formId = document.getElementById('formSelect').value;
+            const container = document.getElementById('dynamicFormContainer');
+            const submitBtn = document.getElementById('submitBtn');
+            
+            container.innerHTML = ''; 
+            if(!formId) {
+                submitBtn.classList.add('hidden');
+                return;
+            }
 
-    const form = activeForms.find(f => f.id === formId);
-    selectedFormSchema = form.schema_json.fields;
+            const form = activeForms.find(f => f.id === formId);
+            selectedFormSchema = form.schema_json.fields;
 
-    let formHTML = '';
-    let lastGroupName = null;
+            let formHTML = '';
+            let lastGroupName = null;
 
-    selectedFormSchema.forEach(field => {
-        // जर नवीन ग्रुप सुरू होत असेल, तर ग्रुपचे नाव (Header) दाखवा
-        if (field.group_name && field.group_name !== lastGroupName) {
-            formHTML += `<div class="mt-6 mb-2 p-2 bg-purple-100 text-purple-800 font-bold rounded border-l-4 border-purple-500">${field.group_name}</div>`;
-            lastGroupName = field.group_name;
-        } else if (!field.group_name) {
-            lastGroupName = null;
+            selectedFormSchema.forEach(field => {
+                // गट (Group Name) मॅनेजमेंट
+                if (field.group_name && field.group_name !== lastGroupName) {
+                    formHTML += `<div class="mt-6 mb-2 p-2 bg-purple-100 text-purple-800 font-bold rounded border-l-4 border-purple-500">${field.group_name}</div>`;
+                    lastGroupName = field.group_name;
+                } else if (!field.group_name) {
+                    lastGroupName = null;
+                }
+
+                let inputHtml = '';
+                const fieldClass = field.group_name ? "ml-6 border-l-2 border-gray-200 pl-4 mb-4" : "mb-4";
+                const isReadonly = field.formula ? 'readonly bg-gray-100 font-bold text-blue-600' : '';
+
+                if (field.type === 'number') {
+                    inputHtml = `<input type="number" id="ans_${field.id}" data-id="${field.id}"
+                                 min="${field.min || ''}" max="${field.max || ''}" ${isReadonly}
+                                 class="w-full p-2 border rounded focus:border-blue-500 formula-input" 
+                                 placeholder="${field.formula ? 'हा आकडा फॉर्म्युलाद्वारे आपोआप येईल' : (field.min ? 'मर्यादा: '+field.min+'-'+field.max : '')}">`;
+                } else if (field.type === 'yes_no') {
+                    inputHtml = `<select id="ans_${field.id}" class="w-full p-2 border rounded bg-white">
+                                    <option value="">-- निवडा --</option>
+                                    <option value="Yes">होय</option>
+                                    <option value="No">नाही</option>
+                                 </select>`;
+                } else if (field.type === 'phone') {
+                    inputHtml = `<input type="number" id="ans_${field.id}" class="w-full p-2 border rounded focus:border-blue-500" onkeypress="if(this.value.length==10) return false;">`;
+                } else {
+                    inputHtml = `<input type="text" id="ans_${field.id}" class="w-full p-2 border rounded focus:border-blue-500">`;
+                }
+
+                formHTML += `
+                    <div class="${fieldClass}">
+                        <label class="block text-gray-700 font-semibold mb-1 text-sm">
+                            ${field.label} ${field.required ? '<span class="text-red-500">*</span>' : ''}
+                            <span class="text-[10px] text-blue-500 ml-2 font-mono">[${field.id}]</span>
+                        </label>
+                        ${inputHtml}
+                    </div>
+                `;
+            });
+
+            container.innerHTML = formHTML;
+            submitBtn.classList.remove('hidden');
+
+            // फॉर्म्युला इंजिन सुरू करणे
+            setupFormulaEngine();
         }
 
-        let inputHtml = '';
-        const fieldClass = field.group_name ? "ml-6 border-l-2 border-gray-200 pl-4 mb-4" : "mb-4";
-
-        if (field.type === 'number') {
-            inputHtml = `<input type="number" id="ans_${field.id}" 
-                         min="${field.min || ''}" max="${field.max || ''}"
-                         class="w-full p-2 border rounded focus:border-blue-500" 
-                         placeholder="${field.min ? 'मर्यादा: '+field.min+'-'+field.max : ''}">`;
-        } else if (field.type === 'yes_no') {
-            inputHtml = `<select id="ans_${field.id}" class="w-full p-2 border rounded bg-white">
-                            <option value="">-- निवडा --</option>
-                            <option value="Yes">होय</option>
-                            <option value="No">नाही</option>
-                         </select>`;
-        } else {
-            inputHtml = `<input type="text" id="ans_${field.id}" class="w-full p-2 border rounded">`;
+        // 🧮 फॉर्म्युला ऑटो-कॅल्क्युलेशन इंजिन
+        function setupFormulaEngine() {
+            const inputs = document.querySelectorAll('.formula-input');
+            inputs.forEach(input => {
+                input.addEventListener('input', calculateFormulas);
+            });
         }
 
-        formHTML += `
-            <div class="${fieldClass}">
-                <label class="block text-gray-700 font-semibold mb-1 text-sm">
-                    ${field.label} ${field.required ? '<span class="text-red-500">*</span>' : ''}
-                    <span class="text-[10px] text-gray-400 ml-2">(ID: ${field.id})</span>
-                </label>
-                ${inputHtml}
-            </div>
-        `;
-    });
+        function calculateFormulas() {
+            if (!selectedFormSchema) return;
 
-    container.innerHTML = formHTML;
-    submitBtn.classList.remove('hidden');
-}
-        // ४. भरलेला डेटा डेटाबेसमध्ये सेव्ह करणे
+            selectedFormSchema.forEach(field => {
+                if (field.type === 'number' && field.formula) {
+                    let formulaStr = field.formula;
+
+                    // [f1], [f2] च्या जागी प्रत्यक्ष टाईप केलेल्या संख्या टाकणे
+                    selectedFormSchema.forEach(f => {
+                        const placeholders = [`[${f.id}]`, `[ ${f.id} ]`2];
+                        placeholders.forEach(placeholder => {
+                            if (formulaStr.includes(placeholder)) {
+                                const val = parseFloat(document.getElementById(`ans_${f.id}`).value) || 0;
+                                formulaStr = formulaStr.replace(placeholder, val);
+                            }
+                        });
+                    });
+
+                    try {
+                        // फक्त गणिती चिन्हे आणि संख्या असतील तरच क्रिया रन करणे (सुरक्षितता)
+                        if (/^[0-9.+\-*/() ]+$/.test(formulaStr)) {
+                            const result = eval(formulaStr);
+                            const targetInput = document.getElementById(`ans_${field.id}`);
+                            if (targetInput) {
+                                targetInput.value = Number(result.toFixed(2));
+                            }
+                        }
+                    } catch (e) {
+                        console.log("Formula Error: ", e);
+                    }
+                }
+            });
+        }
+
+        // ४. भरलेला डेटा डेटाबेसमध्ये सेव्ह करणे (व्हॅलिडेशनसह)
         async function submitData() {
             const formId = document.getElementById('formSelect').value;
             const villageId = document.getElementById('villageSelect').value;
@@ -180,17 +226,38 @@
 
             let responseJSON = {};
             let hasError = false;
+            let validationErrorMessage = "";
 
-            // सर्व प्रश्नांची उत्तरे गोळा करणे
+            // सर्व प्रश्नांची उत्तरे गोळा व तपासणी करणे
             selectedFormSchema.forEach(field => {
-                const ans = document.getElementById(`ans_${field.id}`).value;
+                const inputEl = document.getElementById(`ans_${field.id}`);
+                const ans = inputEl.value;
+                
+                // सक्तीचे प्रश्न तपासणे
                 if(field.required && !ans) {
                     hasError = true;
+                    if(!validationErrorMessage) validationErrorMessage = "कृपया सर्व सक्तीचे (*) प्रश्न भरा!";
                 }
+
+                // संख्या/वय मर्यादा (Min/Max) व्हॅलिडेशन तपासणे
+                if(field.type === 'number' && ans !== "") {
+                    const numAns = parseFloat(ans);
+                    if(field.min && numAns < parseFloat(field.min)) {
+                        hasError = true;
+                        inputEl.classList.add('border-red-500');
+                        validationErrorMessage = `"${field.label}" मधील संख्या किमान ${field.min} असावी!`;
+                    }
+                    if(field.max && numAns > parseFloat(field.max)) {
+                        hasError = true;
+                        inputEl.classList.add('border-red-500');
+                        validationErrorMessage = `"${field.label}" मधील संख्या कमाल ${field.max} असावी!`;
+                    }
+                }
+
                 responseJSON[field.id] = { label: field.label, value: ans };
             });
 
-            if(hasError) return alert("कृपया सर्व सक्तीचे (*) प्रश्न भरा!");
+            if(hasError) return alert(validationErrorMessage);
 
             // डेटाबेसमध्ये सेव्ह करणे
             const { error } = await supabaseClient.from('form_responses').insert([{
@@ -206,8 +273,7 @@
                 alert("एरर: " + error.message);
             } else {
                 alert("माहिती यशस्वीरीत्या सेव्ह झाली!");
-                // फॉर्म रिकामा करणे
-                renderForm(); 
+                renderForm(); // फॉर्म रिकामा व री-कॅल्क्युलेट करणे
             }
         }
     </script>
