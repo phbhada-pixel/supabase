@@ -73,17 +73,16 @@
             document.getElementById('reportYear').value = new Date().getFullYear();
             document.getElementById('reportMonth').value = new Date().getMonth() + 1;
 
-            // प्रथम गावे आणि फॉर्म्स डेटाबेसमधून पूर्ण लोड होऊ द्या
-            await loadVillages();
-            await loadForms();
+            // एकाच वेळी दोन्ही याद्या लोड करणे
+            await Promise.all([loadVillages(), loadForms()]);
         };
 
-        // 🟢 सुरक्षित गावे लोड करणे (आता युजर अडकणार नाही)
+        // गावे लोड करण्याचे एकदम सुरक्षित फंक्शन
         async function loadVillages() {
             try {
                 let query = supabaseClient.from('villages').select('id, name');
                 
-                // जर कर्मचारी असेल आणि त्याला उपकेंद्र जोडलेले असेल, तरच फिल्टर करा
+                // जर कर्मचारी असेल आणि त्याला उपकेंद्र आयडी जोडलेला असेल, तरच फिल्टर लावा
                 if (currentUser && currentUser.role !== 'admin' && currentUser.sub_center_id) {
                     query = query.eq('sub_center_id', currentUser.sub_center_id);
                 }
@@ -94,17 +93,22 @@
                 if (!error && data && data.length > 0) {
                     data.forEach(v => { options += `<option value="${v.id}">${v.name}</option>`; });
                 } else {
-                    options = '<option value="">-- कोणतेही गाव सापडले नाही --</option>';
-                    console.log("गाव लोड एरर किंवा डेटा निरंक:", error);
+                    // जर उपकेंद्र नसेल तर बॅकअप म्हणून सर्व गावे दाखवा
+                    const { data: allVillages } = await supabaseClient.from('villages').select('id, name');
+                    if(allVillages && allVillages.length > 0) {
+                        allVillages.forEach(v => { options += `<option value="${v.id}">${v.name}</option>`; });
+                    } else {
+                        options = '<option value="">-- कोणतेही गाव उपलब्ध नाही --</option>';
+                    }
                 }
                 document.getElementById('villageSelect').innerHTML = options;
             } catch (err) {
-                console.error("गाव लोड करताना गंभीर चूक:", err);
+                console.error(err);
                 document.getElementById('villageSelect').innerHTML = '<option value="">-- लोड एरर --</option>';
             }
         }
 
-        // 🟢 फॉर्म्स लोड करणे
+        // फॉर्म्स लोड करण्याचे सुरक्षित फंक्शन
         async function loadForms() {
             try {
                 const { data, error } = await supabaseClient.from('dynamic_forms').select('*').eq('is_active', true);
@@ -114,12 +118,11 @@
                     activeForms = data;
                     data.forEach(f => { options += `<option value="${f.id}">${f.form_name}</option>`; });
                 } else {
-                    options = '<option value="">-- कोणतेही फॉर्म्स उपलब्ध नाहीत --</option>';
-                    console.log("फॉर्म लोड एरर किंवा डेटा निरंक:", error);
+                    options = '<option value="">-- फॉर्म्स उपलब्ध नाहीत --</option>';
                 }
                 document.getElementById('formSelect').innerHTML = options;
             } catch (err) {
-                console.error("फॉर्म लोड करताना गंभीर चूक:", err);
+                console.error(err);
                 document.getElementById('formSelect').innerHTML = '<option value="">-- लोड एरर --</option>';
             }
         }
@@ -194,7 +197,7 @@
                 if (field.type === 'number' && field.formula) {
                     let formulaStr = field.formula;
                     selectedFormSchema.forEach(f => {
-                        const placeholders = [`[${f.id}]`, `[ ${f.id} ]`2];
+                        const placeholders = [`[${f.id}]`, `[ ${f.id} ]`]; // येथे चूक दुरुस्त केली आहे
                         placeholders.forEach(placeholder => {
                             if (formulaStr.includes(placeholder)) {
                                 const val = parseFloat(document.getElementById(`ans_${f.id}`).value) || 0;
