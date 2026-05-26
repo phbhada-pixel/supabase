@@ -30,7 +30,7 @@
             </div>
             <div>
                 <label class="block text-gray-700 text-sm font-bold mb-2">अहवालाचे वर्ष</label>
-                <input type="number" id="reportYear" class="w-full p-2 border rounded" value="2024">
+                <input type="number" id="reportYear" class="w-full p-2 border rounded" value="2026">
             </div>
             <div>
                 <label class="block text-gray-700 text-sm font-bold mb-2">गाव निवडा</label>
@@ -67,13 +67,9 @@
 
         window.onload = async function() {
             const userDataString = localStorage.getItem('loggedInUser');
-            if (!userDataString) {
-                window.location.href = "index.html";
-                return;
-            }
+            if (!userDataString) { window.location.href = "index.html"; return; }
             currentUser = JSON.parse(userDataString);
             
-            // चालू वर्ष सेट करणे
             document.getElementById('reportYear').value = new Date().getFullYear();
             document.getElementById('reportMonth').value = new Date().getMonth() + 1;
 
@@ -81,10 +77,12 @@
             await loadForms();
         };
 
-        // १. गावे लोड करणे
+        // कर्मचारी लॉगिन सुलभ करण्यासाठी सुधारित गावे लोड करण्याचे फंक्शन
         async function loadVillages() {
             let query = supabaseClient.from('villages').select('id, name');
-            if(currentUser.sub_center_id) {
+            
+            // जर कर्मचारी असेल आणि त्याचे उपकेंद्र डेटाबेसमध्ये सेट असेल तरच फिल्टर करा
+            if(currentUser.role !== 'admin' && currentUser.sub_center_id) {
                 query = query.eq('sub_center_id', currentUser.sub_center_id);
             }
             
@@ -96,7 +94,6 @@
             }
         }
 
-        // २. फॉर्म्स लोड करणे
         async function loadForms() {
             const { data, error } = await supabaseClient.from('dynamic_forms').select('*').eq('is_active', true);
             if (!error && data) {
@@ -107,17 +104,13 @@
             }
         }
 
-        // ३. सिलेक्ट केलेला फॉर्म स्क्रीनवर बनवणे (Render)
         function renderForm() {
             const formId = document.getElementById('formSelect').value;
             const container = document.getElementById('dynamicFormContainer');
             const submitBtn = document.getElementById('submitBtn');
             
             container.innerHTML = ''; 
-            if(!formId) {
-                submitBtn.classList.add('hidden');
-                return;
-            }
+            if(!formId) { submitBtn.classList.add('hidden'); return; }
 
             const form = activeForms.find(f => f.id === formId);
             selectedFormSchema = form.schema_json.fields;
@@ -126,13 +119,10 @@
             let lastGroupName = null;
 
             selectedFormSchema.forEach(field => {
-                // गट (Group Name) मॅनेजमेंट
                 if (field.group_name && field.group_name !== lastGroupName) {
                     formHTML += `<div class="mt-6 mb-2 p-2 bg-purple-100 text-purple-800 font-bold rounded border-l-4 border-purple-500">${field.group_name}</div>`;
                     lastGroupName = field.group_name;
-                } else if (!field.group_name) {
-                    lastGroupName = null;
-                }
+                } else if (!field.group_name) { lastGroupName = null; }
 
                 let inputHtml = '';
                 const fieldClass = field.group_name ? "ml-6 border-l-2 border-gray-200 pl-4 mb-4" : "mb-4";
@@ -143,6 +133,9 @@
                                  min="${field.min || ''}" max="${field.max || ''}" ${isReadonly}
                                  class="w-full p-2 border rounded focus:border-blue-500 formula-input" 
                                  placeholder="${field.formula ? 'हा आकडा फॉर्म्युलाद्वारे आपोआप येईल' : (field.min ? 'मर्यादा: '+field.min+'-'+field.max : '')}">`;
+                } else if (field.type === 'date') {
+                    // तारीख (Date) प्रकारासाठी इनपुट बॉक्स
+                    inputHtml = `<input type="date" id="ans_${field.id}" class="w-full p-2 border rounded focus:border-blue-500">`;
                 } else if (field.type === 'yes_no') {
                     inputHtml = `<select id="ans_${field.id}" class="w-full p-2 border rounded bg-white">
                                     <option value="">-- निवडा --</option>
@@ -168,27 +161,19 @@
 
             container.innerHTML = formHTML;
             submitBtn.classList.remove('hidden');
-
-            // फॉर्म्युला इंजिन सुरू करणे
             setupFormulaEngine();
         }
 
-        // 🧮 फॉर्म्युला ऑटो-कॅल्क्युलेशन इंजिन
         function setupFormulaEngine() {
             const inputs = document.querySelectorAll('.formula-input');
-            inputs.forEach(input => {
-                input.addEventListener('input', calculateFormulas);
-            });
+            inputs.forEach(input => { input.addEventListener('input', calculateFormulas); });
         }
 
         function calculateFormulas() {
             if (!selectedFormSchema) return;
-
             selectedFormSchema.forEach(field => {
                 if (field.type === 'number' && field.formula) {
                     let formulaStr = field.formula;
-
-                    // [f1], [f2] च्या जागी प्रत्यक्ष टाईप केलेल्या संख्या टाकणे
                     selectedFormSchema.forEach(f => {
                         const placeholders = [`[${f.id}]`, `[ ${f.id} ]`2];
                         placeholders.forEach(placeholder => {
@@ -198,24 +183,17 @@
                             }
                         });
                     });
-
                     try {
-                        // फक्त गणिती चिन्हे आणि संख्या असतील तरच क्रिया रन करणे (सुरक्षितता)
                         if (/^[0-9.+\-*/() ]+$/.test(formulaStr)) {
                             const result = eval(formulaStr);
                             const targetInput = document.getElementById(`ans_${field.id}`);
-                            if (targetInput) {
-                                targetInput.value = Number(result.toFixed(2));
-                            }
+                            if (targetInput) { targetInput.value = Number(result.toFixed(2)); }
                         }
-                    } catch (e) {
-                        console.log("Formula Error: ", e);
-                    }
+                    } catch (e) { console.log("Formula Error: ", e); }
                 }
             });
         }
 
-        // ४. भरलेला डेटा डेटाबेसमध्ये सेव्ह करणे (व्हॅलिडेशनसह)
         async function submitData() {
             const formId = document.getElementById('formSelect').value;
             const villageId = document.getElementById('villageSelect').value;
@@ -228,18 +206,15 @@
             let hasError = false;
             let validationErrorMessage = "";
 
-            // सर्व प्रश्नांची उत्तरे गोळा व तपासणी करणे
             selectedFormSchema.forEach(field => {
                 const inputEl = document.getElementById(`ans_${field.id}`);
                 const ans = inputEl.value;
                 
-                // सक्तीचे प्रश्न तपासणे
                 if(field.required && !ans) {
                     hasError = true;
                     if(!validationErrorMessage) validationErrorMessage = "कृपया सर्व सक्तीचे (*) प्रश्न भरा!";
                 }
 
-                // संख्या/वय मर्यादा (Min/Max) व्हॅलिडेशन तपासणे
                 if(field.type === 'number' && ans !== "") {
                     const numAns = parseFloat(ans);
                     if(field.min && numAns < parseFloat(field.min)) {
@@ -253,13 +228,11 @@
                         validationErrorMessage = `"${field.label}" मधील संख्या कमाल ${field.max} असावी!`;
                     }
                 }
-
                 responseJSON[field.id] = { label: field.label, value: ans };
             });
 
             if(hasError) return alert(validationErrorMessage);
 
-            // डेटाबेसमध्ये सेव्ह करणे
             const { error } = await supabaseClient.from('form_responses').insert([{
                 form_id: formId,
                 village_id: villageId,
@@ -269,12 +242,8 @@
                 response_data: responseJSON
             }]);
 
-            if(error) {
-                alert("एरर: " + error.message);
-            } else {
-                alert("माहिती यशस्वीरीत्या सेव्ह झाली!");
-                renderForm(); // फॉर्म रिकामा व री-कॅल्क्युलेट करणे
-            }
+            if(error) { alert("एरर: " + error.message); } 
+            else { alert("माहिती यशस्वीरीत्या सेव्ह झाली!"); renderForm(); }
         }
     </script>
 </body>
