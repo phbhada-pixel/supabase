@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ग्रुपिंग फॉर्म बिल्डर - आरोग्य प्रणाली</title>
+    <title>प्रगत फॉर्म बिल्डर - आरोग्य प्रणाली</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body class="bg-gray-100 p-6 min-h-screen">
 
     <div class="max-w-5xl mx-auto bg-white p-4 rounded-lg shadow-md flex justify-between items-center mb-6">
-        <h1 class="text-xl font-bold text-green-600">प्रगत फॉर्म बिल्डर (गट प्रणाली)</h1>
+        <h1 class="text-xl font-bold text-green-600" id="builderTitle">प्रगत फॉर्म बिल्डर (गट प्रणाली)</h1>
         <button onclick="window.location.href='dashboard.html'" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition">परत जा</button>
     </div>
 
@@ -38,7 +38,7 @@
         <div class="flex flex-wrap gap-4 border-t pt-6">
             <button onclick="addField()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 font-bold shadow">+ स्वतंत्र प्रश्न जोडा</button>
             <button onclick="addGroup()" class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 font-bold shadow">+ प्रश्नांचा गट (Group) जोडा</button>
-            <button onclick="saveForm()" class="bg-green-600 text-white px-8 py-2 rounded hover:bg-green-700 font-bold ml-auto shadow-lg">फॉर्म पूर्ण सेव्ह करा</button>
+            <button onclick="saveForm()" class="bg-green-600 text-white px-8 py-2 rounded hover:bg-green-700 font-bold ml-auto shadow-lg" id="saveBtn">फॉर्म पूर्ण सेव्ह करा</button>
         </div>
     </div>
 
@@ -48,12 +48,81 @@
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         let fieldCount = 0;
+        let editFormId = null; // जर एडिट मोड असेल तर यामध्ये ID सेव्ह होईल
+
+        window.onload = async function() {
+            // URL मध्ये 'edit' पॅरामीटर आहे का ते तपासणे (उदा. ?edit=123)
+            const urlParams = new URLSearchParams(window.location.search);
+            editFormId = urlParams.get('edit');
+
+            if (editFormId) {
+                document.getElementById('builderTitle').innerText = "फॉर्म सुधारा (Edit Form Mode)";
+                document.getElementById('saveBtn').innerText = "बदल अपडेट करा";
+                await loadFormForEditing(editFormId);
+            } else {
+                addField(); // नवीन फॉर्म असेल तर एक डिफॉल्ट फिल्ड दाखवा
+            }
+        };
+
+        // डेटाबेसमधून जुना फॉर्म लोड करून स्क्रीनवर सेट करणे
+        async function loadFormForEditing(id) {
+            const { data, error } = await supabaseClient
+                .from('dynamic_forms')
+                .select('*')
+                .eq('id', id)
+                .single();
+
+            if (error || !data) {
+                alert("फॉर्म लोड करताना एरर आली!");
+                window.location.href = 'dashboard.html';
+                return;
+            }
+
+            document.getElementById('formName').value = data.form_name;
+            document.getElementById('formType').value = data.form_type;
+
+            const fields = data.schema_json.fields;
+            let currentGroupLabel = null;
+            let currentGroupContainerId = 'fieldsContainer';
+
+            fields.forEach(field => {
+                // संख्या मोजणी टिकवून ठेवण्यासाठी fieldCount मॅनेज करणे
+                const numId = parseInt(field.id.replace('f', ''));
+                if(numId > fieldCount) fieldCount = numId;
+
+                // जर हा प्रश्न एखाद्या गटाचा भाग असेल आणि तो गट आपण अजून स्क्रीनवर बनवला नसेल
+                if (field.group_name && field.group_name !== currentGroupLabel) {
+                    fieldCount++;
+                    const gId = `g${fieldCount}`;
+                    createGroupHTML(gId, field.group_name);
+                    currentGroupLabel = field.group_name;
+                    currentGroupContainerId = `${gId}_subContainer`;
+                } else if (!field.group_name) {
+                    currentGroupLabel = null;
+                    currentGroupContainerId = 'fieldsContainer';
+                }
+
+                // प्रश्न स्क्रीनवर दाखवणे
+                createFieldHTML(field.id, currentGroupContainerId, field.group_name ? true : false);
+                
+                // मूल्यांची जुळवाजुळव करणे
+                document.getElementById(`${field.id}_label`).value = field.label;
+                document.getElementById(`${field.id}_type`).value = field.type;
+                document.getElementById(`${field.id}_req`).checked = field.required;
+                document.getElementById(`${field.id}_min`).value = field.min || '';
+                document.getElementById(`${field.id}_max`).value = field.max || '';
+                document.getElementById(`${field.id}_formula`).value = field.formula || '';
+            });
+        }
 
         function addField(containerId = 'fieldsContainer', isInsideGroup = false) {
             fieldCount++;
             const fId = `f${fieldCount}`;
+            createFieldHTML(fId, containerId, isInsideGroup);
+        }
+
+        function createFieldHTML(fId, containerId, isInsideGroup) {
             const container = document.getElementById(containerId);
-            
             const html = `
                 <div id="${fId}_box" class="${isInsideGroup ? 'bg-white' : 'bg-gray-50 border-l-4 border-blue-500'} p-4 border rounded shadow-sm relative mb-3">
                     <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
@@ -93,18 +162,20 @@
         function addGroup() {
             fieldCount++;
             const gId = `g${fieldCount}`;
+            createGroupHTML(gId, '');
+        }
+
+        function createGroupHTML(gId, labelValue) {
             const html = `
                 <div id="${gId}_group" class="border-2 border-purple-200 rounded-lg p-5 bg-purple-50 shadow-md mb-6">
                     <div class="flex justify-between items-center mb-4 border-b border-purple-200 pb-2">
                         <div class="flex-1">
                             <label class="text-[10px] font-bold text-purple-600 uppercase">Group Header</label>
-                            <input type="text" id="${gId}_label" class="w-full font-bold text-purple-800 bg-transparent focus:outline-none text-lg" placeholder="गटाचे मुख्य नाव (उदा. एकूण रुग्णांची संख्या)">
+                            <input type="text" id="${gId}_label" value="${labelValue}" class="w-full font-bold text-purple-800 bg-transparent focus:outline-none text-lg" placeholder="गटाचे मुख्य नाव (उदा. एकूण रुग्णांची संख्या)">
                         </div>
                         <button onclick="document.getElementById('${gId}_group').remove()" class="bg-red-100 text-red-600 px-3 py-1 rounded text-xs font-bold hover:bg-red-200">गट हटवा</button>
                     </div>
-                    <div id="${gId}_subContainer" class="space-y-2">
-                        <!-- उपप्रश्न इथे येतील -->
-                    </div>
+                    <div id="${gId}_subContainer" class="space-y-2"></div>
                     <button onclick="addField('${gId}_subContainer', true)" class="mt-4 text-sm bg-purple-600 text-white px-4 py-1 rounded hover:bg-purple-700 shadow-sm">+ या गटात उपप्रश्न जोडा</button>
                 </div>
             `;
@@ -116,18 +187,14 @@
             if(!formName) return alert("फॉर्मला नाव द्या!");
 
             const schema = { fields: [] };
-            
-            // सर्व एलिमेंट्स (स्वतंत्र प्रश्न आणि ग्रुप्स) तपासणे
             const container = document.getElementById('fieldsContainer');
             const items = container.querySelectorAll(':scope > div');
 
             items.forEach(item => {
                 if(item.id.endsWith('_box')) {
-                    // स्वतंत्र प्रश्न
                     const fId = item.id.replace('_box', '');
                     schema.fields.push(extractFieldData(fId, null));
                 } else if(item.id.endsWith('_group')) {
-                    // ग्रुप आणि त्याचे उपप्रश्न
                     const gId = item.id.replace('_group', '');
                     const gLabel = document.getElementById(`${gId}_label`).value;
                     
@@ -141,15 +208,35 @@
 
             if(schema.fields.length === 0) return alert("फॉर्ममध्ये किमान एक प्रश्न हवा!");
 
-            const { error } = await supabaseClient.from('dynamic_forms').insert([{
-                form_name: formName,
-                form_type: document.getElementById('formType').value,
-                schema_json: schema,
-                is_active: true
-            }]);
+            let result;
+            
+            if (editFormId) {
+                // जुना फॉर्म अपडेट करणे (UPDATE Query)
+                result = await supabaseClient
+                    .from('dynamic_forms')
+                    .update({
+                        form_name: formName,
+                        form_type: document.getElementById('formType').value,
+                        schema_json: schema
+                    })
+                    .eq('id', editFormId);
+            } else {
+                // नवीन फॉर्म इन्सर्ट करणे (INSERT Query)
+                result = await supabaseClient
+                    .from('dynamic_forms')
+                    .insert([{
+                        form_name: formName,
+                        form_type: document.getElementById('formType').value,
+                        schema_json: schema,
+                        is_active: true
+                    }]);
+            }
 
-            if (error) alert("एरर: " + error.message);
-            else { alert("फॉर्म यशस्वीरीत्या सेव्ह झाला!"); window.location.href = 'dashboard.html'; }
+            if (result.error) alert("एरर: " + result.error.message);
+            else { 
+                alert(editFormId ? "फॉर्म यशस्वीरीत्या अपडेट झाला!" : "फॉर्म यशस्वीरीत्या सेव्ह झाला!"); 
+                window.location.href = 'dashboard.html'; 
+            }
         }
 
         function extractFieldData(fId, parentLabel) {
@@ -158,7 +245,7 @@
                 label: document.getElementById(`${fId}_label`).value,
                 type: document.getElementById(`${fId}_type`).value,
                 required: document.getElementById(`${fId}_req`).checked,
-                group_name: parentLabel, // हा प्रश्न कोणत्या गटात आहे ते इथे सेव्ह होईल
+                group_name: parentLabel,
                 min: document.getElementById(`${fId}_min`).value || null,
                 max: document.getElementById(`${fId}_max`).value || null,
                 formula: document.getElementById(`${fId}_formula`).value || null
