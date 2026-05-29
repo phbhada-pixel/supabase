@@ -26,20 +26,8 @@
         
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 pb-6 border-b">
             <div>
-                <label class="block text-gray-700 font-bold mb-2 text-sm">अहवाल / फॉर्म निवडा <span class="text-red-500">*</span></label>
-                <select id="formSelect" onchange="loadFormSchema()" class="w-full p-2 border rounded bg-indigo-50 font-bold text-indigo-900 shadow-sm">
-                    <option value="">-- फॉर्म निवडा --</option>
-                </select>
-            </div>
-            <div>
-                <label class="block text-gray-700 font-bold mb-2 text-sm">गाव / कार्यक्षेत्र निवडा <span class="text-red-500">*</span></label>
-                <select id="villageSelect" class="w-full p-2 border rounded bg-white font-medium text-gray-800 shadow-sm">
-                    <option value="">-- गाव निवडा --</option>
-                </select>
-            </div>
-            <div>
                 <label class="block text-gray-700 font-bold mb-2 text-sm">अहवाल महिना <span class="text-red-500">*</span></label>
-                <select id="reportMonth" class="w-full p-2 border rounded bg-white text-sm">
+                <select id="reportMonth" onchange="handleMonthYearChange()" class="w-full p-2 border rounded bg-white text-sm">
                     <option value="1">जानेवारी</option><option value="2">फेब्रुवारी</option>
                     <option value="3">मार्च</option><option value="4">एप्रिल</option>
                     <option value="5">मे</option><option value="6">जून</option>
@@ -50,7 +38,21 @@
             </div>
             <div>
                 <label class="block text-gray-700 font-bold mb-2 text-sm">अहवाल वर्ष <span class="text-red-500">*</span></label>
-                <input type="number" id="reportYear" class="w-full p-2 border rounded text-sm font-mono font-bold" value="2026">
+                <input type="number" id="reportYear" onchange="handleMonthYearChange()" class="w-full p-2 border rounded text-sm font-mono font-bold" value="2026">
+            </div>
+            
+            <div>
+                <label class="block text-gray-700 font-bold mb-2 text-sm">अहवाल / फॉर्म निवडा <span class="text-red-500">*</span></label>
+                <select id="formSelect" onchange="loadFormSchema()" class="w-full p-2 border rounded bg-indigo-50 font-bold text-indigo-900 shadow-sm">
+                    <option value="">-- फॉर्म लोड होत आहेत --</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-gray-700 font-bold mb-2 text-sm">गाव / कार्यक्षेत्र निवडा <span class="text-red-500">*</span></label>
+                <select id="villageSelect" class="w-full p-2 border rounded bg-white font-medium text-gray-800 shadow-sm">
+                    <option value="">-- आधी फॉर्म निवडा --</option>
+                </select>
+                <p id="villageHint" class="text-[10px] text-green-600 mt-1 hidden">✓ फक्त राहिलेली गावे दाखवली आहेत.</p>
             </div>
         </div>
 
@@ -83,7 +85,11 @@
 
         let loggedInUser = null;
         let currentFormFields = [];
+        
+        let userVillages = [];
+        let allowedForms = [];
         let allFormsMap = {};
+        let currentMonthResponses = []; // चालू महिन्याचे भरलेले अहवाल
 
         window.onload = async function() {
             const userDataString = localStorage.getItem('loggedInUser');
@@ -96,60 +102,153 @@
 
             await fetchVillages();
             await fetchAvailableForms();
+            await fetchMonthResponses(); // महिन्याचे भरलेले अहवाल आणणे
+            
+            updateFormDropdown(); // स्मार्ट फॉर्म फिल्टर करणे
         };
 
-        // गावे आणणे
         async function fetchVillages() {
             const { data, error } = await supabaseClient
                 .from('villages')
                 .select('*')
                 .eq('sub_center_id', loggedInUser.sub_center_id)
                 .order('name');
+            userVillages = data || [];
+        }
 
+        async function fetchAvailableForms() {
+            const { data, error } = await supabaseClient.from('dynamic_forms').select('*').eq('is_active', true);
             if (!error && data) {
-                const vSelect = document.getElementById('villageSelect');
-                data.forEach(v => {
+                let userRole = loggedInUser.role ? String(loggedInUser.role).trim().toUpperCase() : "ALL";
+                allowedForms = data.filter(form => {
+                    let rolesStr = form.allowed_roles ? String(form.allowed_roles).trim().toUpperCase() : "ALL";
+                    if (rolesStr === "ALL" || loggedInUser.role === "admin") return true;
+                    return rolesStr.split(',').includes(userRole);
+                });
+            }
+        }
+
+        // 🟢 डेटाबेसमधून चालू महिना आणि वर्षाचे भरलेले अहवाल आणणे
+        async function fetchMonthResponses() {
+            const m = document.getElementById('reportMonth').value;
+            const y = document.getElementById('reportYear').value;
+            
+            if (userVillages.length === 0) return;
+
+            const villageIds = userVillages.map(v => v.id);
+
+            const { data, error } = await supabaseClient
+                .from('form_responses')
+                .select('form_id, village_id, employee_id')
+                .eq('report_month', parseInt(m))
+                .eq('report_year', parseInt(y))
+                .in('village_id', villageIds);
+                
+            currentMonthResponses = data || [];
+        }
+
+        // 🟢 महिना किंवा वर्ष बदलल्यास फॉर्म आणि गावे परत रिफ्रेश करणे
+        async function handleMonthYearChange() {
+            document.getElementById('dynamicFieldsContainer').innerHTML = '<p class="text-center text-blue-500 font-medium py-10">महिना बदलला आहे, डेटा तपासला जात आहे...</p>';
+            document.getElementById('submitBtn').classList.add('hidden');
+            document.getElementById('villageHint').classList.add('hidden');
+            
+            await fetchMonthResponses();
+            updateFormDropdown();
+        }
+
+        // 🟢 स्मार्ट फॉर्म ड्रॉपडाऊन (भरलेले फॉर्म्स गायब करणे)
+        function updateFormDropdown() {
+            const fSelect = document.getElementById('formSelect');
+            const currentSelection = fSelect.value;
+            fSelect.innerHTML = '<option value="">-- फॉर्म निवडा --</option>';
+            allFormsMap = {};
+
+            allowedForms.forEach(form => {
+                let showForm = true;
+                
+                // यादी (List) प्रकार सोडून इतरांसाठी चेक करणे
+                if (form.form_type !== 'list' && userVillages.length > 0) {
+                    let filledVillagesCount = 0;
+                    userVillages.forEach(v => {
+                        // डेटा एन्ट्री मोड सामायिक असेल तर कुणीही भरलेला चालेल, वैयक्तिक असेल तर याच युझरचा
+                        let isFilled = currentMonthResponses.some(r => 
+                            r.form_id === form.id && 
+                            r.village_id === v.id && 
+                            (form.data_entry_mode === 'shared' ? true : r.employee_id === loggedInUser.id)
+                        );
+                        if (isFilled) filledVillagesCount++;
+                    });
+
+                    // जर सर्व गावांची माहिती भरली असेल, तर तो फॉर्म यादीतून गायब होईल
+                    if (filledVillagesCount >= userVillages.length) {
+                        showForm = false; 
+                    }
+                }
+
+                if (showForm) {
+                    allFormsMap[form.id] = form;
+                    const opt = document.createElement('option');
+                    opt.value = form.id; opt.text = form.form_name;
+                    fSelect.appendChild(opt);
+                }
+            });
+
+            // जर आधी निवडलेला फॉर्म अजूनही शिल्लक असेल, तर तो तसाच ठेवणे
+            if (allFormsMap[currentSelection]) {
+                fSelect.value = currentSelection;
+                updateVillageDropdown();
+            } else {
+                fSelect.value = "";
+                document.getElementById('villageSelect').innerHTML = '<option value="">-- आधी फॉर्म निवडा --</option>';
+                document.getElementById('dynamicFieldsContainer').innerHTML = '<p class="text-center text-gray-400 font-medium py-10">कृपया वरून फॉर्म निवडा, प्रश्नांची यादी येथे दिसेल.</p>';
+            }
+        }
+
+        // 🟢 स्मार्ट गाव ड्रॉपडाऊन (ज्या गावांची माहिती भरली आहे, ती गायब करणे)
+        function updateVillageDropdown() {
+            const formId = document.getElementById('formSelect').value;
+            const vSelect = document.getElementById('villageSelect');
+            const vHint = document.getElementById('villageHint');
+            vSelect.innerHTML = '<option value="">-- गाव निवडा --</option>';
+
+            if(!formId) { vHint.classList.add('hidden'); return; }
+
+            let formObj = allFormsMap[formId];
+            let hiddenCount = 0;
+
+            userVillages.forEach(v => {
+                let showVillage = true;
+                
+                // यादी प्रकार नसल्यास भरलेले गाव गायब करणे
+                if (formObj && formObj.form_type !== 'list') {
+                    let isFilled = currentMonthResponses.some(r => 
+                        r.form_id === formId && 
+                        r.village_id === v.id && 
+                        (formObj.data_entry_mode === 'shared' ? true : r.employee_id === loggedInUser.id)
+                    );
+                    if (isFilled) { showVillage = false; hiddenCount++; }
+                }
+
+                if (showVillage) {
                     const opt = document.createElement('option');
                     opt.value = v.id; opt.text = v.name;
                     vSelect.appendChild(opt);
-                });
+                }
+            });
+
+            if (hiddenCount > 0 && formObj.form_type !== 'list') {
+                vHint.innerText = `✓ ${hiddenCount} गावे भरून झाली आहेत (ती लपवली आहेत).`;
+                vHint.classList.remove('hidden');
+            } else {
+                vHint.classList.add('hidden');
             }
         }
 
-        // कर्मचाऱ्याच्या पदानुसार (Role) उपलब्ध फॉर्म्स आणणे
-        async function fetchAvailableForms() {
-            const { data, error } = await supabaseClient
-                .from('dynamic_forms')
-                .select('*')
-                .eq('is_active', true);
-
-            if (!error && data) {
-                const fSelect = document.getElementById('formSelect');
-                let userRole = loggedInUser.role ? String(loggedInUser.role).trim().toUpperCase() : "ALL";
-                
-                data.forEach(form => {
-                    let isAllowed = false;
-                    let rolesStr = form.allowed_roles ? String(form.allowed_roles).trim().toUpperCase() : "ALL";
-                    
-                    if (rolesStr === "ALL" || loggedInUser.role === "admin") {
-                        isAllowed = true;
-                    } else {
-                        let rolesArr = rolesStr.split(',');
-                        if (rolesArr.includes(userRole)) isAllowed = true;
-                    }
-
-                    if (isAllowed) {
-                        allFormsMap[form.id] = form;
-                        const opt = document.createElement('option');
-                        opt.value = form.id; opt.text = form.form_name;
-                        fSelect.appendChild(opt);
-                    }
-                });
-            }
-        }
-
-        // निवडलेल्या फॉर्मचे प्रश्न स्क्रीनवर दाखवणे
+        // फॉर्मचे प्रश्न स्क्रीनवर दाखवणे
         function loadFormSchema() {
+            updateVillageDropdown(); // फॉर्म निवडल्यावर गावे फिल्टर करणे
+
             const formId = document.getElementById('formSelect').value;
             const container = document.getElementById('dynamicFieldsContainer');
             const submitBtn = document.getElementById('submitBtn');
@@ -167,15 +266,11 @@
 
             currentFormFields.forEach(f => {
                 let divClass = '';
-                if (!f.parent_id) {
-                    divClass = f.type === 'group_header' ? 'level-1' : 'mb-4';
-                } else {
+                if (!f.parent_id) { divClass = f.type === 'group_header' ? 'level-1' : 'mb-4'; } 
+                else {
                     let parentField = currentFormFields.find(p => p.id === f.parent_id);
-                    if (parentField && !parentField.parent_id) {
-                        divClass = f.type === 'group_header' ? 'level-2' : 'level-3';
-                    } else {
-                        divClass = 'level-3';
-                    }
+                    if (parentField && !parentField.parent_id) divClass = f.type === 'group_header' ? 'level-2' : 'level-3';
+                    else divClass = 'level-3';
                 }
 
                 if (f.type === 'group_header') {
@@ -193,16 +288,12 @@
                     } else if (f.type === 'text') {
                         html += `<input type="text" id="${f.id}" class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500" ${reqAttr}>`;
                     } else if (f.type === 'yes_no') {
-                        html += `<select id="${f.id}" class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 font-bold" ${reqAttr}>
-                            <option value="">- निवडा -</option><option value="होय">होय (Yes)</option><option value="नाही">नाही (No)</option>
-                        </select>`;
+                        html += `<select id="${f.id}" class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 font-bold" ${reqAttr}><option value="">- निवडा -</option><option value="होय">होय (Yes)</option><option value="नाही">नाही (No)</option></select>`;
                     } else if (f.type === 'date') {
                         html += `<input type="date" id="${f.id}" class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 font-bold text-gray-700" ${reqAttr}>`;
                     } else if (f.type === 'dropdown' && f.options) {
                         html += `<select id="${f.id}" class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 font-bold text-gray-700" ${reqAttr}><option value="">- निवडा -</option>`;
-                        f.options.split(',').forEach(opt => {
-                            html += `<option value="${opt.trim()}">${opt.trim()}</option>`;
-                        });
+                        f.options.split(',').forEach(opt => { html += `<option value="${opt.trim()}">${opt.trim()}</option>`; });
                         html += `</select>`;
                     }
                     html += `</div></div>`;
@@ -247,21 +338,29 @@
 
             try {
                 const { error } = await supabaseClient.from('form_responses').insert([payload]);
-                
                 document.getElementById('loader').classList.add('hidden');
 
                 if (error) {
                     alert("माहिती सेव्ह करताना त्रुटी आली: " + error.message);
                 } else {
-                    alert("✅ उत्कृष्ट! तुमची माहिती डेटाबेसमध्ये यशस्वीरीत्या सेव्ह झाली आहे.");
+                    alert("✅ उत्कृष्ट! गावाची माहिती यशस्वीरीत्या सेव्ह झाली.");
                     
-                    // 🟢 सॉफ्ट रिसेट (Soft Reset)
-                    // याद्वारे फक्त भरलेले आकडे (Inputs) पुसले जातील.
-                    // वर निवडलेले फॉर्मचे नाव, गाव, महिना, वर्ष तसेच राहतील!
+                    // सॉफ्ट रिसेट: फॉर्ममधील फक्त आकडे पुसणे
                     document.getElementById('dynamicDataForm').reset();
                     
-                    // माहिती भरून झाल्यावर आपोआप पेजच्या वरच्या बाजूला (गावाच्या नावावर) फोकस जाईल
-                    document.getElementById('villageSelect').focus();
+                    // 🟢 स्मार्ट रिफ्रेश: डेटाबेस पुन्हा तपासून ड्रॉपडाऊन अपडेट करणे (गावाचे नाव गायब करणे)
+                    await fetchMonthResponses();
+                    updateFormDropdown();
+
+                    // जर फॉर्म अजूनही यादीत असेल, तर पुढील गावासाठी 'गाव निवडा' ला फोकस करणे
+                    const fSelect = document.getElementById('formSelect');
+                    if (fSelect.value) {
+                        document.getElementById('villageSelect').focus();
+                    } else {
+                        // सर्व गावे भरून झाली की फॉर्म आपोआप गायब होईल
+                        document.getElementById('dynamicFieldsContainer').innerHTML = `<div class="text-center bg-green-50 p-8 rounded border border-green-200"><h2 class="text-2xl font-bold text-green-700 mb-2">🎉 अभिनंदन!</h2><p class="text-green-600 font-medium">या फॉर्मची सर्व गावांची माहिती भरून पूर्ण झाली आहे!</p></div>`;
+                        document.getElementById('submitBtn').classList.add('hidden');
+                    }
                 }
             } catch (err) {
                 document.getElementById('loader').classList.add('hidden');
