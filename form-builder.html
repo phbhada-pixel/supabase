@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>प्रगत फॉर्म बिल्डर - लेव्हल ३ (सुधारित)</title>
+    <title>प्रगत फॉर्म बिल्डर - लेव्हल ३ (चेकबॉक्ससह)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -39,14 +39,20 @@
                     <option value="individual">वैयक्तिक (सर्वांनी)</option>
                 </select>
             </div>
+            
             <div>
-                <label class="block text-gray-700 font-bold mb-2 text-sm">फॉर्म कोणी भरावा? (Role)</label>
-                <select id="allowedRoles" class="w-full p-2 border rounded bg-white font-medium text-purple-700">
-                    <option value="ALL">सर्व कर्मचारी (MPW, ANM, CHO)</option>
-                    <option value="MPW">फक्त MPW (आरोग्य सेवक)</option>
-                    <option value="ANM">फक्त ANM (आरोग्य सेविका)</option>
-                    <option value="CHO">फक्त CHO (समुदाय आरोग्य अधिकारी)</option>
-                </select>
+                <label class="block text-gray-700 font-bold mb-2 text-sm">फॉर्म कोणी भरावा? (Tick करा)</label>
+                <div class="flex items-center gap-3 bg-white p-2 border rounded font-bold text-purple-700 min-h-[42px]">
+                    <label class="flex items-center gap-1 cursor-pointer">
+                        <input type="checkbox" class="role-chk w-4 h-4 text-purple-600" value="MPW" checked> MPW
+                    </label>
+                    <label class="flex items-center gap-1 cursor-pointer">
+                        <input type="checkbox" class="role-chk w-4 h-4 text-purple-600" value="ANM" checked> ANM
+                    </label>
+                    <label class="flex items-center gap-1 cursor-pointer">
+                        <input type="checkbox" class="role-chk w-4 h-4 text-purple-600" value="CHO" checked> CHO
+                    </label>
+                </div>
             </div>
         </div>
 
@@ -90,8 +96,18 @@
             document.getElementById('formType').value = data.form_type;
             if(data.data_entry_mode) document.getElementById('dataEntryMode').value = data.data_entry_mode;
             
-            // 🟢 डेटाबेसमधून आलेला रोल सेट करणे
-            if(data.allowed_roles) document.getElementById('allowedRoles').value = data.allowed_roles;
+            // 🟢 डेटाबेसमधून आलेला रोल वाचून चेकबॉक्स टिक करणे
+            if (data.allowed_roles) {
+                const checkboxes = document.querySelectorAll('.role-chk');
+                if (data.allowed_roles === "ALL") {
+                    checkboxes.forEach(chk => chk.checked = true);
+                } else {
+                    const rolesArray = data.allowed_roles.split(',');
+                    checkboxes.forEach(chk => {
+                        chk.checked = rolesArray.includes(chk.value);
+                    });
+                }
+            }
 
             const fields = data.schema_json.fields;
             
@@ -253,9 +269,17 @@
 
             if(schema.fields.length === 0) return alert("फॉर्ममध्ये किमान एक प्रश्न हवा!");
             
+            // 🟢 चेकबॉक्सेस वाचून रोल निश्चित करणे
+            let checkedRoles = [];
+            document.querySelectorAll('.role-chk:checked').forEach(chk => checkedRoles.push(chk.value));
+            
+            if (checkedRoles.length === 0) {
+                return alert("कृपया फॉर्म कोणी भरायचा यासाठी किमान एक पद (Role) टिक करा!");
+            }
+
+            // जर तिन्ही टिक केले असतील तर 'ALL' म्हणून सेव्ह करणे
+            let allowedRoles = (checkedRoles.length === 3) ? "ALL" : checkedRoles.join(',');
             const selectedMode = document.getElementById('dataEntryMode').value;
-            // 🟢 नवीन: निवडलेला रोल सेव्ह करणे
-            const allowedRoles = document.getElementById('allowedRoles').value;
 
             let result;
             if (editFormId) {
@@ -263,7 +287,7 @@
                     form_name: formName, 
                     form_type: document.getElementById('formType').value,
                     data_entry_mode: selectedMode,
-                    allowed_roles: allowedRoles, // 🟢 रोल अपडेट
+                    allowed_roles: allowedRoles, // 🟢 टिक केलेले रोल्स सेव्ह
                     schema_json: schema
                 }).eq('id', editFormId);
             } else {
@@ -271,7 +295,7 @@
                     form_name: formName, 
                     form_type: document.getElementById('formType').value,
                     data_entry_mode: selectedMode, 
-                    allowed_roles: allowedRoles, // 🟢 नवीन रोल
+                    allowed_roles: allowedRoles, // 🟢 टिक केलेले रोल्स सेव्ह
                     schema_json: schema, 
                     is_active: true
                 }]);
