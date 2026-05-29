@@ -6,6 +6,7 @@
     <title>प्रगत अहवाल केंद्र - स्मार्ट बेरीज प्रणाली</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Excel प्रगत स्टाईल लायब्ररी -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
         :root { --primary: #00705a; }
@@ -160,7 +161,6 @@
             return periods;
         }
 
-        // 🧠 स्मार्ट बेरीज इंजिन (Smart Total & Formula Calculator)
         function calculateSmartTotals(rows, fields, isProg) {
             let sums = { M: {}, P: {} };
             let results = {};
@@ -262,7 +262,6 @@
 
             const { data: respData } = await supabaseClient.from('form_responses').select('form_id, village_id, report_month, report_year');
             masterData.filledStats = respData || [];
-
             document.getElementById('chkAllReports').checked = true;
             updateMultiSelectText();
         }
@@ -426,7 +425,6 @@
             let html = '';
             reports.forEach(rep => {
                 let columns = rep.fields; let rows = rep.rows;
-                
                 html += `<div class="mb-8 p-4 border rounded bg-white shadow-sm"><div class="text-center border-b pb-2 mb-4 bg-green-50 p-2 rounded"><h2 class="text-md font-bold text-green-800">📋 अहवाल: ${rep.formName}</h2><p class="text-xs text-gray-500">प्राथमिक आरोग्य केंद्र भादा | कालावधी: ${month} ${year}</p></div>`;
 
                 if(groupType === "SubCenterConsolidated") {
@@ -435,7 +433,8 @@
                     let l2Row = `<tr>`; let l3Row = rep.isProg ? `<tr>` : ``;
 
                     rows.forEach((r) => {
-                        let vName = r.subcenter || "-";
+                        // 🟢 FIXED: गावाचे नाव आणि कंसामध्ये उपकेंद्राचे नाव 
+                        let vName = r.village ? `${r.village} <br/><span class="text-[10px] text-gray-500">(${r.subcenter})</span>` : "-";
                         l1Row += `<th colspan="${rep.isProg ? 2 : 1}" class="border p-2 bg-purple-100">${vName}</th>`;
                         if (rep.isProg) { l2Row += `<th class="border p-1 bg-yellow-50 text-[10px]">मासिक</th><th class="border p-1 bg-orange-50 text-[10px]">प्रगत</th>`; }
                     });
@@ -460,7 +459,6 @@
 
                     html += `<div class="table-responsive"><table class="report-table"><thead>${l1Row + l2Row + l3Row}</thead><tbody>${tbodyHtml}</tbody></table></div>`;
                 } else {
-                    // 🟢 फ्लॅट यादी प्रणाली (Group Block नको)
                     let dataRowsToRender = rows;
 
                     if(groupType === "SubCenterSum") {
@@ -484,7 +482,6 @@
                     }
 
                     if (groupType === "SubCenterSum" || groupType === "SubCenterFlat") {
-                        // सलग तक्ता हेडर 
                         let l1Row = `<tr><th rowspan="${rep.isProg?4:3}" class="border p-2">अ.क्र.</th><th rowspan="${rep.isProg?4:3}" class="border p-2">उपकेंद्र</th>`;
                         if (groupType === 'SubCenterFlat') l1Row += `<th rowspan="${rep.isProg?4:3}" class="border p-2">गाव/कार्यक्षेत्र</th>`;
                         let l2Row = `<tr>`; let l3Row = `<tr>`; let l4Row = rep.isProg ? `<tr>` : ``;
@@ -539,7 +536,6 @@
                             tbodyHtml += `</tr>`;
                         });
 
-                        // 🟢 पूर्ण PHC ची स्मार्ट बेरीज (सलग तक्त्यासाठी)
                         let phcTotals = calculateSmartTotals(dataRowsToRender, columns, rep.isProg);
                         let colspanTotal = groupType === 'SubCenterFlat' ? 3 : 2;
                         tbodyHtml += `<tr class="bg-green-100 font-bold text-green-900 text-sm"><td class="border p-2 text-left" colspan="${colspanTotal}">एकूण PHC Total</td>`;
@@ -552,7 +548,6 @@
 
                         html += `<div class="table-responsive"><table class="report-table"><thead>${l1Row + l2Row + l3Row + l4Row}</thead><tbody>${tbodyHtml}</tbody></table></div>`;
                     } else {
-                        // 🌳 मूळ (Village Wise Employee Blocks)
                         let employeeGroups = {};
                         rows.forEach(r => { let key = `${r.subcenter}###${r.employee}`; if(!employeeGroups[key]) employeeGroups[key] = []; employeeGroups[key].push(r); });
 
@@ -641,7 +636,6 @@
             container.innerHTML = html;
         }
 
-        // 🟢 📥 प्रगत ३-लेव्हल सलग एक्सेल जनरेटर इंजिन 
         function downloadConsolidatedExcel() {
             if(currentReports.length === 0) return;
             let groupType = document.getElementById('reportGroupFilter').value;
@@ -667,7 +661,9 @@
 
                     let ccIdx = 2;
                     rows.forEach(r => {
-                        r1.push(r.subcenter || "-"); if(rep.isProg) r1.push("");
+                        // 🟢 FIXED IN EXCEL: गावाचे नाव आणि उपकेंद्राचे नाव ब्रॅकेटमध्ये
+                        let vName = r.village ? `${r.village} (${r.subcenter})` : "-";
+                        r1.push(vName); if(rep.isProg) r1.push("");
                         if(rep.isProg) { merges.push({ s: { r: 3, c: ccIdx }, e: { r: 3, c: ccIdx + 1 } }); r2.push("मासिक"); r2.push("प्रगत"); ccIdx += 2; } else { ccIdx += 1; }
                     });
                     r1.push("एकूण PHC Total"); if(rep.isProg) r1.push("");
@@ -694,7 +690,6 @@
                     });
 
                 } else if (groupType === "SubCenterSum" || groupType === "SubCenterFlat") {
-                    // 🟢 एक्सेलमध्ये सलग तक्ता रचना (Flat Excel Generate)
                     let dataRowsToRender = rows;
 
                     if(groupType === "SubCenterSum") {
@@ -821,7 +816,6 @@
                     sheetData.push(pRow);
 
                 } else {
-                    // 🌳 मूळ गाव आणि कर्मचारी ग्रुप वाली एक्सेल
                     let employeeGroups = {};
                     rows.forEach(r => { let key = `${r.subcenter}###${r.employee}`; if(!employeeGroups[key]) employeeGroups[key] = []; employeeGroups[key].push(r); });
 
@@ -940,7 +934,6 @@
                     merges.push({ s: { r: pRowIdx, c: 0 }, e: { r: pRowIdx, c: 1 } });
                 }
 
-                // 💎 एक्सेल सेल स्टायलिंग
                 let ws = XLSX.utils.aoa_to_sheet(sheetData); ws["!merges"] = merges;
                 let finalColLimit = sheetData[3] ? sheetData[3].length : 60;
                 
