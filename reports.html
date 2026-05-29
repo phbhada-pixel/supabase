@@ -277,7 +277,7 @@
                         if (!isFilled) { 
                             let scObj = masterData.subCenters.find(s => s.id === u.sub_center_id);
                             groupedData[f.form_name].push({ 
-                                sc: scObj ? scObj.name : 'बाहरेचे', 
+                                sc: scObj ? scObj.name : 'बाहेरचे', 
                                 name: u.full_name, 
                                 role: u.role || 'Field Staff', 
                                 village: v.name 
@@ -372,15 +372,12 @@
                 textToCopy += `\n`;
             });
             
-            navigator.clipboard.writeText(textToCopy).then(() => { alert("✅ प्रलंबित यादी व्हॉट्सॲप मेसेजसाठी kopi झाली आहे!"); });
+            navigator.clipboard.writeText(textToCopy).then(() => { alert("✅ प्रलंबित यादी व्हॉट्सॲप मेसेजसाठी कॉपी झाली आहे!"); });
         }
 
-        // 🧠 लेव्हल ३ मधील ग्रुप्सचे नाव उपप्रश्नांसोबत मॅप करून फुल हेडिंग बनवणारे हेल्पर फंक्शन
         function getFullFieldLabel(fields, fieldObj) {
             let fullLabel = fieldObj.label;
             let currentField = fieldObj;
-
-            // जोपर्यंत वर पेरेंट सापडेल, तोपर्यंत त्याचे नाव मागे जोडत जाणे
             while (currentField && currentField.parent_id) {
                 let parentField = fields.find(f => f.id === currentField.parent_id);
                 if (parentField) {
@@ -388,13 +385,34 @@
                         fullLabel = parentField.label + " - " + fullLabel;
                     }
                     currentField = parentField;
-                } else {
-                    break;
-                }
+                } else { break; }
             }
             return fullLabel;
         }
 
+        // 📅 आर्थिक वर्षाच्या (Financial Year - एप्रिल ते मार्च) नियमानुसार प्रगत महिने काढणारे हेल्प इंजिन
+        function getProgressiveMonthsList(targetMonthNumeric, targetYear) {
+            let startYear = targetYear;
+            let periods = [];
+            
+            // आर्थिक वर्ष एप्रिल (४) पासून सुरू होते
+            if (targetMonthNumeric >= 4) {
+                for (let m = 4; m <= targetMonthNumeric; m++) {
+                    periods.push({ month: m, year: startYear });
+                }
+            } else {
+                // जर महिना जानेवारी ते मार्च असेल तर मागील वर्षाचे एप्रिल ते डिसेंबर आणावे लागेल
+                for (let m = 4; m <= 12; m++) {
+                    periods.push({ month: m, year: startYear - 1 });
+                }
+                for (let m = 1; m <= targetMonthNumeric; m++) {
+                    periods.push({ month: m, year: startYear });
+                }
+            }
+            return periods;
+        }
+
+        // 🟢 मुख्य डेटा फेचिंग आणि आकडेमोड इंजिन
         async function fetchReportData() {
             let selectedIDs = getSelectedReportIDs();
             if(selectedIDs.length === 0) { alert("कृपया किमान एक अहवाल निवडा!"); return; }
@@ -410,42 +428,55 @@
             document.getElementById('reportTableContainer').innerHTML = "";
 
             try {
-                let query = supabaseClient.from('form_responses').select('*').eq('report_month', selMonthNumeric).eq('report_year', selYear);
+                // प्रगत अहवालाची बेरीज करण्यासाठी चालू आर्थिक वर्षातील मागील महिन्यांची यादी काढणे
+                const progressivePeriods = getProgressiveMonthsList(selMonthNumeric, selYear);
                 
-                if(!selectedIDs.includes("ALL")) {
-                    query = query.in('form_id', selectedIDs);
+                // प्रगत अहवालासाठी डेटाबेस मधून फक्त चालू महिन्याचा नाही, तर एप्रिल पासूनचा सर्व डेटा एकत्र आणणे
+                let query = supabaseClient.from('form_responses').select('*').eq('report_year', selYear);
+                
+                if (selMonthNumeric < 4) {
+                    // जानेवारी ते मार्च कालावधीसाठी मागील वर्षाचा डेटा सुद्धा सोबत ओढणे
+                    query = supabaseClient.from('form_responses').select('*')
+                        .or(`and(report_year.eq.${selYear}),and(report_year.eq.${selYear-1},report_month.gte.4)`);
                 }
 
-                const { data: responses, error } = await query;
+                if(!selectedIDs.includes("ALL")) { query = query.in('form_id', selectedIDs); }
+
+                const { data: allDatabaseResponses, error } = await query;
                 document.getElementById('reportLoader').classList.add('hidden');
 
-                if (error || !responses || responses.length === 0) {
-                    alert("या कालावधीसाठी कोणताही डेटा रेकॉर्ड सापडला नाही!");
-                    return;
+                if (error || !allDatabaseResponses || allDatabaseResponses.length === 0) {
+                    alert("या कालावधीसाठी डेटा रेकॉर्ड सापडला नाही!"); return;
                 }
 
                 let finalReports = [];
                 let formsToProcess = selectedIDs.includes("ALL") ? masterData.forms : masterData.forms.filter(f => selectedIDs.includes(f.id));
 
                 formsToProcess.forEach(formObj => {
-                    let formResp = responses.filter(r => r.form_id === formObj.id);
-                    if(formResp.length === 0) return;
-
                     const allFields = formObj.schema_json.fields;
-                    
-                    // 🟢 सुधारणा: ग्रुप हेडर वगळून फक्त प्रत्यक्ष इनपुट प्रकारच्या फील्ड्स निवडणे
                     const validDataFields = allFields.filter(f => f.type !== 'group_header');
+                    const isProgressiveForm = formObj.form_type === 'progressive'; // प्रगत प्रकार चेक
 
-                    // हेडिंग रो तयार करणे (मॅप केलेल्या फुल नावांसह)
+                    // १. हेडर रो तयार करणे (मासिक आणि प्रगत वर्गीकरण रचनेसह)
                     let headers = ["महिना", "वर्ष", "उपकेंद्र", "गाव", "कर्मचाऱ्याचे नाव"];
                     validDataFields.forEach(f => { 
                         let professionalLabel = getFullFieldLabel(allFields, f);
-                        headers.push(professionalLabel); 
+                        if (isProgressiveForm && f.type === 'number') {
+                            headers.push(professionalLabel + " - (मासिक)");
+                            headers.push(professionalLabel + " - (प्रगत)");
+                        } else {
+                            headers.push(professionalLabel); 
+                        }
                     });
 
                     let sheetData = [headers];
 
-                    formResp.forEach(res => {
+                    // २. फक्त चालू फिल्टर महिन्याचा मुख्य डेटा फिल्टर करणे
+                    let activeMonthResponses = allDatabaseResponses.filter(r => r.form_id === formObj.id && r.report_month === selMonthNumeric && r.report_year === selYear);
+                    
+                    if(activeMonthResponses.length === 0) return;
+
+                    activeMonthResponses.forEach(res => {
                         let villageObj = masterData.villages.find(v => v.id === res.village_id);
                         let empObj = masterData.employees.find(e => e.id === res.employee_id);
                         let scObj = villageObj ? masterData.subCenters.find(s => s.id === villageObj.sub_center_id) : null;
@@ -460,17 +491,42 @@
                             empObj ? empObj.full_name : '-'
                         ];
 
-                        // फक्त प्रत्यक्ष डेटा फील्ड्सची उत्तरे भरणे
+                        // ३. प्रत्येक प्रश्नासाठी प्रगत बेरीज (Progressive Sum Logic) काढणे
                         validDataFields.forEach(f => {
-                            let ans = res.response_data[f.id] ? res.response_data[f.id].value : '';
-                            row.push(formatNumberDecimals(ans));
+                            let monthlyVal = res.response_data[f.id] ? res.response_data[f.id].value : '';
+                            
+                            if (isProgressiveForm && f.type === 'number') {
+                                // एप्रिलपासून चालू महिन्यापर्यंत या विशिष्ट गावच्या (`village_id`) डेटाची बेरीज करणे
+                                let sumProgressive = 0;
+                                progressivePeriods.forEach(p => {
+                                    let pastRes = allDatabaseResponses.find(r => 
+                                        r.form_id === formObj.id && 
+                                        r.village_id === res.village_id && 
+                                        r.report_month === p.month && 
+                                        r.report_year === p.year
+                                    );
+                                    if(pastRes && pastRes.response_data[f.id]) {
+                                        let v = parseFloat(pastRes.response_data[f.id].value) || 0;
+                                        sumProgressive += v;
+                                    }
+                                });
+
+                                row.push(formatNumberDecimals(monthlyVal)); // मासिक कॉलम
+                                row.push(formatNumberDecimals(sumProgressive)); // प्रगत कॉलम
+                            } else {
+                                row.push(formatNumberDecimals(monthlyVal));
+                            }
                         });
 
                         sheetData.push(row);
                     });
 
                     if(sheetData.length > 1) {
-                        finalReports.push({ formName: formObj.form_name, data: sheetData, formId: formObj.id, dataFieldsCount: validDataFields.length });
+                        finalReports.push({ 
+                            formName: formObj.form_name, 
+                            data: sheetData, 
+                            isProg: isProgressiveForm 
+                        });
                     }
                 });
 
@@ -503,13 +559,12 @@
                 let data = rep.data; 
                 let headers = data[0];
                 let dataRows = data.slice(1);
-
                 let showIndices = [];
                 for(let i=5; i<headers.length; i++) showIndices.push(i);
 
                 html += `<div class="mb-8 p-4 border rounded bg-white shadow-sm">
                     <div class="text-center border-b pb-2 mb-4 bg-green-50 p-2 rounded">
-                        <h2 class="text-md font-bold text-green-800">📋 अहवाल प्रकार: ${rep.formName}</h2>
+                        <h2 class="text-md font-bold text-green-800">📋 अहवाल प्रकार: ${rep.formName} ${rep.isProg ? '<span class="text-xs bg-orange-600 text-white px-2 py-0.5 rounded ml-2 uppercase">Progressive</span>':''}</h2>
                         <p class="text-xs text-gray-500">प्राथमिक आरोग्य केंद्र भादा | कालावधी: ${month} ${year}</p>
                     </div>`;
 
@@ -562,7 +617,6 @@
             container.innerHTML = html;
         }
 
-        // 🟢 व्यावसायिक एक्सेल निर्मिती (फिल्टर केलेल्या प्रत्यक्ष कॉलम रचना पॅटर्नसह)
         function downloadConsolidatedExcel() {
             if(currentReports.length === 0) return;
 
