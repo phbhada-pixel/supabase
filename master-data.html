@@ -3,30 +3,51 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>मास्टर डेटा मॅनेजमेंट</title>
+    <title>मास्टर डेटा मॅनेजमेंट - प्रगत</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body class="bg-gray-100 p-6 min-h-screen">
 
+    <!-- Header -->
     <div class="max-w-6xl mx-auto bg-white p-4 rounded-lg shadow-md flex justify-between items-center mb-6">
-        <h1 class="text-xl font-bold text-blue-600">मास्टर डेटा मॅनेजमेंट</h1>
+        <h1 class="text-xl font-bold text-blue-600">मास्टर डेटा मॅनेजमेंट (कंट्रोल पॅनेल)</h1>
         <button onclick="window.location.href='dashboard.html'" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition">डॅशबोर्डवर परत जा</button>
+    </div>
+
+    <!-- OTP मॉड्यूलर बॉक्स (डेटा डिलीट करण्यासाठी) -->
+    <div id="otpModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center hidden z-50">
+        <div class="bg-white p-6 rounded-lg shadow-xl max-w-sm w-full mx-4">
+            <h3 class="text-lg font-bold text-red-600 mb-2">सुरक्षा पडताळणी (OTP)</h3>
+            <p class="text-xs text-gray-600 mb-4">डेटा डिलीट करण्यासाठी तुमच्या ईमेलवर पाठवलेला OTP नंबर खाली टाका.</p>
+            <input type="text" id="otpInput" class="w-full p-2 border rounded text-center tracking-widest text-lg mb-4" placeholder="------">
+            <div class="flex gap-2">
+                <button onclick="closeOtpModal()" class="w-1/2 bg-gray-300 p-2 rounded text-sm font-bold">रद्द करा</button>
+                <button onclick="verifyOtpAndDelete()" class="w-1/2 bg-red-600 text-white p-2 rounded text-sm font-bold hover:bg-red-700">पडताळणी करा</button>
+            </div>
+        </div>
     </div>
 
     <div class="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         
+        <!-- १. उपकेंद्र फॉर्म (इन्सर्ट आणि एडिट दोन्हीसाठी) -->
         <div class="bg-white p-6 rounded-lg shadow-md border-t-4 border-blue-500">
-            <h2 class="text-lg font-bold mb-4 text-gray-700">नवीन आरोग्य उपकेंद्र जोडा</h2>
+            <h2 class="text-lg font-bold mb-4 text-gray-700" id="subCenterFormTitle">नवीन आरोग्य उपकेंद्र जोडा</h2>
+            <input type="hidden" id="editSubCenterId">
             <div class="mb-4">
                 <label class="block text-gray-600 text-sm mb-1">उपकेंद्राचे नाव</label>
-                <input type="text" id="subCenterName" class="w-full p-2 border rounded" placeholder="उदा. उपकेंद्र खडगाव">
+                <input type="text" id="subCenterName" class="w-full p-2 border rounded focus:border-blue-500" placeholder="उदा. उपकेंद्र खडगाव">
             </div>
-            <button onclick="saveSubCenter()" class="w-full bg-blue-500 text-white p-2 rounded font-bold hover:bg-blue-600">उपकेंद्र सेव्ह करा</button>
+            <div class="flex gap-2">
+                <button onclick="saveSubCenter()" id="subCenterSaveBtn" class="w-full bg-blue-500 text-white p-2 rounded font-bold hover:bg-blue-600 shadow">उपकेंद्र सेव्ह करा</button>
+                <button onclick="resetSubCenterForm()" id="subCenterCancelBtn" class="bg-gray-300 p-2 rounded text-sm font-bold hidden">रद्द करा</button>
+            </div>
         </div>
 
+        <!-- २. गाव फॉर्म (इन्सर्ट आणि एडिट दोन्हीसाठी) -->
         <div class="bg-white p-6 rounded-lg shadow-md border-t-4 border-green-500">
-            <h2 class="text-lg font-bold mb-4 text-gray-700">नवीन गाव जोडा</h2>
+            <h2 class="text-lg font-bold mb-4 text-gray-700" id="villageFormTitle">नवीन गाव जोडा</h2>
+            <input type="hidden" id="editVillageId">
             <div class="mb-3">
                 <label class="block text-gray-600 text-sm mb-1">उपकेंद्र निवडा</label>
                 <select id="subCenterSelect" class="w-full p-2 border rounded bg-white">
@@ -35,52 +56,62 @@
             </div>
             <div class="mb-3">
                 <label class="block text-gray-600 text-sm mb-1">गावाचे नाव</label>
-                <input type="text" id="villageName" class="w-full p-2 border rounded" placeholder="उदा. मौजे धानोरा">
+                <input type="text" id="villageName" class="w-full p-2 border rounded focus:border-green-500" placeholder="उदा. मौजे धानोरा">
             </div>
             <div class="grid grid-cols-2 gap-2 mb-4">
                 <div>
                     <label class="block text-gray-600 text-sm mb-1">एकूण लोकसंख्या</label>
-                    <input type="number" id="villagePopulation" class="w-full p-2 border rounded" placeholder="उदा. 1500" value="0">
+                    <input type="number" id="villagePopulation" class="w-full p-2 border rounded" value="0">
                 </div>
                 <div>
                     <label class="block text-gray-600 text-sm mb-1">एकूण घरांची संख्या</label>
-                    <input type="number" id="villageHouses" class="w-full p-2 border rounded" placeholder="उदा. 350" value="0">
+                    <input type="number" id="villageHouses" class="w-full p-2 border rounded" value="0">
                 </div>
             </div>
-            <button onclick="saveVillage()" class="w-full bg-green-500 text-white p-2 rounded font-bold hover:bg-green-600">गाव सेव्ह करा</button>
+            <div class="flex gap-2">
+                <button onclick="saveVillage()" id="villageSaveBtn" class="w-full bg-green-500 text-white p-2 rounded font-bold hover:bg-green-600 shadow">गाव सेव्ह करा</button>
+                <button onclick="resetVillageForm()" id="villageCancelBtn" class="bg-gray-300 p-2 rounded text-sm font-bold hidden">रद्द करा</button>
+            </div>
         </div>
 
     </div>
 
+    <!-- यादी तक्ते -->
     <div class="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6">
         
+        <!-- उपकेंद्रांची यादी (Edit/Delete ऑप्शन्ससह) -->
         <div class="bg-white p-6 rounded-lg shadow-md border-t-2 border-blue-400">
             <h3 class="font-bold text-gray-700 mb-3 italic">सर्व नोंदणीकृत उपकेंद्रे</h3>
-            <div class="overflow-y-auto max-h-60 border rounded">
+            <div class="overflow-y-auto max-h-80 border rounded">
                 <table class="w-full text-left border-collapse text-sm">
                     <thead>
-                        <tr class="bg-gray-100 text-gray-600 font-bold"><th class="p-2 border">उपकेंद्राचे नाव</th></tr>
+                        <tr class="bg-gray-100 text-gray-600 font-bold">
+                            <th class="p-2 border">उपकेंद्राचे नाव</th>
+                            <th class="p-2 border text-center w-32">क्रिया (Actions)</th>
+                        </tr>
                     </thead>
                     <tbody id="subCentersTableBody">
-                        <tr><td class="p-3 text-center text-gray-400">लोड होत आहे...</td></tr>
+                        <tr><td colspan="2" class="p-3 text-center text-gray-400">लोड होत आहे...</td></tr>
                     </tbody>
                 </table>
             </div>
         </div>
 
+        <!-- गावांची यादी (Edit/Delete ऑप्शन्ससह) -->
         <div class="bg-white p-6 rounded-lg shadow-md border-t-2 border-green-400">
             <h3 class="font-bold text-gray-700 mb-3 italic">सर्व नोंदणीकृत गावे</h3>
-            <div class="overflow-y-auto max-h-60 border rounded">
+            <div class="overflow-y-auto max-h-80 border rounded">
                 <table class="w-full text-left border-collapse text-sm">
                     <thead>
                         <tr class="bg-gray-100 text-gray-600 font-bold">
                             <th class="p-2 border">गावाचे नाव</th>
                             <th class="p-2 border">लोकसंख्या</th>
                             <th class="p-2 border">घरे</th>
+                            <th class="p-2 border text-center w-28">क्रिया</th>
                         </tr>
                     </thead>
                     <tbody id="villagesTableBody">
-                        <tr><td colspan="3" class="p-3 text-center text-gray-400">लोड होत आहे...</td></tr>
+                        <tr><td colspan="4" class="p-3 text-center text-gray-400">लोड होत आहे...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -93,11 +124,20 @@
         const SUPABASE_KEY = 'sb_publishable_sdgZ9G8ko4H_3Mh9RouYFg_JOQ-4Mdx'; 
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        window.onload = async function() {
-            const user = JSON.parse(localStorage.getItem('loggedInUser') || '{}');
-            if (user.role !== 'admin') { window.location.href = "index.html"; return; }
+        let currentUser = null;
+        let deleteTarget = { table: null, id: null }; // OTP पडताळणीसाठी तात्पुरता डेटा ठेवण्यासाठी
 
-            // डॅशबोर्ड लोड झाल्यावर सर्व डेटा एकत्र आणणे
+        window.onload = async function() {
+            const userString = localStorage.getItem('loggedInUser');
+            if (!userString) { window.location.href = "index.html"; return; }
+            currentUser = JSON.parse(userString);
+
+            if (currentUser.role !== 'admin') { 
+                alert("परवानगी नाकारली!"); 
+                window.location.href = "dashboard.html"; 
+                return; 
+            }
+
             await refreshData();
         };
 
@@ -106,69 +146,122 @@
             await loadVillagesList();
         }
 
-        // १. उपकेंद्रे लोड करणे (ड्रॉपडाऊन आणि टेबल दोन्हीमध्ये)
         async function loadSubCenters() {
             const { data, error } = await supabaseClient.from('sub_centers').select('*').order('name', { ascending: true });
-            
-            const select = document.getElementById('subCenterSelect');
-            const tableBody = document.getElementById('subCentersTableBody');
-            
-            if (error || !data) { return; }
+            if (error || !data) return;
 
-            // ड्रॉपडाऊन भरा
+            // १. ड्रॉपडाऊन अपडेट
             let options = '<option value="">-- उपकेंद्र निवडा --</option>';
             data.forEach(sc => { options += `<option value="${sc.id}">${sc.name}</option>`; });
-            select.innerHTML = options;
+            document.getElementById('subCenterSelect').innerHTML = options;
 
-            // टेबल भरा
+            // २. टेबल यादी अपडेट
             let tableHTML = '';
             if(data.length === 0) {
-                tableHTML = '<tr><td class="p-3 text-center text-gray-400">कोणतेही उपकेंद्र जोडलेले नाही.</td></tr>';
+                tableHTML = '<tr><td colspan="2" class="p-3 text-center text-gray-400">माहिती उपलब्ध नाही.</td></tr>';
             } else {
-                data.forEach(sc => { tableHTML += `<tr class="hover:bg-gray-50"><td class="p-2 border font-medium">${sc.name}</td></tr>`; });
-            }
-            tableBody.innerHTML = tableHTML;
-        }
-
-        // २. गावांची सुधारित यादी लोड करणे (लोकसंख्या आणि घरांसह)
-        async function loadVillagesList() {
-            const { data, error } = await supabaseClient.from('villages').select('*').order('name', { ascending: true });
-            const tableBody = document.getElementById('villagesTableBody');
-
-            if (error || !data) { return; }
-
-            let tableHTML = '';
-            if(data.length === 0) {
-                tableHTML = '<tr><td colspan="3" class="p-3 text-center text-gray-400">कोणतेही गाव जोडलेले नाही.</td></tr>';
-            } else {
-                data.forEach(v => {
+                data.forEach(sc => {
                     tableHTML += `
-                        <tr class="hover:bg-gray-50">
-                            <td class="p-2 border font-medium">${v.name}</td>
-                            <td class="p-2 border text-blue-600 font-bold">${v.population || 0}</td>
-                            <td class="p-2 border text-purple-600 font-bold">${v.total_houses || 0}</td>
+                        <tr class="hover:bg-gray-50 text-gray-700">
+                            <td class="p-2 border font-medium">${sc.name}</td>
+                            <td class="p-2 border text-center">
+                                <button onclick="startEditSubCenter('${sc.id}', '${sc.name}')" class="text-blue-500 font-bold hover:underline mr-3 text-xs">Edit</button>
+                                <button onclick="triggerDelete('sub_centers', '${sc.id}')" class="text-red-500 font-bold hover:underline text-xs">Delete</button>
+                            </td>
                         </tr>`;
                 });
             }
-            tableBody.innerHTML = tableHTML;
+            document.getElementById('subCentersTableBody').innerHTML = tableHTML;
         }
 
-        // ३. उपकेंद्र सेव्ह करणे
+        async function loadVillagesList() {
+            const { data, error } = await supabaseClient.from('villages').select('*').order('name', { ascending: true });
+            if (error || !data) return;
+
+            let tableHTML = '';
+            if(data.length === 0) {
+                tableHTML = '<tr><td colspan="4" class="p-3 text-center text-gray-400">माहिती उपलब्ध नाही.</td></tr>';
+            } else {
+                data.forEach(v => {
+                    tableHTML += `
+                        <tr class="hover:bg-gray-50 text-gray-700">
+                            <td class="p-2 border font-medium">${v.name}</td>
+                            <td class="p-2 border font-bold text-blue-600">${v.population || 0}</td>
+                            <td class="p-2 border font-bold text-purple-600">${v.total_houses || 0}</td>
+                            <td class="p-2 border text-center">
+                                <button onclick="startEditVillage('${v.id}', '${v.sub_center_id}', '${v.name}', ${v.population}, ${v.total_houses})" class="text-blue-500 font-bold hover:underline mr-3 text-xs">Edit</button>
+                                <button onclick="triggerDelete('villages', '${v.id}')" class="text-red-500 font-bold hover:underline text-xs">Delete</button>
+                            </td>
+                        </tr>`;
+                });
+            }
+            document.getElementById('villagesTableBody').innerHTML = tableHTML;
+        }
+
+        // ✏️ उपकेंद्र एडिट करण्याची तयारी सुरू करणे
+        function startEditSubCenter(id, name) {
+            document.getElementById('editSubCenterId').value = id;
+            document.getElementById('subCenterName').value = name;
+            document.getElementById('subCenterFormTitle').innerText = "उपकेंद्र सुधारा (Edit)";
+            document.getElementById('subCenterSaveBtn').innerText = "बदल सेव्ह करा";
+            document.getElementById('subCenterCancelBtn').classList.remove('hidden');
+        }
+
+        function resetSubCenterForm() {
+            document.getElementById('editSubCenterId').value = '';
+            document.getElementById('subCenterName').value = '';
+            document.getElementById('subCenterFormTitle').innerText = "नवीन आरोग्य उपकेंद्र जोडा";
+            document.getElementById('subCenterSaveBtn').innerText = "उपकेंद्र सेव्ह करा";
+            document.getElementById('subCenterCancelBtn').classList.add('hidden');
+        }
+
+        // ✏️ गाव एडिट करण्याची तयारी सुरू करणे
+        function startEditVillage(id, subCenterId, name, pop, houses) {
+            document.getElementById('editVillageId').value = id;
+            document.getElementById('subCenterSelect').value = subCenterId || '';
+            document.getElementById('villageName').value = name;
+            document.getElementById('villagePopulation').value = pop || 0;
+            document.getElementById('villageHouses').value = houses || 0;
+            document.getElementById('villageFormTitle').innerText = "गावाची माहिती सुधारा (Edit)";
+            document.getElementById('villageSaveBtn').innerText = "बदल सेव्ह करा";
+            document.getElementById('villageCancelBtn').classList.remove('hidden');
+        }
+
+        function resetVillageForm() {
+            document.getElementById('editVillageId').value = '';
+            document.getElementById('subCenterSelect').value = '';
+            document.getElementById('villageName').value = '';
+            document.getElementById('villagePopulation').value = '0';
+            document.getElementById('villageHouses').value = '0';
+            document.getElementById('villageFormTitle').innerText = "नवीन गाव जोडा";
+            document.getElementById('villageSaveBtn').innerText = "गाव सेव्ह करा";
+            document.getElementById('villageCancelBtn').classList.add('hidden');
+        }
+
+        // 💾 उपकेंद्र सेव्ह किंवा अपडेट करणे
         async function saveSubCenter() {
             const name = document.getElementById('subCenterName').value.trim();
+            const id = document.getElementById('editSubCenterId').value;
             if(!name) return alert("कृपया उपकेंद्राचे नाव टाका!");
 
-            const { error } = await supabaseClient.from('sub_centers').insert([{ name: name }]);
-            if(error) alert("एरर: " + error.message);
+            let result;
+            if (id) {
+                result = await supabaseClient.from('sub_centers').update({ name: name }).eq('id', id);
+            } else {
+                result = await supabaseClient.from('sub_centers').insert([{ name: name }]);
+            }
+
+            if(result.error) alert("एरर: " + result.error.message);
             else {
-                alert("उपकेंद्र यशस्वीरीत्या जोडले गेले!");
-                document.getElementById('subCenterName').value = '';
+                alert(id ? "उपकेंद्र यशस्वीरीत्या सुधारले!" : "उपकेंद्र यशस्वीरीत्या जोडले!");
+                resetSubCenterForm();
                 await refreshData();
             }
         }
 
-        // ४. गाव सेव्ह करणे (नवीन कॉलम्ससह)
+        // 💾 गाव सेव्ह किंवा अपडेट करणे
         async function saveVillage() {
+            const id = document.getElementById('editVillageId').value;
             const subCenterId = document.getElementById('subCenterSelect').value;
             const name = document.getElementById('villageName').value.trim();
             const pop = parseInt(document.getElementById('villagePopulation').value) || 0;
@@ -177,19 +270,83 @@
             if(!subCenterId) return alert("कृपया उपकेंद्र निवडा!");
             if(!name) return alert("कृपया गावाचे नाव टाका!");
 
-            const { error } = await supabaseClient.from('villages').insert([{
-                sub_center_id: subCenterId,
-                name: name,
-                population: pop,
-                total_houses: houses
-            }]);
+            let result;
+            if (id) {
+                result = await supabaseClient.from('villages').update({
+                    sub_center_id: subCenterId, name: name, population: pop, total_houses: houses
+                }).eq('id', id);
+            } else {
+                result = await supabaseClient.from('villages').insert([{
+                    sub_center_id: subCenterId, name: name, population: pop, total_houses: houses
+                }]);
+            }
 
-            if(error) alert("एरर: " + error.message);
+            if(result.error) alert("एरर: " + result.error.message);
             else {
-                alert("गाव यशस्वीरीत्या जोडले गेले!");
-                document.getElementById('villageName').value = '';
-                document.getElementById('villagePopulation').value = '0';
-                document.getElementById('villageHouses').value = '0';
+                alert(id ? "गावाची माहिती यशस्वीरीत्या सुधारली!" : "गाव यशस्वीरीत्या जोडले गेले!");
+                resetVillageForm();
+                await refreshData();
+            }
+        }
+
+        // 🔒 ईमेल ओटीपी सिक्युरिटी मॅनेजमेंट (Delete Process)
+        async function triggerDelete(table, id) {
+            if(confirm("तुम्हाला खात्री आहे की हा डेटा डिलीट करायचा आहे? सुरक्षेसाठी तुमच्या ईमेलवर OTP पडताळणी आवश्यक आहे.")) {
+                deleteTarget.table = table;
+                deleteTarget.id = id;
+
+                // अॅडमिनच्या ईमेलवर OTP पाठवण्याची विनंती (Supabase Passwordless OTP)
+                // टीप: यासाठी चालू अॅडमिनकडे वैध ईमेल असणे आवश्यक आहे
+                const adminEmail = currentUser.email || prompt("कृपया तुमच्या अधिकृत अॅडमिनचा ईमेल आयडी टाका:");
+                if(!adminEmail) return;
+
+                const { error } = await supabaseClient.auth.signInWithOtp({ email: adminEmail });
+                
+                if (error) {
+                    alert("OTP पाठवता आला नाही: " + error.message);
+                } else {
+                    alert("तुमच्या ईमेलवर ६ अंकी OTP पाठवला आहे. कृपया तपासा.");
+                    document.getElementById('otpModal').classList.remove('hidden');
+                }
+            }
+        }
+
+        function closeOtpModal() {
+            document.getElementById('otpModal').classList.add('hidden');
+            document.getElementById('otpInput').value = '';
+            deleteTarget = { table: null, id: null };
+        }
+
+        // 🔑 OTP पडताळणी आणि प्रत्यक्ष डिलीट लॉजिक
+        async function verifyOtpAndDelete() {
+            const token = document.getElementById('otpInput').value.trim();
+            const adminEmail = currentUser.email;
+
+            if(!token) return alert("कृपया OTP टाका!");
+
+            // Supabase कडून OTP पडताळणी करणे
+            const { error: otpError } = await supabaseClient.auth.verifyOtp({
+                email: adminEmail,
+                token: token,
+                type: 'magiclink'
+            });
+
+            if (otpError) {
+                alert("चुकीचा किंवा एक्स्पायर झालेला OTP! कृपया पुन्हा प्रयत्न करा. " + otpError.message);
+                return;
+            }
+
+            // OTP बरोबर असल्यास प्रत्यक्ष डिलीट करणे
+            const { error: deleteError } = await supabaseClient
+                .from(deleteTarget.table)
+                .delete()
+                .eq('id', deleteTarget.id);
+
+            if (deleteError) {
+                alert("डेटा डिलीट करता आला नाही (कदाचित हा डेटा इतर सिस्टीममध्ये जोडलेला आहे): " + deleteError.message);
+            } else {
+                alert("माहिती यशस्वीरीत्या डिलीट करण्यात आली आहे!");
+                closeOtpModal();
                 await refreshData();
             }
         }
