@@ -14,7 +14,7 @@
 </head>
 <body class="bg-gray-100 p-6 min-h-screen">
 
-    <div class="max-w-4xl mx-auto bg-white p-4 rounded-lg shadow-md flex justify-between items-center mb-6">
+    <div class="max-w-4xl mx-auto bg-white p-4 rounded-lg shadow-md flex justify-between items-center mb-6 no-print">
         <div>
             <h1 class="text-xl font-bold text-indigo-700">📝 नवीन माहिती भरा (Data Entry)</h1>
             <p class="text-xs text-gray-500">तुमच्या उपकेंद्राची आणि गावाची मासिक माहिती येथे भरा</p>
@@ -90,7 +90,6 @@
             if (!userDataString) { window.location.href = "index.html"; return; }
             loggedInUser = JSON.parse(userDataString);
 
-            // सध्याचा महिना सेट करणे
             const currentMonth = new Date().getMonth() + 1;
             document.getElementById('reportMonth').value = currentMonth;
             document.getElementById('reportYear').value = new Date().getFullYear();
@@ -99,7 +98,7 @@
             await fetchAvailableForms();
         };
 
-        // 🟢 १. कर्मचाऱ्याच्या उपकेंद्राची गावे आणणे
+        // गावे आणणे
         async function fetchVillages() {
             const { data, error } = await supabaseClient
                 .from('villages')
@@ -117,7 +116,7 @@
             }
         }
 
-        // 🟢 २. कर्मचाऱ्याच्या पदानुसार (Role) उपलब्ध फॉर्म्स आणणे
+        // कर्मचाऱ्याच्या पदानुसार (Role) उपलब्ध फॉर्म्स आणणे
         async function fetchAvailableForms() {
             const { data, error } = await supabaseClient
                 .from('dynamic_forms')
@@ -129,7 +128,6 @@
                 let userRole = loggedInUser.role ? String(loggedInUser.role).trim().toUpperCase() : "ALL";
                 
                 data.forEach(form => {
-                    // रोल फिल्टर तपासणे
                     let isAllowed = false;
                     let rolesStr = form.allowed_roles ? String(form.allowed_roles).trim().toUpperCase() : "ALL";
                     
@@ -150,7 +148,7 @@
             }
         }
 
-        // 🟢 ३. निवडलेल्या फॉर्मचे प्रश्न स्क्रीनवर दाखवणे (३-लेव्हल डिझाईन)
+        // निवडलेल्या फॉर्मचे प्रश्न स्क्रीनवर दाखवणे
         function loadFormSchema() {
             const formId = document.getElementById('formSelect').value;
             const container = document.getElementById('dynamicFieldsContainer');
@@ -168,7 +166,6 @@
             let html = '';
 
             currentFormFields.forEach(f => {
-                // लेव्हल ठरवणे (Level CSS Class)
                 let divClass = '';
                 if (!f.parent_id) {
                     divClass = f.type === 'group_header' ? 'level-1' : 'mb-4';
@@ -216,9 +213,9 @@
             submitBtn.classList.remove('hidden');
         }
 
-        // 🟢 ४. डेटा सेव्ह करणे आणि पेज ऑटो-रिफ्रेश करणे (The Fix)
+        // 🟢 डेटा सेव्ह करणे आणि 'सॉफ्ट रिसेट' करणे
         async function submitDataEntry(event) {
-            event.preventDefault(); // फॉर्म आपोआप सबमिट होण्यापासून रोखणे
+            event.preventDefault(); 
 
             const formId = document.getElementById('formSelect').value;
             const villageId = document.getElementById('villageSelect').value;
@@ -229,13 +226,12 @@
                 alert("कृपया फॉर्म आणि गाव अचूक निवडा!"); return;
             }
 
-            document.getElementById('loader').classList.remove('hidden'); // लोडर दाखवणे
+            document.getElementById('loader').classList.remove('hidden');
 
             let responseDataObj = {};
             currentFormFields.forEach(f => {
                 if (f.type !== 'group_header') {
                     let el = document.getElementById(f.id);
-                    // reports.html ला लागणाऱ्या फॉरमॅटनुसार { value: "..." }
                     responseDataObj[f.id] = { value: el ? el.value : "" };
                 }
             });
@@ -250,18 +246,22 @@
             };
 
             try {
-                // डेटा डेटाबेसमध्ये पाठवणे
                 const { error } = await supabaseClient.from('form_responses').insert([payload]);
                 
-                document.getElementById('loader').classList.add('hidden'); // लोडर लपवणे
+                document.getElementById('loader').classList.add('hidden');
 
                 if (error) {
                     alert("माहिती सेव्ह करताना त्रुटी आली: " + error.message);
                 } else {
                     alert("✅ उत्कृष्ट! तुमची माहिती डेटाबेसमध्ये यशस्वीरीत्या सेव्ह झाली आहे.");
                     
-                    // 🟢 ऑटो-रिफ्रेश: ही ती लाईन आहे ज्यामुळे पेज आपोआप रिलोड होईल आणि जुना डेटा निघून जाईल.
-                    window.location.reload(); 
+                    // 🟢 सॉफ्ट रिसेट (Soft Reset)
+                    // याद्वारे फक्त भरलेले आकडे (Inputs) पुसले जातील.
+                    // वर निवडलेले फॉर्मचे नाव, गाव, महिना, वर्ष तसेच राहतील!
+                    document.getElementById('dynamicDataForm').reset();
+                    
+                    // माहिती भरून झाल्यावर आपोआप पेजच्या वरच्या बाजूला (गावाच्या नावावर) फोकस जाईल
+                    document.getElementById('villageSelect').focus();
                 }
             } catch (err) {
                 document.getElementById('loader').classList.add('hidden');
