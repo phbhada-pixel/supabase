@@ -58,26 +58,37 @@
             loginBtn.disabled = true;
 
             try {
-                // 🟢 मोबाईल नंबर आणि पासवर्ड दोन्ही तपासणे
+                // 🟢 १. आधी फक्त मोबाईल नंबरने डेटाबेसमधून कर्मचारी शोधणे
                 const { data, error } = await supabaseClient
                     .from('employees')
                     .select('*')
                     .eq('mobile_number', mobile)
-                    .eq('password', password)
                     .single();
 
                 if (error || !data) {
+                    errorMsg.innerText = "हा मोबाईल नंबर रजिस्टर नाही!";
                     errorMsg.classList.remove('hidden');
                     loginBtn.innerText = "लॉगिन करा";
                     loginBtn.disabled = false;
                 } else {
-                    // यशस्वी लॉगिन
-                    localStorage.setItem('loggedInUser', JSON.stringify(data));
-                    window.location.href = 'dashboard.html';
+                    // 🟢 २. कर्मचारी सापडल्यास त्याचा पासवर्ड तपासणे (String मध्ये कन्व्हर्ट करून)
+                    let dbPassword = data.password ? String(data.password).trim() : "";
+
+                    if (dbPassword === password) {
+                        // यशस्वी लॉगिन
+                        localStorage.setItem('loggedInUser', JSON.stringify(data));
+                        window.location.href = 'dashboard.html';
+                    } else {
+                        // पासवर्ड चुकीचा असल्यास
+                        errorMsg.innerText = "पासवर्ड चुकीचा आहे! कृपया पुन्हा तपासा.";
+                        errorMsg.classList.remove('hidden');
+                        loginBtn.innerText = "लॉगिन करा";
+                        loginBtn.disabled = false;
+                    }
                 }
             } catch (err) {
                 console.error(err);
-                alert("इंटरनेट कनेक्शन तपासा आणि पुन्हा प्रयत्न करा.");
+                alert("नेटवर्क एरर! कृपया तुमचे इंटरनेट तपासा.");
                 loginBtn.innerText = "लॉगिन करा";
                 loginBtn.disabled = false;
             }
