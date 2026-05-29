@@ -10,7 +10,7 @@
 <body class="bg-gray-100 p-6 min-h-screen">
 
     <div class="max-w-4xl mx-auto bg-white p-4 rounded-lg shadow-md flex justify-between items-center mb-6">
-        <h1 class="text-xl font-bold text-indigo-600">नवीन माहिती भरा</h1>
+        <h1 class="text-xl font-bold text-indigo-600">नवीन माहिती भरा (लेव्हल ३ गट रचना)</h1>
         <button onclick="window.location.href='dashboard.html'" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">डॅशबोर्डवर परत जा</button>
     </div>
 
@@ -34,7 +34,7 @@
             </div>
             <div>
                 <label class="block text-gray-700 text-sm font-bold mb-2">फॉर्म निवडा</label>
-                <select id="formSelect" onchange="onFormChange()" class="w-full p-2 border rounded bg-white">
+                <select id="formSelect" onchange="onFormChange()" class="w-full p-2 border rounded bg-white font-semibold text-green-700">
                     <option value="">-- लोड होत आहे... --</option>
                 </select>
             </div>
@@ -77,9 +77,7 @@
         };
 
         async function onFilterChange() {
-            if(document.getElementById('formSelect').value) {
-                await loadVillages();
-            }
+            if(document.getElementById('formSelect').value) { await loadVillages(); }
         }
 
         async function onFormChange() {
@@ -87,99 +85,56 @@
             renderForm();
         }
 
-        // 🟢 सुधारित गावे लोड करण्याचे फंक्शन (Shared / Individual मोडनुसार फिल्टर)
         async function loadVillages() {
             const formId = document.getElementById('formSelect').value;
             const month = parseInt(document.getElementById('reportMonth').value);
             const year = parseInt(document.getElementById('reportYear').value);
-
-            if (!formId) {
-                document.getElementById('villageSelect').innerHTML = '<option value="">-- आधी फॉर्म निवडा --</option>';
-                return;
-            }
+            if (!formId) return;
 
             try {
-                document.getElementById('villageSelect').innerHTML = '<option value="">-- गावे तपासत आहे... --</option>';
-
-                // फॉर्मचा डेटा शोधून त्याचा डेटा एन्ट्री मोड (Shared किंवा Individual) काढणे
                 const selectedForm = activeForms.find(f => f.id === formId);
                 const entryMode = selectedForm && selectedForm.data_entry_mode ? selectedForm.data_entry_mode : 'shared';
 
-                // १. या फॉर्मसाठी, महिन्यासाठी आणि वर्षासाठी सबमिट झालेले रेकॉर्ड्स आणणे
-                let submittedQuery = supabaseClient
-                    .from('form_responses')
-                    .select('village_id, employee_id')
-                    .eq('form_id', formId)
-                    .eq('report_month', month)
-                    .eq('report_year', year);
+                let submittedQuery = supabaseClient.from('form_responses').select('village_id, employee_id').eq('form_id', formId).eq('report_month', month).eq('report_year', year);
+                const { data: submittedData } = await submittedQuery;
 
-                const { data: submittedData, error: submittedError } = await submittedQuery;
-
-                // २. मोडनुसार कोणत्या गावांचा फॉर्म भरला गेलाय ते ठरवणे
                 let filledVillageIds = [];
                 if (submittedData) {
-                    if (entryMode === 'shared') {
-                        // सामायिक मोड: उपकेंद्रातील कोणीही एक फॉर्म भरला तरी गाव गायब होईल
-                        filledVillageIds = submittedData.map(r => r.village_id);
-                    } else {
-                        // वैयक्तिक मोड: फक्त चालू लॉगिन असलेल्या कर्मचाऱ्याने स्वतः भरलेला फॉर्म असेल तरच गाव गायब होईल
-                        filledVillageIds = submittedData
-                            .filter(r => r.employee_id === currentUser.id)
-                            .map(r => r.village_id);
-                    }
+                    if (entryMode === 'shared') filledVillageIds = submittedData.map(r => r.village_id);
+                    else filledVillageIds = submittedData.filter(r => r.employee_id === currentUser.id).map(r => r.village_id);
                 }
 
-                // ३. कर्मचाऱ्याच्या कार्यक्षेत्रातील सर्व गावे लोड करणे
                 let villageQuery = supabaseClient.from('villages').select('id, name');
                 if (currentUser && currentUser.role !== 'admin' && currentUser.sub_center_id) {
                     villageQuery = villageQuery.eq('sub_center_id', currentUser.sub_center_id);
                 }
-
-                let { data: allVillages, error: villageError } = await villageQuery;
-
+                let { data: allVillages } = await villageQuery;
                 if (!allVillages || allVillages.length === 0) {
                     const backup = await supabaseClient.from('villages').select('id, name');
                     allVillages = backup.data || [];
                 }
 
-                // ४. भरलेला डेटा वगळून उरलेली गावे दाखवणे
                 const remainingVillages = allVillages.filter(v => !filledVillageIds.includes(v.id));
-
                 let options = '<option value="">-- गाव निवडा --</option>';
                 if (remainingVillages.length > 0) {
-                    remainingVillages.forEach(v => { 
-                        options += `<option value="${v.id}">${v.name}</option>`; 
-                    });
+                    remainingVillages.forEach(v => { options += `<option value="${v.id}">${v.name}</option>`; });
                 } else {
-                    options = entryMode === 'shared' 
-                        ? '<option value="">-- या उपकेंद्रासाठी फॉर्म पूर्ण भरून झाला आहे! --</option>'
-                        : '<option value="">-- तुमचे सर्व गावांचे फॉर्म भरून झाले आहेत! --</option>';
+                    options = '<option value="">-- सर्व गावांचे फॉर्म भरून झाले आहेत! --</option>';
                 }
                 document.getElementById('villageSelect').innerHTML = options;
-
-            } catch (err) {
-                console.error(err);
-                document.getElementById('villageSelect').innerHTML = '<option value="">-- लोड एरर --</option>';
-            }
+            } catch (err) { console.error(err); }
         }
 
         async function loadForms() {
             try {
-                const { data, error } = await supabaseClient.from('dynamic_forms').select('*').eq('is_active', true);
+                const { data } = await supabaseClient.from('dynamic_forms').select('*').eq('is_active', true);
                 let options = '<option value="">-- फॉर्म निवडा --</option>';
-                if (!error && data && data.length > 0) {
-                    activeForms = data;
-                    data.forEach(f => { options += `<option value="${f.id}">${f.form_name}</option>`; });
-                } else {
-                    options = '<option value="">-- फॉर्म्स उपलब्ध नाहीत --</option>';
-                }
+                if (data) { activeForms = data; data.forEach(f => { options += `<option value="${f.id}">${f.form_name}</option>`; }); }
                 document.getElementById('formSelect').innerHTML = options;
-            } catch (err) {
-                console.error(err);
-                document.getElementById('formSelect').innerHTML = '<option value="">-- लोड एरर --</option>';
-            }
+            } catch (err) { console.error(err); }
         }
 
+        // 🧠 लेव्हल ३ नुसार प्रश्नांची अचूक क्रमवारी लावणारे रिकर्सिव्ह इंजिन
         function renderForm() {
             const formId = document.getElementById('formSelect').value;
             const container = document.getElementById('dynamicFormContainer');
@@ -192,56 +147,127 @@
             selectedFormSchema = form.schema_json.fields;
 
             let formHTML = '';
-            let lastGroupName = null;
 
-            selectedFormSchema.forEach(field => {
-                if (field.group_name && field.group_name !== lastGroupName) {
-                    formHTML += `<div class="mt-6 mb-2 p-2 bg-purple-100 text-purple-800 font-bold rounded border-l-4 border-purple-500">${field.group_name}</div>`;
-                    lastGroupName = field.group_name;
-                } else if (!field.group_name) { lastGroupName = null; }
+            // १. फक्त मुख्य लेव्हल १ चे प्रश्न (ज्यांचा कोणताही parent_id नाही) शोधणे
+            const rootFields = selectedFormSchema.filter(f => !f.parent_id);
 
+            rootFields.forEach(rootField => {
+                formHTML += renderFieldTree(rootField, 0); // 0 म्हणजे मुख्य लेव्हल १
+            });
+
+            container.innerHTML = formHTML;
+            submitBtn.classList.remove('hidden');
+            
+            setupFormulaEngine();
+            setupConditionalEngine();
+            checkConditionalLogic();
+        }
+
+        // 🌳 रिकर्सिव्ह ट्री फंक्शन (Level 1, 2, 3 जनरेशन)
+        function renderFieldTree(field, level) {
+            let html = '';
+            
+            // लेव्हलनुसार CSS गॅप आणि डिझाईन ठरवणे
+            let paddingClass = "mb-4";
+            let borderStyle = "";
+            
+            if (level === 1) {
+                // Level 2 उप-गट
+                paddingClass = "ml-6 border-l-4 border-purple-400 pl-4 mb-3 bg-purple-50/20 p-2 rounded";
+            } else if (level === 2) {
+                // Level 3 थेट प्रश्न
+                paddingClass = "ml-12 border-l-2 border-dashed border-gray-300 pl-4 mb-2 bg-gray-50 p-2 rounded text-sm";
+            } else if (level === 0 && field.type === 'group_header') {
+                // Level 1 मुख्य हेडर
+                return `<div class="mt-6 mb-2 p-2 bg-indigo-100 text-indigo-900 font-bold rounded border-l-4 border-indigo-600 text-base uppercase">${field.label}</div>` + renderChildFields(field.id, level + 1);
+            }
+
+            if (field.type === 'group_header') {
+                // जर लेव्हल २ वर ग्रुप हेडर असेल
+                html += `<div class="${paddingClass} font-bold text-purple-800 text-sm italic mt-3 mb-1 uppercase">${field.label}</div>`;
+            } else {
                 let inputHtml = '';
-                const fieldClass = field.group_name ? "ml-6 border-l-2 border-gray-200 pl-4 mb-4" : "mb-4";
                 const isReadonly = field.formula ? 'readonly bg-gray-100 font-bold text-blue-600' : '';
+                const dVal = field.default_value !== null ? field.default_value : '';
 
                 if (field.type === 'number') {
-                    inputHtml = `<input type="number" id="ans_${field.id}" data-id="${field.id}"
-                                 min="${field.min || ''}" max="${field.max || ''}" ${isReadonly}
-                                 class="w-full p-2 border rounded focus:border-blue-500 formula-input" 
-                                 placeholder="${field.formula ? 'हा आकडा फॉर्म्युलाद्वारे आपोआप येईल' : (field.min ? 'मर्यादा: '+field.min+'-'+field.max : '')}">`;
+                    inputHtml = `<input type="number" id="ans_${field.id}" value="${dVal}" ${isReadonly} min="${field.min || ''}" max="${field.max || ''}" class="w-full p-2 border rounded focus:border-blue-500 formula-input cond-trigger">`;
+                } else if (field.type === 'dropdown') {
+                    let optHTML = `<option value="">-- निवडा --</option>`;
+                    if(field.options) { field.options.split(',').forEach(o => { let cleanOpt = o.trim(); optHTML += `<option value="${cleanOpt}" ${dVal===cleanOpt?'selected':''}>${cleanOpt}</option>`; }); }
+                    inputHtml = `<select id="ans_${field.id}" class="w-full p-2 border rounded bg-white cond-trigger">${optHTML}</select>`;
                 } else if (field.type === 'date') {
-                    inputHtml = `<input type="date" id="ans_${field.id}" class="w-full p-2 border rounded focus:border-blue-500">`;
+                    inputHtml = `<input type="date" id="ans_${field.id}" value="${dVal}" class="w-full p-2 border rounded focus:border-blue-500">`;
                 } else if (field.type === 'yes_no') {
-                    inputHtml = `<select id="ans_${field.id}" class="w-full p-2 border rounded bg-white">
+                    inputHtml = `<select id="ans_${field.id}" class="w-full p-2 border rounded bg-white cond-trigger">
                                     <option value="">-- निवडा --</option>
-                                    <option value="Yes">होय</option>
-                                    <option value="No">नाही</option>
+                                    <option value="Yes" ${dVal==='Yes'?'selected':''}>होय</option>
+                                    <option value="No" ${dVal==='No'?'selected':''}>नाही</option>
                                  </select>`;
-                } else if (field.type === 'phone') {
-                    inputHtml = `<input type="number" id="ans_${field.id}" class="w-full p-2 border rounded focus:border-blue-500" onkeypress="if(this.value.length==10) return false;">`;
                 } else {
-                    inputHtml = `<input type="text" id="ans_${field.id}" class="w-full p-2 border rounded focus:border-blue-500">`;
+                    inputHtml = `<input type="text" id="ans_${field.id}" value="${dVal}" class="w-full p-2 border rounded focus:border-blue-500">`;
                 }
 
-                formHTML += `
-                    <div class="${fieldClass}">
-                        <label class="block text-gray-700 font-semibold mb-1 text-sm">
+                html += `
+                    <div id="wrapper_${field.id}" class="${paddingClass}" data-cond-field="${field.cond_field || ''}" data-cond-val="${field.cond_val || ''}">
+                        <label class="block text-gray-700 font-semibold mb-1">
                             ${field.label} ${field.required ? '<span class="text-red-500">*</span>' : ''}
                             <span class="text-[10px] text-blue-500 ml-2 font-mono">[${field.id}]</span>
                         </label>
                         ${inputHtml}
                     </div>
                 `;
-            });
+            }
 
-            container.innerHTML = formHTML;
-            submitBtn.classList.remove('hidden');
-            setupFormulaEngine();
+            // या प्रश्नाचे खाली अजून उपप्रश्न आहेत का ते तपासून त्यांना अजून पुढे ढकलणे
+            html += renderChildFields(field.id, level + 1);
+            return html;
+        }
+
+        function renderChildFields(parentId, nextLevel) {
+            let childHtml = '';
+            const children = selectedFormSchema.filter(f => f.parent_id === parentId);
+            children.forEach(child => {
+                childHtml += renderFieldTree(child, nextLevel);
+            });
+            return childHtml;
         }
 
         function setupFormulaEngine() {
             const inputs = document.querySelectorAll('.formula-input');
             inputs.forEach(input => { input.addEventListener('input', calculateFormulas); });
+        }
+
+        function setupConditionalEngine() {
+            const triggers = document.querySelectorAll('.cond-trigger');
+            triggers.forEach(t => {
+                t.addEventListener('change', checkConditionalLogic);
+                t.addEventListener('input', checkConditionalLogic);
+            });
+        }
+
+        function checkConditionalLogic() {
+            if (!selectedFormSchema) return;
+            selectedFormSchema.forEach(field => {
+                const wrapper = document.getElementById(`wrapper_${field.id}`);
+                if (!wrapper) return;
+
+                const condField = wrapper.getAttribute('data-cond-field');
+                const condVal = wrapper.getAttribute('data-cond-val').toLowerCase().trim();
+
+                if (condField && condField !== "") {
+                    const parentInput = document.getElementById(`ans_${condField}`);
+                    if (parentInput) {
+                        const parentCurrentValue = parentInput.value.toLowerCase().trim();
+                        if (parentCurrentValue === condVal) wrapper.classList.remove('hidden');
+                        else {
+                            wrapper.classList.add('hidden');
+                            const inputEl = document.getElementById(`ans_${field.id}`);
+                            if(inputEl) inputEl.value = field.default_value || '';
+                        }
+                    }
+                }
+            });
         }
 
         function calculateFormulas() {
@@ -261,11 +287,9 @@
                         if (/^[0-9.+\-*/() ]+$/.test(formulaStr)) {
                             const result = eval(formulaStr);
                             const targetInput = document.getElementById(`ans_${field.id}`);
-                            if (targetInput) { 
-                                targetInput.value = isNaN(result) || !isFinite(result) ? 0 : Number(result.toFixed(2)); 
-                            }
+                            if (targetInput) { targetInput.value = isNaN(result) || !isFinite(result) ? 0 : Number(result.toFixed(2)); }
                         }
-                    } catch (e) { console.log("Formula Error: ", e); }
+                    } catch (e) { console.log(e); }
                 }
             });
         }
@@ -275,7 +299,6 @@
             const villageId = document.getElementById('villageSelect').value;
             const month = document.getElementById('reportMonth').value;
             const year = document.getElementById('reportYear').value;
-
             if(!villageId || !formId) return alert("कृपया आधी गाव आणि फॉर्म निवडा!");
 
             let responseJSON = {};
@@ -283,7 +306,18 @@
             let validationErrorMessage = "";
 
             selectedFormSchema.forEach(field => {
+                const wrapper = document.getElementById(`wrapper_${field.id}`);
                 const inputEl = document.getElementById(`ans_${field.id}`);
+                
+                // हेडर प्रकारच्या फिल्ड्सचा डेटा सेव्ह करण्याची गरज नाही
+                if(field.type === 'group_header') return;
+
+                if(wrapper && wrapper.classList.contains('hidden')) {
+                    responseJSON[field.id] = { label: field.label, value: field.default_value || '' };
+                    return;
+                }
+
+                if(!inputEl) return;
                 const ans = inputEl.value;
 
                 if(field.required && !ans) {
@@ -293,16 +327,8 @@
 
                 if(field.type === 'number' && ans !== "") {
                     const numAns = parseFloat(ans);
-                    if(field.min && numAns < parseFloat(field.min)) {
-                        hasError = true;
-                        inputEl.classList.add('border-red-500');
-                        validationErrorMessage = `"${field.label}" मधील संख्या किमान ${field.min} असावी!`;
-                    }
-                    if(field.max && numAns > parseFloat(field.max)) {
-                        hasError = true;
-                        inputEl.classList.add('border-red-500');
-                        validationErrorMessage = `"${field.label}" मधील संख्या कमाल ${field.max} असावी!`;
-                    }
+                    if(field.min && numAns < parseFloat(field.min)) { hasError = true; validationErrorMessage = `"${field.label}" किमान ${field.min} असावे!`; }
+                    if(field.max && numAns > parseFloat(field.max)) { hasError = true; validationErrorMessage = `"${field.label}" कमाल ${field.max} असावे!`; }
                 }
                 responseJSON[field.id] = { label: field.label, value: ans };
             });
@@ -310,21 +336,12 @@
             if(hasError) return alert(validationErrorMessage);
 
             const { error } = await supabaseClient.from('form_responses').insert([{
-                form_id: formId,
-                village_id: villageId,
-                employee_id: currentUser.id,
-                report_month: parseInt(month),
-                report_year: parseInt(year),
-                response_data: responseJSON
+                form_id: formId, village_id: villageId, employee_id: currentUser.id,
+                report_month: parseInt(month), report_year: parseInt(year), response_data: responseJSON
             }]);
 
-            if(error) { 
-                alert("एरर: " + error.message); 
-            } else { 
-                alert("माहिती यशस्वीरीत्या सेव्ह झाली!"); 
-                await loadVillages();
-                renderForm(); 
-            }
+            if(error) alert("एरर: " + error.message);
+            else { alert("माहिती यशस्वीरीत्या सेव्ह झाली!"); renderForm(); }
         }
     </script>
 </body>
