@@ -9,15 +9,14 @@
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
         :root { --primary: #00705a; }
-        .report-table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 13px; table-layout: auto; }
+        .report-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; table-layout: auto; }
         .report-table th, .report-table td { border: 1px solid #000; padding: 6px; text-align: center; word-wrap: break-word; }
-        .report-table th { background-color: #f4f7f6; font-weight: bold; color: #333; }
+        .report-table th { font-weight: bold; color: #333; }
         .page-break { page-break-before: always !important; display: block; }
-        .table-responsive { width: 100%; overflow-x: auto; }
+        .table-responsive { width: 100%; overflow-x: auto; margin-bottom: 20px;}
         @media print {
             .no-print { display: none !important; }
             body { background: #fff; padding: 0; }
-            .report-table th { background-color: #e9ecef !important; color: #000 !important; }
         }
     </style>
 </head>
@@ -25,7 +24,7 @@
 
     <div class="max-w-7xl mx-auto bg-white p-4 rounded-lg shadow-md flex justify-between items-center mb-6 no-print">
         <div>
-            <h1 class="text-xl font-bold text-green-700">📊 प्रगत अहवाल केंद्र (मर्ज हेडर प्रणाली)</h1>
+            <h1 class="text-xl font-bold text-green-700">📊 प्रगत अहवाल केंद्र (मर्ज हेडर व कर्मचारी ग्रुप प्रणाली)</h1>
             <p class="text-xs text-gray-500">प्राथमिक आरोग्य केंद्र भादा, तालुका औसा</p>
         </div>
         <button onclick="window.location.href='dashboard.html'" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition text-sm font-bold">डॅशबोर्डवर परत जा</button>
@@ -44,7 +43,7 @@
                     <div class="p-2 border-b bg-gray-50">
                         <label class="flex items-center gap-2 font-bold text-xs text-green-700 cursor-pointer">
                             <input type="checkbox" id="chkAllReports" checked onchange="toggleAllReports(this)" class="w-4 h-4"> 
-                            सर्व फॉर्म्स निवडा (Select All)
+                            सर्व फॉर्म्स निवडा
                         </label>
                     </div>
                     <div id="multiSelectOptions" class="text-xs"></div>
@@ -81,8 +80,8 @@
             <div>
                 <label class="block text-gray-700 text-xs font-bold mb-1">अहवाल मांडणी प्रकार (Group View)</label>
                 <select id="reportGroupFilter" class="w-full p-2 border rounded bg-white text-sm font-medium text-purple-700">
-                    <option value="Village">गाव स्तरावर स्वतंत्र यादी (Village Wise)</option>
-                    <option value="SubCenter">उपकेंद्र स्तरावर स्वतंत्र यादी</option>
+                    <option value="Village">गावनिहाय कर्मचारी गटबद्ध यादी (Village Wise Employee Blocks)</option>
+                    <option value="SubCenter">उपकेंद्र स्तरावर गटबद्ध यादी</option>
                     <option value="SubCenterConsolidated">उपकेंद्र एकत्रित उभी मांडणी (Vertical Consolidated)</option>
                 </select>
             </div>
@@ -124,10 +123,52 @@
             7: "जुलै", 8: "ऑगस्ट", 9: "सप्टेंबर", 10: "ऑक्टोबर", 11: "नोव्हेंबर", 12: "डिसेंबर"
         };
 
+        // 🟢 ऍक्टिव्ह फंक्शन: लेव्हल ३ मधील ग्रुप्सचे नाव उपप्रश्नांसोबत मॅप करून फुल हेडिंग बनवणारे फंक्शन
+        function getFullFieldLabel(fields, fieldObj) {
+            let fullLabel = fieldObj.label;
+            let currentField = fieldObj;
+            while (currentField && currentField.parent_id) {
+                let parentField = fields.find(f => f.id === currentField.parent_id);
+                if (parentField) {
+                    if (parentField.type === 'group_header') {
+                        fullLabel = parentField.label + " - " + fullLabel;
+                    }
+                    currentField = parentField;
+                } else { break; }
+            }
+            return fullLabel;
+        }
+
+        // 🧠 लेव्हल ३ नुसार प्रत्येक प्रत्यक्ष इनपुटच्या वर किती लेव्हल हेडर आहेत, त्यांची साखळी (Array) शोधणारे इंजिन
+        function getFieldHierarchyChain(fields, fieldObj) {
+            let chain = []; let current = fieldObj;
+            while (current && current.parent_id) {
+                let parent = fields.find(f => f.id === current.parent_id);
+                if (parent) { if (parent.type === 'group_header') chain.unshift(parent.label); current = parent; } 
+                else { break; }
+            }
+            return chain; // Returns like ["NCD रुग्ण", "मधुमेह"]
+        }
+
+        // 🟢 गेट प्रोग्रेसिव्ह मंथ फंक्शन
+        function getProgressiveMonthsList(targetMonthNumeric, targetYear) {
+            let startYear = parseInt(targetYear);
+            let targetMonth = parseInt(targetMonthNumeric);
+            let periods = [];
+            if (targetMonth >= 4) {
+                for (let m = 4; m <= targetMonth; m++) { periods.push({ month: m, year: startYear }); }
+            } else {
+                for (let m = 4; m <= 12; m++) { periods.push({ month: m, year: startYear - 1 }); }
+                for (let m = 1; m <= targetMonth; m++) { periods.push({ month: m, year: startYear }); }
+            }
+            return periods;
+        }
+
         window.onload = async function() {
             const userDataString = localStorage.getItem('loggedInUser');
             if (!userDataString) { window.location.href = "index.html"; return; }
             const sessionUser = JSON.parse(userDataString);
+            
             user.role = sessionUser.role === 'admin' ? 'Admin' : 'User';
             user.mobile = sessionUser.mobile_number || '';
 
@@ -315,38 +356,6 @@
             navigator.clipboard.writeText(textToCopy).then(() => { alert("✅ यादी व्हॉट्सॲप मेसेजसाठी कॉपी झाली आहे!"); });
         }
 
-        // 🧠 लेव्हल ३ नुसार प्रत्येक प्रत्यक्ष इनपुटच्या वर किती लेव्हल हेडर आहेत, त्यांची साखळी (Array) शोधणारे इंजिन
-        function getFieldHierarchyChain(fields, fieldObj) {
-            let chain = []; let current = fieldObj;
-            while (current && current.parent_id) {
-                let parent = fields.find(f => f.id === current.parent_id);
-                if (parent) { if (parent.type === 'group_header') chain.unshift(parent.label); current = parent; } 
-                else { break; }
-            }
-            return chain; // Returns like ["NCD रुग्ण", "मधुमेह"]
-        }
-
-        // 🟢 FIXED: गेट प्रोग्रेसिव्ह मंथ फंक्शन (GetProgressive error resolved)
-        function getProgressiveMonthsList(targetMonthNumeric, targetYear) {
-            let startYear = parseInt(targetYear);
-            let targetMonth = parseInt(targetMonthNumeric);
-            let periods = [];
-            // आर्थिक वर्ष एप्रिल (४) पासून सुरू होते
-            if (targetMonth >= 4) {
-                for (let m = 4; m <= targetMonth; m++) {
-                    periods.push({ month: m, year: startYear });
-                }
-            } else {
-                for (let m = 4; m <= 12; m++) {
-                    periods.push({ month: m, year: startYear - 1 });
-                }
-                for (let m = 1; m <= targetMonth; m++) {
-                    periods.push({ month: m, year: startYear });
-                }
-            }
-            return periods;
-        }
-
         async function fetchReportData() {
             let selectedIDs = getSelectedReportIDs(); if(selectedIDs.length === 0) { alert("कृपया किमान एक अहवाल निवडा!"); return; }
             const selMonth = document.getElementById('reportMonth').value; const selMonthNum = monthNamesMarathi[selMonth]; const selYear = document.getElementById('reportYear').value;
@@ -354,9 +363,8 @@
 
             document.getElementById('reportLoader').classList.remove('hidden'); document.getElementById('reportContentArea').classList.add('hidden'); document.getElementById('reportTableContainer').innerHTML = "";
             try {
-                let query = supabaseClient.from('form_responses').select('*').eq('report_month', parseInt(selMonthNum)).eq('report_year', parseInt(selYear));
+                let query = supabaseClient.from('form_responses').select('*').eq('report_year', parseInt(selYear));
                 
-                // प्रगतसाठी एप्रिलपासूनचा डेटा ओढणे
                 if (selMonthNum < 4) {
                     query = supabaseClient.from('form_responses').select('*').or(`and(report_year.eq.${parseInt(selYear)}),and(report_year.eq.${parseInt(selYear-1)},report_month.gte.4)`);
                 }
@@ -373,7 +381,6 @@
                     const validDataFields = allFields.filter(f => f.type !== 'group_header');
                     const isProgressive = formObj.form_type === 'progressive';
 
-                    // प्रत्येक प्रत्यक्ष प्रश्नासाठी त्याची लेव्हल ३ साखळी काढून हेडर ऑब्जेक्ट्स तयार करणे
                     let fieldMetaList = validDataFields.map(f => {
                         let chain = getFieldHierarchyChain(allFields, f);
                         return { id: f.id, label: f.label, type: f.type, l1: chain[0] || "", l2: chain[1] || "", l3: f.label };
@@ -412,7 +419,7 @@
             } catch(e) { alert("एरर: " + e.message); }
         }
 
-        // 📊 पीडीएफ/स्क्रीन प्रिव्ह्यूसाठी ३ लेव्हल कॉलम मर्जिंगसह तक्ता बनवणे
+        // 📊 HTML प्रिव्ह्यू रेंडरिंग (३-लेव्हल आणि कर्मचारी ब्लॉक्स)
         function renderMultipleTables(reports, month, year, groupType) {
             let container = document.getElementById('reportTableContainer');
             let downArea = document.getElementById('downloadButtonsArea');
@@ -421,90 +428,117 @@
             let html = '';
             reports.forEach(rep => {
                 let columns = rep.fields; let rows = rep.rows;
-                if(groupType === "SubCenter") {
-                    let agg = {};
-                    rows.forEach(r => {
-                        if(!agg[r.subcenter]) { agg[r.subcenter] = { month: month, year: year, subcenter: r.subcenter, village: "एकत्रित", employee: "एकत्रित", values: {} }; }
-                        columns.forEach(c => {
-                            let cv = r.values[c.id];
-                            if(typeof cv === 'object') {
-                                if(!agg[r.subcenter].values[c.id]) agg[r.subcenter].values[c.id] = { M:0, P:0 };
-                                agg[r.subcenter].values[c.id].M += parseFloat(cv.M || 0); agg[r.subcenter].values[c.id].P += parseFloat(cv.P || 0);
-                            } else {
-                                let n = parseFloat(cv) || 0; agg[r.subcenter].values[c.id] = (parseFloat(agg[r.subcenter].values[c.id]) || 0) + n;
-                            }
-                        });
-                    });
-                    rows = Object.values(agg);
-                }
-
+                
                 html += `<div class="mb-8 p-4 border rounded bg-white shadow-sm"><div class="text-center border-b pb-2 mb-4 bg-green-50 p-2 rounded"><h2 class="text-md font-bold text-green-800">📋 अहवाल: ${rep.formName}</h2><p class="text-xs text-gray-500">प्राथमिक आरोग्य केंद्र भादा | कालावधी: ${month} ${year}</p></div>`;
 
-                // 🌳 ३ लेव्हल हेडर कॅल्क्युलेशन (मर्जिंग आकडेमोड)
-                let l1Row = `<tr><th rowspan="3" class="border p-2">अ.क्र.</th><th rowspan="3" class="border p-2">${groupType==='Village'?'गाव':'उपकेंद्र'}</th>`;
-                let l2Row = `<tr>`; let l3Row = `<tr>`;
-
-                let i = 0;
-                while(i < columns.length) {
-                    let c = columns[i];
-                    let span = 1; let j = i + 1;
-                    if(c.l1 !== "") {
-                        while(j < columns.length && columns[j].l1 === c.l1) { span++; j++; }
-                        let colSpanMultiplier = rep.isProg && c.type === 'number' ? 2 : 1; 
-                        l1Row += `<th colspan="${span * colSpanMultiplier}" class="border p-2 bg-purple-100 text-purple-900">${c.l1}</th>`;
-                        
-                        let k = i;
-                        while(k < j) {
-                            let c2 = columns[k]; let span2 = 1; let m = k + 1;
-                            if(c2.l2 !== "") {
-                                while(m < j && columns[m].l2 === c2.l2) { span2++; m++; }
-                                l2Row += `<th colspan="${span2 * colSpanMultiplier}" class="border p-2 bg-blue-50 text-blue-900">${c2.l2}</th>`;
-                                
-                                let n = k;
-                                while(n < m) {
-                                    if(rep.isProg && columns[n].type === 'number') {
-                                        l3Row += `<th class="border p-1 bg-yellow-50 text-[10px]">मासिक</th><th class="border p-1 bg-orange-50 text-[10px]">प्रगत</th>`;
-                                    } else { l3Row += `<th class="border p-2 text-xs">${columns[n].l3}</th>`; }
-                                    n++;
+                if(groupType === "SubCenterConsolidated") {
+                    // Vertical Consolidated View Logic (Skip for now, focusing on Village-wise grouping)
+                    html += `<div class="p-4 text-center text-gray-500 font-bold border rounded bg-gray-50">उपकेंद्र एकत्रित उभी मांडणी प्रिव्ह्यू डाऊनलोड फाईलमध्ये उपलब्ध होईल.</div>`;
+                } else {
+                    // 🌳 🟢 कर्मचारी निहाय ब्लॉक्स पाडणे (Employee Grouping Logic)
+                    let employeeGroups = {};
+                    if(groupType === "SubCenter") {
+                        let agg = {};
+                        rows.forEach(r => {
+                            if(!agg[r.subcenter]) { agg[r.subcenter] = { subcenter: r.subcenter, village: "एकत्रित (All Villages)", employee: "सर्व कर्मचारी", values: {} }; }
+                            columns.forEach(c => {
+                                let cv = r.values[c.id];
+                                if(typeof cv === 'object') {
+                                    if(!agg[r.subcenter].values[c.id]) agg[r.subcenter].values[c.id] = { M:0, P:0 };
+                                    agg[r.subcenter].values[c.id].M += parseFloat(cv.M || 0); agg[r.subcenter].values[c.id].P += parseFloat(cv.P || 0);
+                                } else {
+                                    let n = parseFloat(cv) || 0; agg[r.subcenter].values[c.id] = (parseFloat(agg[r.subcenter].values[c.id]) || 0) + n;
                                 }
-                                k = m;
+                            });
+                        });
+                        rows = Object.values(agg);
+                    }
+
+                    rows.forEach(r => {
+                        let key = `${r.subcenter}###${r.employee}`;
+                        if(!employeeGroups[key]) employeeGroups[key] = [];
+                        employeeGroups[key].push(r);
+                    });
+
+                    Object.keys(employeeGroups).sort().forEach(empKey => {
+                        let [scName, empName] = empKey.split("###");
+                        let subRows = employeeGroups[empKey];
+
+                        html += `<div style="margin-top:20px; margin-bottom:10px; background:#00705a; color:#ffffff; padding:10px; border-radius:4px; font-weight:bold; font-size:14px;">
+                            🏢 उपकेंद्र: ${scName} | 🧑‍⚕️ कर्मचारी: ${empName}
+                        </div>`;
+
+                        let l1Row = `<tr><th rowspan="3" class="border p-2">अ.क्र.</th><th rowspan="3" class="border p-2">गाव/कार्यक्षेत्र</th>`;
+                        let l2Row = `<tr>`; let l3Row = `<tr>`;
+
+                        let i = 0;
+                        while(i < columns.length) {
+                            let c = columns[i]; let j = i + 1;
+                            if(c.l1 !== "") {
+                                while(j < columns.length && columns[j].l1 === c.l1) { j++; }
+                                let totalL1Span = 0;
+                                for(let k=i; k<j; k++) totalL1Span += (rep.isProg && columns[k].type === 'number') ? 2 : 1;
+                                
+                                l1Row += `<th colspan="${totalL1Span}" class="border p-2 bg-purple-100 text-purple-900">${c.l1}</th>`;
+                                
+                                let k = i;
+                                while(k < j) {
+                                    let c2 = columns[k]; let m = k + 1;
+                                    if(c2.l2 !== "") {
+                                        while(m < j && columns[m].l2 === c2.l2) { m++; }
+                                        let totalL2Span = 0;
+                                        for(let n=k; n<m; n++) totalL2Span += (rep.isProg && columns[n].type === 'number') ? 2 : 1;
+                                        l2Row += `<th colspan="${totalL2Span}" class="border p-2 bg-blue-50 text-blue-900">${c2.l2}</th>`;
+                                        for(let n=k; n<m; n++) {
+                                            if(rep.isProg && columns[n].type === 'number') {
+                                                l3Row += `<th class="border p-1 bg-yellow-50 text-[10px]">मासिक</th><th class="border p-1 bg-orange-50 text-[10px]">प्रगत</th>`;
+                                            } else { l3Row += `<th class="border p-2 text-xs">${columns[n].l3}</th>`; }
+                                        }
+                                        k = m;
+                                    } else {
+                                        let mult2 = (rep.isProg && c2.type === 'number') ? 2 : 1;
+                                        if(mult2 === 2) {
+                                            l2Row += `<th colspan="2" class="border p-2 text-xs">${c2.l3}</th>`;
+                                            l3Row += `<th class="border p-1 bg-yellow-50 text-[10px]">मासिक</th><th class="border p-1 bg-orange-50 text-[10px]">प्रगत</th>`;
+                                        } else { l2Row += `<th rowspan="2" class="border p-2 text-xs">${c2.l3}</th>`; }
+                                        k++;
+                                    }
+                                }
+                                i = j;
                             } else {
-                                l2Row += `<th colspan="${colSpanMultiplier}" rowspan="2" class="border p-2 text-xs">${c2.l3}</th>`;
-                                k++;
+                                let mult = (rep.isProg && c.type === 'number') ? 2 : 1;
+                                if(mult === 2) {
+                                    l1Row += `<th colspan="2" rowspan="2" class="border p-2 text-xs">${c.l3}</th>`;
+                                    l3Row += `<th class="border p-1 bg-yellow-50 text-[10px]">मासिक</th><th class="border p-1 bg-orange-50 text-[10px]">प्रगत</th>`;
+                                } else { l1Row += `<th rowspan="3" class="border p-2 text-xs">${c.l3}</th>`; }
+                                i++;
                             }
                         }
-                        i = j;
-                    } else {
-                        let colSpanMultiplier = rep.isProg && c.type === 'number' ? 2 : 1;
-                        if(colSpanMultiplier === 2) {
-                            l1Row += `<th colspan="2" class="border p-2 text-xs">${c.l3}</th>`;
-                            l2Row += `<th class="border p-1 bg-yellow-50 text-[10px]">मासिक</th><th class="border p-1 bg-orange-50 text-[10px]">प्रगत</th>`;
-                        } else { l1Row += `<th rowspan="3" class="border p-2 text-xs">${c.l3}</th>`; }
-                        i++;
-                    }
-                }
-                l1Row += `</tr>`; l2Row += `</tr>`; l3Row += `</tr>`;
+                        l1Row += `</tr>`; l2Row += `</tr>`; l3Row += `</tr>`;
 
-                let tbodyHtml = '';
-                rows.forEach((row, rIdx) => {
-                    tbodyHtml += `<tr class="hover:bg-gray-50 text-xs">
-                        <td class="border p-2">${rIdx+1}</td>
-                        <td class="border p-2 font-bold text-gray-800">${groupType==='Village'?row.village:row.subcenter}</td>`;
-                    columns.forEach(c => {
-                        let val = row.values[c.id];
-                        if(typeof val === 'object' && val !== null) {
-                            tbodyHtml += `<td class="border p-2 text-blue-800">${val.M}</td><td class="border p-2 font-medium bg-orange-50/30 text-orange-800">${val.P}</td>`;
-                        } else { tbodyHtml += `<td class="border p-2">${val !== '' ? val : '-'}</td>`; }
+                        let tbodyHtml = '';
+                        subRows.forEach((r, rIdx) => {
+                            tbodyHtml += `<tr class="hover:bg-gray-50 text-xs">
+                                <td class="border p-2 text-center">${rIdx+1}</td>
+                                <td class="border p-2 font-bold text-gray-800 text-left">${r.village}</td>`;
+                            columns.forEach(c => {
+                                let val = r.values[c.id];
+                                if(typeof val === 'object' && val !== null) {
+                                    tbodyHtml += `<td class="border p-2 text-blue-800 text-center">${val.M}</td><td class="border p-2 font-medium bg-orange-50/30 text-orange-800 text-center">${val.P}</td>`;
+                                } else { tbodyHtml += `<td class="border p-2 text-center">${val !== '' ? val : '-'}</td>`; }
+                            });
+                            tbodyHtml += `</tr>`;
+                        });
+
+                        html += `<div class="table-responsive"><table class="report-table"><thead>${l1Row + l2Row + l3Row}</thead><tbody>${tbodyHtml}</tbody></table></div>`;
                     });
-                    tbodyHtml += `</tr>`;
-                });
-
-                html += `<div class="table-responsive"><table class="report-table"><thead>${l1Row + l2Row + l3Row}</thead><tbody>${tbodyHtml}</tbody></table></div></div>`;
+                }
+                html += `</div>`;
             });
             container.innerHTML = html;
         }
 
-        // 🟢 📥 प्रिट प्रिव्ह्यू फॉरमॅटशी १००% मॅच होणारे व्यावसायिक ३-लेव्हल एक्सल इंजिन
+        // 🟢 📥 प्रगत ३-लेव्हल मर्ज आणि कर्मचारी ब्लॉक्ससह एक्सेल जनरेटर इंजिन
         function downloadConsolidatedExcel() {
             if(currentReports.length === 0) return;
             let groupType = document.getElementById('reportGroupFilter').value;
@@ -514,10 +548,13 @@
 
             currentReports.forEach((rep, index) => {
                 let columns = rep.fields; let rows = rep.rows;
+                
+                let sheetData = []; let merges = []; let masterHeaderRows = []; let subTitleHeaderRows = [];
+
                 if(groupType === "SubCenter") {
                     let agg = {};
                     rows.forEach(r => {
-                        if(!agg[r.subcenter]) { agg[r.subcenter] = { month: monthStr, year: yearStr, subcenter: r.subcenter, village: "एकत्रित", employee: "एकत्रित", values: {} }; }
+                        if(!agg[r.subcenter]) { agg[r.subcenter] = { subcenter: r.subcenter, village: "एकत्रित (All)", employee: "सर्व", values: {} }; }
                         columns.forEach(c => {
                             let cv = r.values[c.id];
                             if(typeof cv === 'object') {
@@ -529,112 +566,140 @@
                     rows = Object.values(agg);
                 }
 
-                let sheetData = []; let merges = [];
-                sheetData.push(["प्राथमिक आरोग्य केंद्र भादा, तालुका औसा"]);
-                sheetData.push([`व्यावसायिक अहवाल: ${rep.formName} | कालावधी: ${monthStr} ${yearStr} (${groupType})`]);
-                sheetData.push([]); 
-
-                let r1 = ["अ.क्र.", groupType==='Village'?'गाव':'उपकेंद्र'];
-                let r2 = ["", ""]; let r3 = ["", ""];
-
-                let i = 0;
-                while(i < columns.length) {
-                    let c = columns[i]; let span = 1; let j = i + 1;
-                    let mult = rep.isProg && c.type === 'number' ? 2 : 1;
-
-                    if(c.l1 !== "") {
-                        while(j < columns.length && columns[j].l1 === c.l1) { span++; j++; }
-                        r1.push(c.l1); for(let s=1; s<(span*mult); s++) r1.push("");
-                        merges.push({ s: { r: 3, c: r1.length - (span*mult) }, e: { r: 3, c: r1.length - 1 } });
-
-                        let k = i;
-                        while(k < j) {
-                            let c2 = columns[k]; let span2 = 1; let m = k + 1;
-                            let mult2 = rep.isProg && c2.type === 'number' ? 2 : 1;
-                            if(c2.l2 !== "") {
-                                while(m < j && columns[m].l2 === c2.l2) { span2++; m++; }
-                                r2.push(c2.l2); for(let s=1; s<(span2*mult2); s++) r2.push("");
-                                merges.push({ s: { r: 4, c: r2.length - (span2*mult2) }, e: { r: 4, c: r2.length - 1 } });
-
-                                let n = k;
-                                while(n < m) {
-                                    if(rep.isProg && columns[n].type === 'number') { r3.push("मासिक"); r3.push("प्रगत"); } 
-                                    else { r3.push(columns[n].l3); }
-                                    n++;
-                                }
-                                k = m;
-                            } else {
-                                r2.push(c2.l3); if(mult2===2) r2.push("");
-                                merges.push({ s: { r: 4, c: r2.length - mult2 }, e: { r: 5, c: r2.length - 1 } });
-                                if(mult2===2) { r3.push("मासिक"); r3.push("प्रगत"); } else { r3.push(""); }
-                                k++;
-                            }
-                        }
-                        i = j;
-                    } else {
-                        r1.push(c.l3); if(mult===2) r1.push("");
-                        if(mult===2) {
-                            merges.push({ s: { r: 3, c: r1.length - 2 }, e: { r: 3, c: r1.length - 1 } });
-                            r2.push("मासिक"); r2.push("प्रगत"); r3.push(""); r3.push("");
-                        } else {
-                            merges.push({ s: { r: 3, c: r1.length - 1 }, e: { r: 5, c: r1.length - 1 } });
-                            r2.push(""); r3.push("");
-                        }
-                        i++;
-                    }
-                }
-
-                merges.push({ s: { r: 3, c: 0 }, e: { r: 5, c: 0 } });
-                merges.push({ s: { r: 3, c: 1 }, e: { r: 5, c: 1 } });
-
-                sheetData.push(r1); sheetData.push(r2); sheetData.push(r3);
-
-                rows.forEach((row, rIdx) => {
-                    let rowData = [rIdx + 1, groupType==='Village'?row.village:row.subcenter];
-                    columns.forEach(c => {
-                        let val = row.values[c.id];
-                        if(typeof val === 'object' && val !== null) {
-                            rowData.push(val.M !== '' ? Number(val.M) : 0); rowData.push(val.P !== '' ? Number(val.P) : 0);
-                        } else { rowData.push(val !== '' ? (isNaN(val) ? val : Number(val)) : ''); }
-                    });
-                    sheetData.push(rowData);
+                let employeeGroups = {};
+                rows.forEach(r => {
+                    let key = `${r.subcenter}###${r.employee}`;
+                    if(!employeeGroups[key]) employeeGroups[key] = [];
+                    employeeGroups[key].push(r);
                 });
 
-                let ws = XLSX.utils.aoa_to_sheet(sheetData);
-                
-                merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: r1.length - 1 } });
-                merges.push({ s: { r: 1, c: 0 }, e: { r: 1, c: r1.length - 1 } });
-                ws["!merges"] = merges;
+                let totalColumnsCount = 2; // अ.क्र. आणि गाव
+                columns.forEach(c => { totalColumnsCount += (rep.isProg && c.type === 'number') ? 2 : 1; });
 
-                // 💎 सेल डेकोरेशन आणि प्रोफेशनल बॉर्डर्स
+                Object.keys(employeeGroups).sort().forEach(empKey => {
+                    let [scName, empName] = empKey.split("###");
+                    let subRows = employeeGroups[empKey];
+
+                    // १. हिरवा मास्टर ब्लॉक हेडर
+                    let currentMetaIndex = sheetData.length;
+                    sheetData.push([`📋 अहवाल: ${rep.formName} | कालावधी: ${monthStr} ${yearStr} | 🏢 उपकेंद्र: ${scName} | 🧑‍⚕️ कर्मचारी: ${empName}`]);
+                    masterHeaderRows.push(currentMetaIndex);
+                    merges.push({ s: { r: currentMetaIndex, c: 0 }, e: { r: currentMetaIndex, c: totalColumnsCount - 1 } });
+
+                    // २. ३-लेव्हल डायनॅमिक हेडर निर्मिती
+                    let startR = sheetData.length;
+                    let r1 = ["अ.क्र.", "गाव/कार्यक्षेत्र"]; let r2 = ["", ""]; let r3 = ["", ""];
+
+                    let i = 0;
+                    while(i < columns.length) {
+                        let c = columns[i]; let j = i + 1;
+                        if(c.l1 !== "") {
+                            while(j < columns.length && columns[j].l1 === c.l1) { j++; }
+                            let totalL1Span = 0;
+                            for(let k=i; k<j; k++) totalL1Span += (rep.isProg && columns[k].type === 'number') ? 2 : 1;
+                            
+                            r1.push(c.l1); for(let s=1; s<totalL1Span; s++) r1.push("");
+                            merges.push({ s: { r: startR, c: r1.length - totalL1Span }, e: { r: startR, c: r1.length - 1 } });
+
+                            let k = i;
+                            while(k < j) {
+                                let c2 = columns[k]; let m = k + 1;
+                                if(c2.l2 !== "") {
+                                    while(m < j && columns[m].l2 === c2.l2) { m++; }
+                                    let totalL2Span = 0;
+                                    for(let n=k; n<m; n++) totalL2Span += (rep.isProg && columns[n].type === 'number') ? 2 : 1;
+                                    
+                                    r2.push(c2.l2); for(let s=1; s<totalL2Span; s++) r2.push("");
+                                    merges.push({ s: { r: startR + 1, c: r2.length - totalL2Span }, e: { r: startR + 1, c: r2.length - 1 } });
+
+                                    for(let n=k; n<m; n++) {
+                                        if(rep.isProg && columns[n].type === 'number') { r3.push("मासिक"); r3.push("प्रगत"); } 
+                                        else { r3.push(columns[n].l3); }
+                                    }
+                                    k = m;
+                                } else {
+                                    let mult2 = (rep.isProg && c2.type === 'number') ? 2 : 1;
+                                    r2.push(c2.l3); if(mult2===2) r2.push("");
+                                    if(mult2===2) {
+                                        merges.push({ s: { r: startR + 1, c: r2.length - 2 }, e: { r: startR + 1, c: r2.length - 1 } });
+                                        r3.push("मासिक"); r3.push("प्रगत");
+                                    } else {
+                                        merges.push({ s: { r: startR + 1, c: r2.length - 1 }, e: { r: startR + 2, c: r2.length - 1 } });
+                                        r3.push("");
+                                    }
+                                    k++;
+                                }
+                            }
+                            i = j;
+                        } else {
+                            let mult = (rep.isProg && c.type === 'number') ? 2 : 1;
+                            r1.push(c.l3); if(mult===2) r1.push("");
+                            if(mult===2) {
+                                merges.push({ s: { r: startR, c: r1.length - 2 }, e: { r: startR + 1, c: r1.length - 1 } });
+                                r2.push(""); r2.push(""); r3.push("मासिक"); r3.push("प्रगत");
+                            } else {
+                                merges.push({ s: { r: startR, c: r1.length - 1 }, e: { r: startR + 2, c: r1.length - 1 } });
+                                r2.push(""); r3.push("");
+                            }
+                            i++;
+                        }
+                    }
+
+                    merges.push({ s: { r: startR, c: 0 }, e: { r: startR + 2, c: 0 } });
+                    merges.push({ s: { r: startR, c: 1 }, e: { r: startR + 2, c: 1 } });
+
+                    sheetData.push(r1); sheetData.push(r2); sheetData.push(r3);
+                    subTitleHeaderRows.push(startR, startR+1, startR+2);
+
+                    // ३. डेटा रोज
+                    subRows.forEach((r, rIdx) => {
+                        let rowData = [rIdx + 1, r.village];
+                        columns.forEach(c => {
+                            let val = r.values[c.id];
+                            if(typeof val === 'object' && val !== null) {
+                                rowData.push(val.M !== '' ? Number(val.M) : 0); rowData.push(val.P !== '' ? Number(val.P) : 0);
+                            } else { rowData.push(val !== '' ? (isNaN(val) ? val : Number(val)) : ''); }
+                        });
+                        sheetData.push(rowData);
+                    });
+
+                    // ४. कोरी ओळ (Spacer)
+                    sheetData.push(Array(totalColumnsCount).fill(""));
+                });
+
+                // 💎 एक्सेल सेल स्टायलिंग आणि कलरिंग
+                let ws = XLSX.utils.aoa_to_sheet(sheetData); ws["!merges"] = merges;
+                
                 for(let R=0; R<sheetData.length; R++) {
-                    for(let C=0; C<r1.length; C++) {
+                    for(let C=0; C<totalColumnsCount; C++) { 
                         let cellRef = XLSX.utils.encode_cell({r: R, c: C}); if(!ws[cellRef]) continue;
                         let style = { font: { name: "Arial", sz: 10 }, alignment: { vertical: "center", horizontal: "center", wrapText: true }, border: { top:{style:"thin",color:{rgb:"000"}}, bottom:{style:"thin",color:{rgb:"000"}}, left:{style:"thin",color:{rgb:"000"}}, right:{style:"thin",color:{rgb:"000"}} } };
                         
-                        if(R === 0) { style.fill = { fgColor: { rgb: "00705A" } }; style.font = { sz: 14, bold: true, color: { rgb: "FFF" } }; }
-                        else if(R === 1) { style.fill = { fgColor: { rgb: "E8F5E9" } }; style.font = { sz: 11, bold: true, color: { rgb: "00705A" } }; }
-                        else if(R >= 3 && R <= 5) {
-                            if(R===3) style.fill = { fgColor: { rgb: "F4B400" } };
-                            else if(R===4) style.fill = { fgColor: { rgb: "FFE082" } };
+                        if(masterHeaderRows.includes(R)) { 
+                            style.fill = { fgColor: { rgb: "00705A" } }; style.font = { sz: 12, bold: true, color: { rgb: "FFF" } }; style.alignment.horizontal = "left"; 
+                        } else if(subTitleHeaderRows.includes(R)) {
+                            if(R === subTitleHeaderRows[0]) style.fill = { fgColor: { rgb: "F4B400" } };
+                            else if(R === subTitleHeaderRows[1]) style.fill = { fgColor: { rgb: "FFE082" } };
                             else style.fill = { fgColor: { rgb: "FFF3E0" } };
                             style.font.bold = true;
+                        } else if (sheetData[R][0] === "") {
+                            style = {}; // कोऱ्या ओळीला बॉर्डर नाही
                         } else {
                             if (C === 1) { style.alignment.horizontal = "left"; style.font.bold = true; }
-                            if (rep.isProg && C >= 2 && C % 2 !== 0) style.fill = { fgColor: { rgb: "FFF9F2" } };
+                            if (rep.isProg && C >= 2 && C % 2 === 1) style.fill = { fgColor: { rgb: "FFF9F2" } }; // प्रगत झेब्रा कोडिंग
                         }
                         ws[cellRef].s = style;
                     }
                 }
 
                 let wscols = [{ wch: 6 }, { wch: 25 }];
-                for(let c=2; c<r1.length; c++) wscols.push({ wch: 14 });
+                for(let c=2; c<totalColumnsCount; c++) wscols.push({ wch: 14 });
                 ws["!cols"] = wscols;
 
                 XLSX.utils.book_append_sheet(wb, ws, rep.formName.substring(0, 30));
             });
 
-            XLSX.writeFile(wb, `प्रगत_मर्ज_अहवाल_${monthStr}_${yearStr}.xlsx`);
+            XLSX.writeFile(wb, `अहवाल_${groupType}_${monthStr}_${yearStr}.xlsx`);
         }
     </script>
 </body>
