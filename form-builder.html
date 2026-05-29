@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>प्रगत फॉर्म बिल्डर - आरोग्य प्रणाली</title>
+    <title>प्रगत फॉर्म बिल्डर - लेव्हल ३</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body class="bg-gray-100 p-6 min-h-screen">
 
     <div class="max-w-5xl mx-auto bg-white p-4 rounded-lg shadow-md flex justify-between items-center mb-6">
-        <h1 class="text-xl font-bold text-green-600" id="builderTitle">प्रगत फॉर्म बिल्डर (कंडिशनल सिस्टीम)</h1>
+        <h1 class="text-xl font-bold text-green-600" id="builderTitle">प्रगत फॉर्म बिल्डर (लेव्हल ३ गट प्रणाली)</h1>
         <button onclick="window.location.href='dashboard.html'" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition">परत जा</button>
     </div>
 
@@ -30,7 +30,7 @@
                 </select>
             </div>
             <div>
-                <label class="block text-gray-700 font-bold mb-2">डेटा एन्ट्री मोड (कोणी भरावे?)</label>
+                <label class="block text-gray-700 font-bold mb-2">डेटा एन्ट्री मोड</label>
                 <select id="dataEntryMode" class="w-full p-2 border rounded bg-white font-medium text-blue-700">
                     <option value="shared">सामायिक (उपकेंद्रातील कोणत्याही एका कर्मचाऱ्याने)</option>
                     <option value="individual">वैयक्तिक (सर्व कर्मचाऱ्यांनी प्रत्येकी स्वतंत्रपणे)</option>
@@ -38,13 +38,12 @@
             </div>
         </div>
 
-        <div id="fieldsContainer" class="space-y-6 mb-6">
-            <h2 class="text-lg font-bold text-gray-700">फॉर्मची रचना</h2>
+        <div id="fieldsContainer" class="space-y-4 mb-6">
+            <h2 class="text-lg font-bold text-gray-700">फॉर्ममधील प्रश्न रचना (लेव्हल १, २, ३)</h2>
         </div>
 
         <div class="flex flex-wrap gap-4 border-t pt-6">
-            <button onclick="addField()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 font-bold shadow">+ स्वतंत्र प्रश्न जोडा</button>
-            <button onclick="addGroup()" class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 font-bold shadow">+ प्रश्नांचा गट (Group) जोडा</button>
+            <button onclick="addField()" class="bg-blue-500 text-white px-5 py-2 rounded hover:bg-blue-600 font-bold shadow">+ नवीन प्रश्न / गट जोडा</button>
             <button onclick="saveForm()" class="bg-green-600 text-white px-8 py-2 rounded hover:bg-green-700 font-bold ml-auto shadow-lg" id="saveBtn">फॉर्म पूर्ण सेव्ह करा</button>
         </div>
     </div>
@@ -56,13 +55,14 @@
 
         let fieldCount = 0;
         let editFormId = null;
+        let savedFieldsBackup = []; // एडिट मोडसाठी
 
         window.onload = async function() {
             const urlParams = new URLSearchParams(window.location.search);
             editFormId = urlParams.get('edit');
 
             if (editFormId) {
-                document.getElementById('builderTitle').innerText = "फॉर्म सुधारा (Edit Form Mode)";
+                document.getElementById('builderTitle').innerText = "फॉर्म सुधारा (Edit Level 3 Mode)";
                 document.getElementById('saveBtn').innerText = "बदल अपडेट करा";
                 await loadFormForEditing(editFormId);
             } else {
@@ -72,76 +72,67 @@
 
         async function loadFormForEditing(id) {
             const { data, error } = await supabaseClient.from('dynamic_forms').select('*').eq('id', id).single();
-            if (error || !data) { alert("फॉर्म लोड करताना एरर आली!"); window.location.href = 'dashboard.html'; return; }
+            if (error || !data) { alert("फॉर्म लोड करताना एरर आली!"); return; }
 
             document.getElementById('formName').value = data.form_name;
             document.getElementById('formType').value = data.form_type;
             if(data.data_entry_mode) document.getElementById('dataEntryMode').value = data.data_entry_mode;
 
-            const fields = data.schema_json.fields;
-            let currentGroupLabel = null;
-            let currentGroupContainerId = 'fieldsContainer';
+            savedFieldsBackup = data.schema_json.fields;
 
-            fields.forEach(field => {
+            // आधी सर्व बॉक्स स्क्रीनवर तयार करणे
+            savedFieldsBackup.forEach(field => {
                 const numId = parseInt(field.id.replace('f', ''));
                 if(numId > fieldCount) fieldCount = numId;
+                createFieldHTML(field.id);
+            });
 
-                if (field.group_name && field.group_name !== currentGroupLabel) {
-                    fieldCount++;
-                    const gId = `g${fieldCount}`;
-                    createGroupHTML(gId, field.group_name);
-                    currentGroupLabel = field.group_name;
-                    currentGroupContainerId = `${gId}_subContainer`;
-                } else if (!field.group_name) {
-                    currentGroupLabel = null;
-                    currentGroupContainerId = 'fieldsContainer';
-                }
-
-                createFieldHTML(field.id, currentGroupContainerId, field.group_name ? true : false);
-
-                document.getElementById(`${field.id}_label`).value = field.label;
-                document.getElementById(`${field.id}_type`).value = field.type;
-                document.getElementById(`${field.id}_req`).checked = field.required;
+            // त्यानंतर त्यामध्ये डेटा आणि पेरेंट-चाइल्ड संबंध भरणे
+            savedFieldsBackup.forEach(field => {
+                document.getElementById(`${field.id}_label`).value = field.label || '';
+                document.getElementById(`${field.id}_type`).value = field.type || 'number';
+                document.getElementById(`${field.id}_req`).checked = field.required || false;
                 document.getElementById(`${field.id}_min`).value = field.min || '';
                 document.getElementById(`${field.id}_max`).value = field.max || '';
                 document.getElementById(`${field.id}_formula`).value = field.formula || '';
-                
-                // नवीन प्रगत व्हॅल्यूज भरणे
                 document.getElementById(`${field.id}_default`).value = field.default_value || '';
                 document.getElementById(`${field.id}_options`).value = field.options || '';
                 document.getElementById(`${field.id}_cond_field`).value = field.cond_field || '';
                 document.getElementById(`${field.id}_cond_val`).value = field.cond_val || '';
                 
+                updateParentDropdowns();
+                document.getElementById(`${field.id}_parent`).value = field.parent_id || '';
                 toggleDropdownInput(field.id);
             });
         }
 
-        function addField(containerId = 'fieldsContainer', isInsideGroup = false) {
+        function addField() {
             fieldCount++;
             const fId = `f${fieldCount}`;
-            createFieldHTML(fId, containerId, isInsideGroup);
+            createFieldHTML(fId);
+            updateParentDropdowns();
         }
 
-        function toggleDropdownInput(fId) {
-            const type = document.getElementById(`${fId}_type`).value;
-            const optDiv = document.getElementById(`${fId}_options_div`);
-            if(type === 'dropdown') optDiv.classList.remove('hidden');
-            else optDiv.classList.add('hidden');
-        }
-
-        function createFieldHTML(fId, containerId, isInsideGroup) {
-            const container = document.getElementById(containerId);
+        function createFieldHTML(fId) {
+            const container = document.getElementById('fieldsContainer');
             const html = `
-                <div id="${fId}_box" class="${isInsideGroup ? 'bg-white' : 'bg-gray-50 border-l-4 border-blue-500'} p-4 border rounded shadow-sm relative mb-3">
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                        <div class="md:col-span-2">
-                            <label class="text-[10px] font-bold text-blue-600 uppercase">Field ID: ${fId}</label>
-                            <input type="text" id="${fId}_label" class="w-full p-2 border rounded text-sm" placeholder="प्रश्नाचे नाव">
+                <div id="${fId}_box" class="bg-gray-50 p-4 border rounded-lg shadow-sm border-l-4 border-blue-500 relative mb-3">
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end mb-3">
+                        <div>
+                            <label class="text-[10px] font-bold text-blue-600 uppercase font-mono">Field ID: ${fId}</label>
+                            <input type="text" id="${fId}_label" oninput="updateParentDropdowns()" class="w-full p-2 border rounded text-sm font-semibold" placeholder="प्रश्नाचे किंवा गटाचे नाव">
+                        </div>
+                        <div>
+                            <label class="text-xs text-gray-500 font-bold">हा कोणाचा उपप्रश्न/गट आहे? (Parent)</label>
+                            <select id="${fId}_parent" class="w-full p-2 border rounded text-sm bg-white text-purple-700 font-medium parent-selector" data-current="${fId}">
+                                <option value="">-- स्वतंत्र मुख्य प्रश्न (Level 1) --</option>
+                            </select>
                         </div>
                         <div>
                             <label class="text-xs text-gray-500">प्रकार (Field Type)</label>
                             <select id="${fId}_type" onchange="toggleDropdownInput('${fId}')" class="w-full p-2 border rounded text-sm bg-white">
-                                <option value="number">संख्या (Number)</option>
+                                <option value="number">संख्या बॉक्स (Number Field)</option>
+                                <option value="group_header">प्रश्नांचा गट हेडर (Group Header)</option>
                                 <option value="dropdown">ड्रॉपडाऊन बॉक्स (Dropdown)</option>
                                 <option value="date">तारीख (Date)</option> 
                                 <option value="text">मजकूर (Text)</option>
@@ -153,31 +144,31 @@
                                 <input type="checkbox" id="${fId}_req" class="w-4 h-4">
                                 <label class="text-xs font-bold">सक्तीचे</label>
                             </div>
-                            <button onclick="document.getElementById('${fId}_box').remove()" class="text-red-500 text-sm font-bold ml-auto">काढा</button>
+                            <button onclick="removeFieldBox('${fId}')" class="text-red-500 text-sm font-bold ml-auto hover:underline">X काढा</button>
                         </div>
                     </div>
 
-                    <div class="mt-3 pt-3 border-t grid grid-cols-1 md:grid-cols-3 gap-3 bg-blue-50/50 p-2 rounded">
+                    <div class="mt-3 pt-3 border-t grid grid-cols-1 md:grid-cols-4 gap-3 bg-blue-50/40 p-2 rounded">
                         <div>
-                            <label class="text-[11px] font-bold text-gray-600">डिफॉल्ट व्हॅल्यू (Default Value)</label>
-                            <input type="text" id="${fId}_default" placeholder="उदा. 0 किंवा नाही" class="w-full p-1.5 border text-xs rounded bg-white">
+                            <label class="text-[11px] font-bold text-gray-600">डिफॉल्ट व्हॅल्यू</label>
+                            <input type="text" id="${fId}_default" placeholder="उदा. 0" class="w-full p-1.5 border text-xs rounded bg-white">
                         </div>
                         <div id="${fId}_options_div" class="hidden">
                             <label class="text-[11px] font-bold text-blue-700">ड्रॉपडाऊन पर्याय (स्वल्पविराम द्या)</label>
-                            <input type="text" id="${fId}_options" placeholder="पर्याय १, पर्याय २, पर्याय ३" class="w-full p-1.5 border text-xs rounded bg-white border-blue-200">
+                            <input type="text" id="${fId}_options" placeholder="पर्याय १, पर्याय २" class="w-full p-1.5 border text-xs rounded bg-white">
                         </div>
                         <div>
-                            <label class="text-[11px] font-bold text-purple-700">कंडिशन: हा प्रश्न कधी दिसावा? (फिल्ड ID)</label>
-                            <input type="text" id="${fId}_cond_field" placeholder="उदा. f1 (रिकामे सोडल्यास नेहमी दिसेल)" class="w-full p-1.5 border text-xs rounded bg-white border-purple-200">
+                            <label class="text-[11px] font-bold text-purple-700">कंडिशन: विजिबल (फिल्ड ID)</label>
+                            <input type="text" id="${fId}_cond_field" placeholder="उदा. f1" class="w-full p-1.5 border text-xs rounded bg-white">
                         </div>
                         <div>
-                            <label class="text-[11px] font-bold text-purple-700">कंडिशन व्हॅल्यू (काही असल्यास)</label>
-                            <input type="text" id="${fId}_cond_val" placeholder="उदा. होय" class="w-full p-1.5 border text-xs rounded bg-white border-purple-200">
+                            <label class="text-[11px] font-bold text-purple-700">कंडिशन व्हॅल्यू</label>
+                            <input type="text" id="${fId}_cond_val" placeholder="उदा. होय" class="w-full p-1.5 border text-xs rounded bg-white">
                         </div>
                     </div>
 
                     <div class="mt-2 grid grid-cols-1 md:grid-cols-3 gap-4">
-                         <input type="text" id="${fId}_formula" placeholder="फॉर्म्युला उदा. [f1]+[f2]" class="md:col-span-2 p-1 border border-blue-100 bg-blue-50 text-xs rounded">
+                         <input type="text" id="${fId}_formula" placeholder="फॉर्म्युला उदा. [f1]+[f2]" class="md:col-span-2 p-1 border border-blue-100 bg-blue-50 text-xs rounded font-mono">
                          <div class="flex gap-1">
                              <input type="number" id="${fId}_min" placeholder="Min" class="w-1/2 p-1 border text-xs rounded">
                              <input type="number" id="${fId}_max" placeholder="Max" class="w-1/2 p-1 border text-xs rounded">
@@ -188,27 +179,44 @@
             container.insertAdjacentHTML('beforeend', html);
         }
 
-        function addGroup() {
-            fieldCount++;
-            const gId = `g${fieldCount}`;
-            createGroupHTML(gId, '');
+        function removeFieldBox(fId) {
+            document.getElementById(`${fId}_box`).remove();
+            updateParentDropdowns();
         }
 
-        function createGroupHTML(gId, labelValue) {
-            const html = `
-                <div id="${gId}_group" class="border-2 border-purple-200 rounded-lg p-5 bg-purple-50 shadow-md mb-6">
-                    <div class="flex justify-between items-center mb-4 border-b border-purple-200 pb-2">
-                        <div class="flex-1">
-                            <label class="text-[10px] font-bold text-purple-600 uppercase">Group Header</label>
-                            <input type="text" id="${gId}_label" value="${labelValue}" class="w-full font-bold text-purple-800 bg-transparent focus:outline-none text-lg" placeholder="गटाचे मुख्य नाव (उदा. एकूण रुग्णांची संख्या)">
-                        </div>
-                        <button onclick="document.getElementById('${gId}_group').remove()" class="bg-red-100 text-red-600 px-3 py-1 rounded text-xs font-bold hover:bg-red-200">गट हटवा</button>
-                    </div>
-                    <div id="${gId}_subContainer" class="space-y-2"></div>
-                    <button onclick="addField('${gId}_subContainer', true)" class="mt-4 text-sm bg-purple-600 text-white px-4 py-1 rounded hover:bg-purple-700 shadow-sm">+ या गटात उपप्रश्न जोडा</button>
-                </div>
-            `;
-            document.getElementById('fieldsContainer').insertAdjacentHTML('beforeend', html);
+        function toggleDropdownInput(fId) {
+            const type = document.getElementById(`${fId}_type`).value;
+            const optDiv = document.getElementById(`${fId}_options_div`);
+            if(type === 'dropdown') optDiv.classList.remove('hidden');
+            else optDiv.classList.add('hidden');
+        }
+
+        // 🔄 सर्व प्रश्नांचे ड्रॉपडाऊन लाइव्ह अपडेट करणे (Multi-level Nesting Map)
+        function updateParentDropdowns() {
+            const selectors = document.querySelectorAll('.parent-selector');
+            
+            // सध्या स्क्रीनवर उपलब्ध असलेल्या सर्व प्रश्नांची यादी बनवणे
+            let fieldsList = [];
+            const boxes = document.getElementById('fieldsContainer').querySelectorAll('[id$="_box"]');
+            boxes.forEach(box => {
+                const id = box.id.replace('_box', '');
+                const label = document.getElementById(`${id}_label`).value || `Question ${id}`;
+                fieldsList.push({ id: id, label: label });
+            });
+
+            selectors.forEach(select => {
+                const currentId = select.getAttribute('data-current');
+                const prevValue = select.value; // आधी सिलेक्ट केलेली व्हॅल्यू टिकवून ठेवणे
+
+                let html = '<option value="">-- स्वतंत्र मुख्य प्रश्न (Level 1) --</option>';
+                fieldsList.forEach(f => {
+                    if(f.id !== currentId) { // स्वतः स्वतःचा पालक असू शकत नाही
+                        html += `<option value="${f.id}">[${f.id}] ${f.label}</option>`;
+                    }
+                });
+                select.innerHTML = html;
+                select.value = prevValue;
+            });
         }
 
         async function saveForm() {
@@ -216,68 +224,48 @@
             if(!formName) return alert("फॉर्मला नाव द्या!");
 
             const schema = { fields: [] };
-            const container = document.getElementById('fieldsContainer');
-            const items = container.querySelectorAll(':scope > div');
+            const boxes = document.getElementById('fieldsContainer').querySelectorAll('[id$="_box"]');
 
-            items.forEach(item => {
-                if(item.id.endsWith('_box')) {
-                    const fId = item.id.replace('_box', '');
-                    schema.fields.push(extractFieldData(fId, null));
-                } else if(item.id.endsWith('_group')) {
-                    const gId = item.id.replace('_group', '');
-                    const gLabel = document.getElementById(`${gId}_label`).value;
+            boxes.forEach(box => {
+                const fId = box.id.replace('_box', '');
+                const label = document.getElementById(`${fId}_label`).value;
 
-                    const subFields = item.querySelectorAll('[id$="_box"]');
-                    subFields.forEach(sub => {
-                        const fId = sub.id.replace('_box', '');
-                        schema.fields.push(extractFieldData(fId, gLabel));
+                if(label) {
+                    schema.fields.push({
+                        id: fId,
+                        label: label,
+                        parent_id: document.getElementById(`${fId}_parent`).value || null, // Level 2 & 3 मॅपिंग आयडी
+                        type: document.getElementById(`${fId}_type`).value,
+                        required: document.getElementById(`${fId}_req`).checked,
+                        min: document.getElementById(`${fId}_min`).value || null,
+                        max: document.getElementById(`${fId}_max`).value || null,
+                        formula: document.getElementById(`${fId}_formula`).value || null,
+                        default_value: document.getElementById(`${fId}_default`).value || null,
+                        options: document.getElementById(`${fId}_options`).value || null,
+                        cond_field: document.getElementById(`${fId}_cond_field`).value || null,
+                        cond_val: document.getElementById(`${fId}_cond_val`).value || null
                     });
                 }
             });
 
             if(schema.fields.length === 0) return alert("फॉर्ममध्ये किमान एक प्रश्न हवा!");
-
             const selectedMode = document.getElementById('dataEntryMode').value;
 
             let result;
             if (editFormId) {
                 result = await supabaseClient.from('dynamic_forms').update({
-                    form_name: formName,
-                    form_type: document.getElementById('formType').value,
-                    data_entry_mode: selectedMode,
-                    schema_json: schema
+                    form_name: formName, form_type: document.getElementById('formType').value,
+                    data_entry_mode: selectedMode, schema_json: schema
                 }).eq('id', editFormId);
             } else {
                 result = await supabaseClient.from('dynamic_forms').insert([{
-                    form_name: formName,
-                    form_type: document.getElementById('formType').value,
-                    data_entry_mode: selectedMode,
-                    schema_json: schema,
-                    is_active: true
+                    form_name: formName, form_type: document.getElementById('formType').value,
+                    data_entry_mode: selectedMode, schema_json: schema, is_active: true
                 }]);
             }
 
             if (result.error) alert("एरर: " + result.error.message);
-            else { alert("फॉर्म यशस्वीरीत्या सेव्ह झाला!"); window.location.href = 'dashboard.html'; }
-        }
-
-        function extractFieldData(fId, parentLabel) {
-            return {
-                id: fId,
-                label: document.getElementById(`${fId}_label`).value,
-                type: document.getElementById(`${fId}_type`).value,
-                required: document.getElementById(`${fId}_req`).checked,
-                group_name: parentLabel,
-                min: document.getElementById(`${fId}_min`).value || null,
-                max: document.getElementById(`${fId}_max`).value || null,
-                formula: document.getElementById(`${fId}_formula`).value || null,
-                
-                // प्रगत प्रॉपर्टीज स्कीमामध्ये पुश करणे
-                default_value: document.getElementById(`${fId}_default`).value || null,
-                options: document.getElementById(`${fId}_options`).value || null,
-                cond_field: document.getElementById(`${fId}_cond_field`).value || null,
-                cond_val: document.getElementById(`${fId}_cond_val`).value || null
-            };
+            else { alert("लेव्हल ३ फॉर्म यशस्वीरीत्या सेव्ह झाला!"); window.location.href = 'dashboard.html'; }
         }
     </script>
 </body>
