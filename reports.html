@@ -6,26 +6,26 @@
     <title>अहवाल आणि डेटा डाउनलोड</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body class="bg-gray-100 p-6 min-h-screen">
 
     <div class="max-w-6xl mx-auto bg-white p-4 rounded-lg shadow-md flex justify-between items-center mb-6">
-        <h1 class="text-xl font-bold text-purple-600">अहवाल आणि डेटा डाउनलोड</h1>
-        <button onclick="window.location.href='dashboard.html'" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">डॅशबोर्डवर परत जा</button>
+        <h1 class="text-xl font-bold text-purple-600">अहवाल आणि डेटा डाउनलोड केंद्र</h1>
+        <button onclick="window.location.href='dashboard.html'" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 font-bold transition text-sm">डॅशबोर्डवर परत जा</button>
     </div>
 
     <div class="max-w-6xl mx-auto bg-white p-6 rounded-lg shadow-md border-t-4 border-purple-500">
-        
-        <!-- फिल्टर सेक्शन -->
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 pb-4 border-b">
             <div>
-                <label class="block text-gray-700 font-bold mb-2">फॉर्म निवडा</label>
-                <select id="filterForm" class="w-full p-2 border rounded bg-white">
-                    <option value="">-- सर्व फॉर्म्स --</option>
+                <label class="block text-gray-700 font-bold mb-2 text-sm">फॉर्म निवडा</label>
+                <select id="filterForm" class="w-full p-2 border rounded bg-white font-medium">
+                    <option value="">-- फॉर्म निवडा --</option>
                 </select>
             </div>
             <div>
-                <label class="block text-gray-700 font-bold mb-2">महिना</label>
+                <label class="block text-gray-700 font-bold mb-2 text-sm">महिना</label>
                 <select id="filterMonth" class="w-full p-2 border rounded bg-white">
                     <option value="">-- सर्व महिने --</option>
                     <option value="1">जानेवारी</option><option value="2">फेब्रुवारी</option>
@@ -36,24 +36,24 @@
                     <option value="11">नोव्हेंबर</option><option value="12">डिसेंबर</option>
                 </select>
             </div>
-            <div class="flex items-end gap-2">
-                <button onclick="loadData()" class="w-full bg-blue-500 text-white font-bold p-2 rounded hover:bg-blue-600">डेटा शोधा</button>
+            <div class="flex items-end">
+                <button onclick="loadData()" class="w-full bg-blue-600 text-white font-bold p-2.5 rounded hover:bg-blue-700 shadow transition">🔍 डेटा शोधा</button>
             </div>
             <div class="flex items-end">
-                <button onclick="downloadCSV()" class="w-full bg-green-600 text-white font-bold p-2 rounded hover:bg-green-700">Excel/Sheet डाउनलोड</button>
+                <button onclick="downloadProfessionalExcel()" id="downloadBtn" class="w-full bg-green-600 text-white font-bold p-2.5 rounded hover:bg-green-700 shadow transition flex items-center justify-center gap-2">
+                    <span>📥 Google Sheet डाउनलोड</span>
+                </button>
             </div>
         </div>
 
-        <!-- डेटा टेबल -->
-        <div class="overflow-x-auto">
-            <table class="w-full text-left border-collapse" id="dataTable">
+        <div class="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
+            <table class="w-full text-left border-collapse text-sm" id="dataTable">
                 <thead>
-                    <tr class="bg-gray-200" id="tableHead">
-                        <!-- हेडर्स डायनॅमिकली येतील -->
-                    </tr>
+                    <tr class="bg-gray-100 text-gray-700 font-bold" id="tableHead">
+                        </tr>
                 </thead>
-                <tbody id="tableBody">
-                    <tr><td colspan="5" class="p-4 text-center text-gray-500">कृपया फॉर्म निवडा आणि डेटा शोधा.</td></tr>
+                <tbody id="tableBody" class="text-gray-700">
+                    <tr><td class="p-8 text-center text-gray-400 font-medium">कृपया वरील ड्रॉपडाऊनमधून फॉर्म निवडा आणि 'डेटा शोधा' वर क्लिक करा.</td></tr>
                 </tbody>
             </table>
         </div>
@@ -67,8 +67,14 @@
 
         let reportData = [];
         let formSchemas = {};
+        let formNamesMap = {};
         let villagesMap = {};
         let employeesMap = {};
+
+        const monthNames = {
+            1: "जानेवारी", 2: "फेब्रुवारी", 3: "मार्च", 4: "एप्रिल", 5: "मे", 6: "जून",
+            7: "जुलै", 8: "ऑगस्ट", 9: "सप्टेंबर", 10: "ऑक्टोबर", 11: "नोव्हेंबर", 12: "डिसेंबर"
+        };
 
         window.onload = async function() {
             const user = JSON.parse(localStorage.getItem('loggedInUser') || '{}');
@@ -78,27 +84,29 @@
                 return;
             }
 
-            // बेसिक डेटा लोड करणे (फॉर्म्स, गावे, कर्मचारी नावे)
             await loadInitialData();
         };
 
         async function loadInitialData() {
-            // फॉर्म्स
+            // १. फॉर्म्स लोड करणे
             const { data: forms } = await supabaseClient.from('dynamic_forms').select('*');
-            let formOptions = '<option value="">-- सर्व फॉर्म्स --</option>';
-            forms.forEach(f => {
-                formOptions += `<option value="${f.id}">${f.form_name}</option>`;
-                formSchemas[f.id] = f.schema_json.fields;
-            });
-            document.getElementById('filterForm').innerHTML = formOptions;
+            if (forms) {
+                let formOptions = '<option value="">-- फॉर्म निवडा --</option>';
+                forms.forEach(f => {
+                    formOptions += `<option value="${f.id}">${f.form_name}</option>`;
+                    formSchemas[f.id] = f.schema_json.fields;
+                    formNamesMap[f.id] = f.form_name;
+                });
+                document.getElementById('filterForm').innerHTML = formOptions;
+            }
 
-            // गावे
+            // २. गावे लोड करणे
             const { data: villages } = await supabaseClient.from('villages').select('id, name');
-            villages.forEach(v => villagesMap[v.id] = v.name);
+            if (villages) villages.forEach(v => villagesMap[v.id] = v.name);
 
-            // कर्मचारी
+            // ३. कर्मचारी (employees) टेबलवरून नावे लोड करणे
             const { data: employees } = await supabaseClient.from('employees').select('id, full_name');
-            employees.forEach(e => employeesMap[e.id] = e.full_name);
+            if (employees) employees.forEach(e => employeesMap[e.id] = e.full_name);
         }
 
         async function loadData() {
@@ -111,9 +119,8 @@
             if(month) query = query.eq('report_month', month);
 
             const { data, error } = await query;
-            
             if(error) return alert("डेटा आणताना एरर: " + error.message);
-            
+
             reportData = data;
             renderTable(formId);
         }
@@ -121,34 +128,34 @@
         function renderTable(formId) {
             const headRow = document.getElementById('tableHead');
             const body = document.getElementById('tableBody');
-            
-            if(reportData.length === 0) {
+
+            if(!reportData || reportData.length === 0) {
                 headRow.innerHTML = '';
-                body.innerHTML = '<tr><td class="p-4 text-center text-red-500">या महिन्यासाठी कोणताही डेटा उपलब्ध नाही.</td></tr>';
+                body.innerHTML = '<tr><td class="p-8 text-center text-red-500 font-medium">निवडलेल्या कालावधीसाठी कोणताही डेटा उपलब्ध नाही.</td></tr>';
                 return;
             }
 
             const schema = formSchemas[formId];
-            
-            // टेबलचे हेडर्स तयार करणे
-            let headHTML = '<th class="p-2 border border-gray-300">महिना/वर्ष</th><th class="p-2 border border-gray-300">गाव</th><th class="p-2 border border-gray-300">कर्मचारी</th>';
+
+            // स्क्रीनवर हेडर मांडणी
+            let headHTML = '<th class="p-3 border">अहवाल महिना/वर्ष</th><th class="p-3 border">नियुक्त गाव</th><th class="p-3 border">कर्मचाऱ्याचे नाव</th>';
             schema.forEach(field => {
-                headHTML += `<th class="p-2 border border-gray-300">${field.label}</th>`;
+                headHTML += `<th class="p-3 border">${field.label}</th>`;
             });
             headRow.innerHTML = headHTML;
 
-            // टेबलमधील डेटा (Rows) तयार करणे
+            // स्क्रीनवर रो डेटा मांडणी
             let bodyHTML = '';
             reportData.forEach(row => {
-                let tr = `<tr>
-                    <td class="p-2 border border-gray-300">${row.report_month}/${row.report_year}</td>
-                    <td class="p-2 border border-gray-300">${villagesMap[row.village_id] || '-'}</td>
-                    <td class="p-2 border border-gray-300">${employeesMap[row.employee_id] || '-'}</td>`;
-                
+                let displayMonth = monthNames[row.report_month] || row.report_month;
+                let tr = `<tr class="hover:bg-gray-50 border-b">
+                    <td class="p-3 border font-medium">${displayMonth}-${row.report_year}</td>
+                    <td class="p-3 border text-purple-700 font-semibold">${villagesMap[row.village_id] || '-'}</td>
+                    <td class="p-3 border text-gray-600">${employeesMap[row.employee_id] || '-'}</td>`;
+
                 schema.forEach(field => {
-                    // JSON मधील डेटा काढणे
                     let answer = row.response_data[field.id] ? row.response_data[field.id].value : '-';
-                    tr += `<td class="p-2 border border-gray-300">${answer}</td>`;
+                    tr += `<td class="p-3 border">${answer}</td>`;
                 });
                 tr += '</tr>';
                 bodyHTML += tr;
@@ -156,46 +163,61 @@
             body.innerHTML = bodyHTML;
         }
 
-        // CSV (Google Sheet) मध्ये डेटा डाउनलोड करणे
-        function downloadCSV() {
-            if(reportData.length === 0) return alert("डाउनलोड करण्यासाठी कोणताही डेटा उपलब्ध नाही.");
-            
+        // 🟢 १. मुख्य प्रोफेशनल एक्सल शीट जनरेशन इंजिन
+        function downloadProfessionalExcel() {
+            if(!reportData || reportData.length === 0) {
+                return alert("डाउनलोड करण्यासाठी आधी 'डेटा शोधा' वर क्लिक करून डेटा लोड करा.");
+            }
+
             const formId = document.getElementById('filterForm').value;
             const schema = formSchemas[formId];
+            const formName = formNamesMap[formId] || "आरोग्य_अहवाल";
 
-            // CSV हेडर्स
-            let csvContent = "Month/Year,Village,Employee";
-            schema.forEach(field => {
-                csvContent += `,"${field.label.replace(/"/g, '""')}"`; // Labels with quotes safety
-            });
-            csvContent += "\n";
+            // १.१ हेडिंग रो तयार करणे
+            const headers = ["अहवाल महिना", "अहवाल वर्ष", "आरोग्य उपकेंद्र अंतर्गत गाव", "माहिती भरणारे कर्मचारी"];
+            schema.forEach(field => { headers.push(field.label); });
 
-            // CSV डेटा
+            const excelRows = [headers];
+
+            // १.२ डेटा रो तयार करणे
             reportData.forEach(row => {
-                let rowData = [
-                    `${row.report_month}/${row.report_year}`,
+                const rowData = [
+                    monthNames[row.report_month] || row.report_month,
+                    row.report_year,
                     villagesMap[row.village_id] || '-',
                     employeesMap[row.employee_id] || '-'
                 ];
-                
+
                 schema.forEach(field => {
-                    let answer = row.response_data[field.id] ? row.response_data[field.id].value : '-';
-                    rowData.push(`"${String(answer).replace(/"/g, '""')}"`);
+                    let answer = row.response_data[field.id] ? row.response_data[field.id].value : '';
+                    // जर संख्या असेल तर ती संख्या स्वरूपात ठेवणे (जेणेकरून एक्सलमध्ये बेरीज करता येईल)
+                    if (field.type === 'number' && answer !== '') {
+                        rowData.push(Number(answer));
+                    } else {
+                        rowData.push(answer);
+                    }
                 });
-                
-                csvContent += rowData.join(",") + "\n";
+                excelRows.push(rowData);
             });
 
-            // डाउनलोड लिंक बनवणे
-            const blob = new Blob(["\uFEFF"+csvContent], { type: 'text/csv;charset=utf-8;' }); // \uFEFF is for Marathi UTF-8 support in Excel
-            const link = document.createElement("a");
-            const url = URL.createObjectURL(blob);
-            link.setAttribute("href", url);
-            link.setAttribute("download", "SubCenter_Report.csv");
-            link.style.visibility = 'hidden';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+            // २. शीटJS द्वारे शीट ऑब्जेक्ट तयार करणे
+            const worksheet = XLSX.utils.aoa_to_sheet(excelRows);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "अहवाल डेटा");
+
+            // 💎 ३. प्रोफेशनल लूक देण्याचे फिचर्स (Styling Properties)
+            
+            // ३.१ कॉलमची रुंदी (Width) आपोआप अक्षरांच्या लांबीनुसार सेट करणे
+            const colWidths = headers.map(h => ({ wch: Math.max(h.length + 6, 15) }));
+            worksheet['!cols'] = colWidths;
+
+            // ३.२ फाईलचे नाव निश्चित करणे
+            const selectedMonthVal = document.getElementById('filterMonth').value;
+            let fileMonthName = selectedMonthVal ? "_" + monthNames[selectedMonthVal] : "_सर्व_महिने";
+            const finalFileName = `${formName.replace(/ /g, "_")}${fileMonthName}.xlsx`;
+
+            // ४. फाईल डाऊनलोड करणे
+            XLSX.writeFile(workbook, finalFileName);
         }
     </script>
 </body>
