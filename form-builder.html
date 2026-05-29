@@ -19,7 +19,7 @@
 
     <div class="max-w-5xl mx-auto bg-white p-6 rounded-lg shadow-md border-t-4 border-green-500">
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 pb-6 border-b">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 pb-6 border-b">
             <div>
                 <label class="block text-gray-700 font-bold mb-2 text-sm">अहवाल/फॉर्मचे नाव</label>
                 <input type="text" id="formName" class="w-full p-2 border rounded" placeholder="उदा. रुग्ण नोंदणी">
@@ -35,8 +35,17 @@
             <div>
                 <label class="block text-gray-700 font-bold mb-2 text-sm">डेटा एन्ट्री मोड</label>
                 <select id="dataEntryMode" class="w-full p-2 border rounded bg-white font-medium text-blue-700">
-                    <option value="shared">सामायिक (उपकेंद्रातील कोणत्याही एका कर्मचाऱ्याने)</option>
-                    <option value="individual">वैयक्तिक (सर्व कर्मचाऱ्यांनी प्रत्येकी स्वतंत्रपणे)</option>
+                    <option value="shared">सामायिक (कोणत्याही एकाने)</option>
+                    <option value="individual">वैयक्तिक (सर्वांनी)</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-gray-700 font-bold mb-2 text-sm">फॉर्म कोणी भरावा? (Role)</label>
+                <select id="allowedRoles" class="w-full p-2 border rounded bg-white font-medium text-purple-700">
+                    <option value="ALL">सर्व कर्मचारी (MPW, ANM, CHO)</option>
+                    <option value="MPW">फक्त MPW (आरोग्य सेवक)</option>
+                    <option value="ANM">फक्त ANM (आरोग्य सेविका)</option>
+                    <option value="CHO">फक्त CHO (समुदाय आरोग्य अधिकारी)</option>
                 </select>
             </div>
         </div>
@@ -65,16 +74,14 @@
             editFormId = urlParams.get('edit');
 
             if (editFormId) {
-                document.getElementById('builderTitle').innerText = "फॉर्म सुधारा (Edit Level 3 Mode)";
+                document.getElementById('builderTitle').innerText = "फॉर्म सुधारा (Edit Mode)";
                 document.getElementById('saveBtn').innerText = "बदल अपडेट करा";
                 await loadFormForEditing(editFormId);
             } else {
-                // सुरुवातीला एक मुख्य गट जोडूया
                 addNewElement(null, 'group_header');
             }
         };
 
-        // 💾 एडिट मोडसाठी डेटा लोड करणे
         async function loadFormForEditing(id) {
             const { data, error } = await supabaseClient.from('dynamic_forms').select('*').eq('id', id).single();
             if (error || !data) { alert("फॉर्म लोड करताना एरर आली!"); return; }
@@ -82,18 +89,18 @@
             document.getElementById('formName').value = data.form_name;
             document.getElementById('formType').value = data.form_type;
             if(data.data_entry_mode) document.getElementById('dataEntryMode').value = data.data_entry_mode;
+            
+            // 🟢 डेटाबेसमधून आलेला रोल सेट करणे
+            if(data.allowed_roles) document.getElementById('allowedRoles').value = data.allowed_roles;
 
             const fields = data.schema_json.fields;
             
-            // १. आधी रचना (HTML elements) क्रमाने उभी करणे
             fields.forEach(field => {
                 const numId = parseInt(field.id.replace('f', ''));
                 if(numId > fieldCount) fieldCount = numId;
-                
                 renderElementToDOM(field.id, field.parent_id);
             });
 
-            // २. नंतर त्यामध्ये सर्व डेटा अचूकपणे भरणे
             fields.forEach(field => {
                 document.getElementById(`${field.id}_label`).value = field.label || '';
                 document.getElementById(`${field.id}_type`).value = field.type || 'number';
@@ -110,25 +117,21 @@
             });
         }
 
-        // ➕ नवीन एलिमेंट तयार करणे (थेट पालक संबंध लावून)
         function addNewElement(parentId = null, defaultType = 'number') {
             fieldCount++;
             const fId = `f${fieldCount}`;
             renderElementToDOM(fId, parentId, defaultType);
         }
 
-        // 🌳 डॉम (DOM) मध्ये लेव्हलनुसार सुंदर डिझाईन बॉक्स तयार करणे
         function renderElementToDOM(fId, parentId, defaultType = 'number') {
             let container = document.getElementById('fieldsContainer');
             let indentClass = "bg-gray-50 border-l-4 border-blue-500 p-4 rounded-lg shadow-sm mb-2"; 
             let levelLabel = "Level 1 (मुख्य)";
 
-            // जर हा उपप्रश्न असेल तर त्याचा बॉक्स पालकाच्या बॉक्सच्या आत सरकवणे (Nesting)
             if (parentId) {
                 const parentBox = document.getElementById(`${parentId}_sub_wrapper`);
                 if (parentBox) {
                     container = parentBox;
-                    // पालकाच्या लेव्हलवरून स्वतःची लेव्हल आणि रंग ठरवणे
                     const parentLevel = parseInt(document.getElementById(`${parentId}_box`).getAttribute('data-level') || 1);
                     if (parentLevel === 1) {
                         indentClass = "bg-purple-50/50 border-l-4 border-purple-400 p-3 rounded-md ml-6 mb-2";
@@ -218,13 +221,11 @@
             else optDiv.classList.add('hidden');
         }
 
-        // 💾 संपूर्ण फॉर्म डेटा संकलित करून सेव्ह करणे
         async function saveForm() {
             const formName = document.getElementById('formName').value;
             if(!formName) return alert("फॉर्मला नाव द्या!");
 
             const schema = { fields: [] };
-            // स्क्रीनवर ज्या क्रमाने बॉक्सेस दिसत आहेत, त्याच क्रमाने सिलेक्ट करणे
             const allBoxes = document.getElementById('fieldsContainer').querySelectorAll('[id$="_box"]');
 
             allBoxes.forEach(box => {
@@ -251,23 +252,33 @@
             });
 
             if(schema.fields.length === 0) return alert("फॉर्ममध्ये किमान एक प्रश्न हवा!");
+            
             const selectedMode = document.getElementById('dataEntryMode').value;
+            // 🟢 नवीन: निवडलेला रोल सेव्ह करणे
+            const allowedRoles = document.getElementById('allowedRoles').value;
 
             let result;
             if (editFormId) {
                 result = await supabaseClient.from('dynamic_forms').update({
-                    form_name: formName, form_type: document.getElementById('formType').value,
-                    data_entry_mode: selectedMode, schema_json: schema
+                    form_name: formName, 
+                    form_type: document.getElementById('formType').value,
+                    data_entry_mode: selectedMode,
+                    allowed_roles: allowedRoles, // 🟢 रोल अपडेट
+                    schema_json: schema
                 }).eq('id', editFormId);
             } else {
                 result = await supabaseClient.from('dynamic_forms').insert([{
-                    form_name: formName, form_type: document.getElementById('formType').value,
-                    data_entry_mode: selectedMode, schema_json: schema, is_active: true
+                    form_name: formName, 
+                    form_type: document.getElementById('formType').value,
+                    data_entry_mode: selectedMode, 
+                    allowed_roles: allowedRoles, // 🟢 नवीन रोल
+                    schema_json: schema, 
+                    is_active: true
                 }]);
             }
 
             if (result.error) alert("एरर: " + result.error.message);
-            else { alert("लेव्हल ३ फॉर्म यशस्वीरीत्या पूर्ण सेव्ह झाला!"); window.location.href = 'dashboard.html'; }
+            else { alert("फॉर्म यशस्वीरीत्या पूर्ण सेव्ह झाला!"); window.location.href = 'dashboard.html'; }
         }
     </script>
 </body>
