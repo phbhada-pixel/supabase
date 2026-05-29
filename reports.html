@@ -6,7 +6,7 @@
     <title>अहवाल केंद्र - प्राथमिक आरोग्य केंद्र भादा</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <!-- 🟢 Excel प्रगत स्टाईल आणि कलरिंग लायब्ररी -->
+    <!-- Excel प्रगत स्टाईल आणि कलरिंग लायब्ररी -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
         :root { --primary: #00705a; }
@@ -415,7 +415,7 @@
             let filterSubCenter = document.getElementById('reportSubCenterFilter').value; 
             let groupType = document.getElementById('reportGroupFilter').value;
 
-            document.getElementById('reportLoader').style.display = "block"; 
+            document.getElementById('reportLoader').classList.remove('hidden'); 
             document.getElementById('reportContentArea').classList.add('hidden'); 
             document.getElementById('reportTableContainer').innerHTML = "";
             
@@ -428,7 +428,7 @@
                 if(!selectedIDs.includes("ALL")) { query = query.in('form_id', selectedIDs); }
 
                 const { data: dbData, error } = await query;
-                document.getElementById('reportLoader').style.display = "none";
+                document.getElementById('reportLoader').classList.add('hidden');
                 
                 if (error || !dbData || dbData.length === 0) { alert("डेटाबेसमध्ये माहिती उपलब्ध नाही."); return; }
 
@@ -494,7 +494,7 @@
                     document.getElementById('reportContentArea').classList.remove('hidden'); 
                 } else { alert("डेटा उपलब्ध नाही."); }
 
-            } catch(e) { document.getElementById('reportLoader').style.display = "none"; alert("एरर: " + e.message); }
+            } catch(e) { document.getElementById('reportLoader').classList.add('hidden'); alert("एरर: " + e.message); }
         }
 
         function renderMultipleTables(reports, month, year) {
@@ -515,9 +515,18 @@
             reports.forEach(rep => {
                 let data = rep.data; let headers = data[0];
                 let showIndices = []; for(let i=5; i<headers.length; i++) showIndices.push(i);
-                let subCenterIdx = 2; let villageIdx = 3;
+                let subCenterIdx = 2; let villageIdx = 3; let empIdx = 4;
                 let dataRows = data.slice(1);
                 
+                // 🟢 गावनिहाय फिल्टरमध्ये डेटा 'उपकेंद्र ➡️ कर्मचारी' ग्रुपनुसार मांडण्यासाठी सॉर्ट करणे
+                if (groupType === "Village") {
+                    dataRows.sort((a, b) => {
+                        let compareSC = String(a[subCenterIdx]).localeCompare(String(b[subCenterIdx]));
+                        if (compareSC !== 0) return compareSC;
+                        return String(a[empIdx]).localeCompare(String(b[empIdx]));
+                    });
+                }
+
                 if ((groupType === "SubCenter" || groupType === "SubCenterConsolidated")) {
                     let aggregated = {};
                     dataRows.forEach(row => {
@@ -577,7 +586,7 @@
                     });
                     html += `<div class="table-responsive"><table class="report-table"><thead>${r1Html + r2Html}</thead><tbody>${tbodyHtml}</tbody></table></div>`;
                 } else {
-                    html += `<div class="table-responsive"><table class="report-table"><thead><tr><th style="background:#f4b400; color:#000;">अ.क्र.</th><th style="background:#f4b400; color:#000;">${groupType !== 'Village' ? 'उपकेंद्र' : 'गाव'}</th>`;
+                    html += `<div class="table-responsive"><table class="report-table"><thead><tr><th style="background:#f4b400; color:#000;">अ.क्र.</th><th style="background:#f4b400; color:#000;">आरोग्य उपकेंद्र</th><th style="background:#f4b400; color:#000;">कर्मचाऱ्याचे नाव</th><th style="background:#f4b400; color:#000;">गाव / कार्यक्षेत्र</th>`;
                     showIndices.forEach(idx => {
                         if (rep.isProg) {
                             html += `<th style="background:#f4b400; color:#000;">${headers[idx]} (मासिक)</th>`;
@@ -586,7 +595,7 @@
                     });
                     html += `</tr></thead><tbody>`;
                     dataRows.forEach((row, i) => {
-                        html += `<tr><td style="background:#fdfdfd;">${i+1}</td><td style="background:#fdfdfd;">${groupType !== 'Village' ? row[subCenterIdx] : (row[villageIdx] || "-")}</td>`;
+                        html += `<tr class="hover:bg-gray-50 text-xs"><td style="background:#fdfdfd;">${i+1}</td><td class="font-bold text-gray-700">${row[subCenterIdx]}</td><td class="text-blue-900 font-medium">${row[empIdx]}</td><td class="font-bold text-purple-700">${row[villageIdx] || "-"}</td>`;
                         showIndices.forEach(idx => {
                             let v = row[idx];
                             if (rep.isProg && typeof v === 'object' && v !== null) {
@@ -597,7 +606,7 @@
                     });
                     
                     let { totals, isNumericCol } = getTotalsRow([headers].concat(dataRows), headers, showIndices);
-                    html += `<tr style="background:#d4edda; font-weight:bold; color:#155724;"><td style="background:#d4edda;">#</td><td style="background:#d4edda;">एकूण (PHC Total)</td>`;
+                    html += `<tr style="background:#d4edda; font-weight:bold; color:#155724;"><td colspan="4">एकूण एकत्रित (PHC Total)</td>`;
                     showIndices.forEach(idx => {
                         let v = totals[idx];
                         if(rep.isProg) {
@@ -613,7 +622,11 @@
             container.innerHTML = html;
         }
 
-        // 🟢 📥 प्रिट प्रिव्ह्यू फॉरमॅटशी १००% मॅच होणारे व्यावसायिक एक्सेल निर्मिती इंजिन (डिझाईन आणि कलर स्टाईलसह)
+        function downloadConsolidatedPDF() {
+            window.print();
+        }
+
+        // 🟢 📥 'गावनिहाय' स्तरावर उपकेंद्र व कर्मचारी ग्रुपमध्ये डाऊनलोड करणारे एक्सेल इंजिन
         function downloadConsolidatedExcel() {
             if(currentReports.length === 0) return;
             
@@ -628,9 +641,10 @@
                 let headers = rep.data[0]; let showIndices = []; 
                 for(let i=5; i<headers.length; i++) showIndices.push(i);
                 
-                let subCenterIdx = 2; let villageIdx = 3;
+                let subCenterIdx = 2; let villageIdx = 3; let empIdx = 4;
                 let dataRows = rep.data.slice(1);
 
+                // उपकेंद्र आणि कंसोलिडेटेड डेटासाठी रोलअप समरी
                 if ((groupType === "SubCenter" || groupType === "SubCenterConsolidated")) {
                     let aggregated = {};
                     dataRows.forEach(row => {
@@ -653,8 +667,16 @@
                     dataRows = Object.values(aggregated);
                 }
 
+                // 🟢 गावनिहाय स्तर असल्यास उपकेंद्र आणि कर्मचाऱ्यांचा ग्रुप तयार करण्यासाठी आधी डेटा सॉर्ट करणे
+                if (groupType === "Village") {
+                    dataRows.sort((a, b) => {
+                        let compareSC = String(a[subCenterIdx]).localeCompare(String(b[subCenterIdx]));
+                        if (compareSC !== 0) return compareSC;
+                        return String(a[empIdx]).localeCompare(String(b[empIdx]));
+                    });
+                }
+
                 let sheetData = []; let merges = []; let headerRowIndices = [];
-                
                 sheetData.push([phcHeader]); 
                 sheetData.push([`अहवालाचे नाव: ${rep.formName} | कालावधी: ${periodText}`]); 
                 sheetData.push([]); 
@@ -663,16 +685,11 @@
                 let verticalColCount = 2 + (dataRows.length * (rep.isProg ? 2 : 1)) + (rep.isProg ? 2 : 1);
 
                 if (groupType === "SubCenterConsolidated") {
-                    // 📊 उभी एकत्रित मांडणीनुसार एक्सेल निर्मिती इंजिन
+                    let r1 = Array(verticalColCount).fill(""); let r2 = rep.isProg ? Array(verticalColCount).fill("") : null;
                     merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: verticalColCount - 1 } });
                     merges.push({ s: { r: 1, c: 0 }, e: { r: 1, c: verticalColCount - 1 } });
-
-                    let r1 = Array(verticalColCount).fill(""); 
-                    let r2 = rep.isProg ? Array(verticalColCount).fill("") : null;
                     
-                    r1[0] = "अ.क्र."; 
-                    r1[1] = "तपशील / मुख्य निर्देशांक प्रश्न";
-                    
+                    r1[0] = "अ.क्र."; r1[1] = "तपशील / मुख्य निर्देशांक प्रश्न";
                     if(rep.isProg) { 
                         merges.push({ s: { r: startR, c: 0 }, e: { r: startR + 1, c: 0 } }); 
                         merges.push({ s: { r: startR, c: 1 }, e: { r: startR + 1, c: 1 } }); 
@@ -683,54 +700,32 @@
                         r1[ccIdx] = row[subCenterIdx] || "-";
                         if(rep.isProg) { 
                             merges.push({ s: { r: startR, c: ccIdx }, e: { r: startR, c: ccIdx + 1 } }); 
-                            r2[ccIdx] = "मासिक"; 
-                            r2[ccIdx+1] = "प्रगत"; 
-                            ccIdx += 2; 
+                            r2[ccIdx] = "मासिक"; r2[ccIdx+1] = "प्रगत"; ccIdx += 2; 
                         } else { ccIdx += 1; }
                     });
-                    
                     r1[ccIdx] = "एकूण PHC Total";
-                    if(rep.isProg) { 
-                        merges.push({ s: { r: startR, c: ccIdx }, e: { r: startR, c: ccIdx + 1 } }); 
-                        r2[ccIdx] = "मासिक"; 
-                        r2[ccIdx+1] = "प्रगत"; 
-                    }
+                    if(rep.isProg) { merges.push({ s: { r: startR, c: ccIdx }, e: { r: startR, c: ccIdx + 1 } }); r2[ccIdx] = "मासिक"; r2[ccIdx+1] = "प्रगत"; }
 
                     sheetData.push(r1); headerRowIndices.push(startR); 
                     if(rep.isProg) { sheetData.push(r2); headerRowIndices.push(startR + 1); }
 
                     showIndices.forEach((idx, vIndex) => {
-                        let rowData = Array(verticalColCount).fill(""); 
-                        rowData[0] = vIndex + 1; 
-                        rowData[1] = String(headers[idx]).trim();
-                        
+                        let rowData = Array(verticalColCount).fill(""); rowData[0] = vIndex + 1; rowData[1] = String(headers[idx]).trim();
                         let cc = 2; let rowTotalM = 0; let rowTotalP = 0;
                         dataRows.forEach(r => {
-                            let val = r[idx]; 
-                            let mObj = (typeof val === 'object' && val !== null) ? val.M : val;
-                            rowData[cc] = mObj !== undefined && mObj !== "" ? (isNaN(mObj) ? mObj : Number(mObj)) : 0; 
-                            if(!isNaN(parseFloat(mObj))) rowTotalM += parseFloat(mObj); 
-                            cc++;
-                            
-                            if(rep.isProg) { 
-                                let pObj = (typeof val === 'object' && val !== null) ? val.P : val; 
-                                rowData[cc] = pObj !== undefined && pObj !== "" ? (isNaN(pObj) ? pObj : Number(pObj)) : 0; 
-                                if(!isNaN(parseFloat(pObj))) rowTotalP += parseFloat(pObj); 
-                                cc++; 
-                            }
+                            let val = r[idx]; let mObj = (typeof val === 'object' && val !== null) ? val.M : val;
+                            rowData[cc] = mObj !== undefined && mObj !== "" ? (isNaN(mObj) ? mObj : Number(mObj)) : 0; if(!isNaN(parseFloat(mObj))) rowTotalM += parseFloat(mObj); cc++;
+                            if(rep.isProg) { let pObj = (typeof val === 'object' && val !== null) ? val.P : val; rowData[cc] = pObj !== undefined && pObj !== "" ? (isNaN(pObj) ? pObj : Number(pObj)) : 0; if(!isNaN(parseFloat(pObj))) rowTotalP += parseFloat(pObj); cc++; }
                         });
-                        rowData[cc] = formatNumberDecimals(rowTotalM); 
-                        if(rep.isProg) { rowData[cc+1] = formatNumberDecimals(rowTotalP); }
+                        rowData[cc] = formatNumberDecimals(rowTotalM); if(rep.isProg) { rowData[cc+1] = formatNumberDecimals(rowTotalP); }
                         sheetData.push(rowData); 
                     });
                 } else {
-                    // 📊 आडव्या मांडणीनुसार एक्सेल निर्मिती इंजिन
-                    let modifiedHeaders = ["अ.क्र.", groupType !== 'Village' ? 'उपकेंद्र' : 'गाव'];
+                    // 📊 गावनिहाय व उपकेंद्र स्तरावरील आडवी मांडणी (आता उपकेंद्र आणि कर्मचाऱ्यांचा ग्रुप रकाना तयार होईल)
+                    let modifiedHeaders = ["अ.क्र.", "आरोग्य उपकेंद्र", "कर्मचाऱ्याचे नाव", "गाव / कार्यक्षेत्र"];
                     showIndices.forEach(idx => {
-                        if (rep.isProg) { 
-                            modifiedHeaders.push(headers[idx] + " - (मासिक)"); 
-                            modifiedHeaders.push(headers[idx] + " - (प्रगत)"); 
-                        } else { modifiedHeaders.push(headers[idx]); }
+                        if (rep.isProg) { modifiedHeaders.push(headers[idx] + " - (मासिक)"); modifiedHeaders.push(headers[idx] + " - (प्रगत)"); } 
+                        else { modifiedHeaders.push(headers[idx]); }
                     });
                     
                     merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: modifiedHeaders.length - 1 } });
@@ -738,121 +733,68 @@
                     sheetData.push(modifiedHeaders); headerRowIndices.push(startR);
 
                     dataRows.forEach((r, rowIndex) => {
-                        let rowData = [rowIndex + 1, groupType !== 'Village' ? r[subCenterIdx] : (r[villageIdx] || "-")];
+                        let rowData = [rowIndex + 1, r[subCenterIdx], r[empIdx], r[villageIdx] || "-"];
                         showIndices.forEach(colIdx => { 
                             let v = r[colIdx]; 
-                            if (rep.isProg && typeof v === 'object' && v !== null) { 
-                                rowData.push(v.M !== "" ? Number(v.M) : 0); 
-                                rowData.push(v.P !== "" ? Number(v.P) : 0); 
-                            } else { rowData.push(v !== "" && !isNaN(v) ? Number(v) : v); }
+                            if (rep.isProg && typeof v === 'object' && v !== null) { rowData.push(v.M !== "" ? Number(v.M) : 0); rowData.push(v.P !== "" ? Number(v.P) : 0); } 
+                            else { rowData.push(v !== "" && !isNaN(v) ? Number(v) : v); }
                         });
                         sheetData.push(rowData);
                     });
 
-                    // PHC Total बेरीज ओळ
-                    let totalRow = ["एकूण बेरीज", "प्रा. आ. केंद्र टोटल"];
+                    // एकूण PHC Total ओळ
+                    let totalRow = ["#", "एकूण बेरीज", "प्रा. आ. केंद्र टोटल", ""];
                     showIndices.forEach(idx => {
                         let colSumM = 0; let colSumP = 0;
-                        dataRows.forEach(r => { 
-                            let v = r[idx]; 
-                            if (typeof v === 'object' && v !== null) { colSumM += parseFloat(v.M || 0); colSumP += parseFloat(v.P || 0); } 
-                            else { colSumM += parseFloat(v || 0); } 
-                        });
-                        if (rep.isProg) { totalRow.push(formatNumberDecimals(colSumM)); totalRow.push(formatNumberDecimals(colSumP)); } 
-                        else { totalRow.push(formatNumberDecimals(colSumM)); }
+                        dataRows.forEach(r => { let v = r[idx]; if (typeof v === 'object' && v !== null) { colSumM += parseFloat(v.M || 0); colSumP += parseFloat(v.P || 0); } else { colSumM += parseFloat(v || 0); } });
+                        if (rep.isProg) { totalRow.push(formatNumberDecimals(colSumM)); totalRow.push(formatNumberDecimals(colSumP)); } else { totalRow.push(formatNumberDecimals(colSumM)); }
                     });
                     sheetData.push(totalRow); headerRowIndices.push(sheetData.length - 1);
                 }
 
-                // 💎 एक्सेल प्रगत सेल स्टायलिंग आणि कलरिंग मॉड्युल (Professional Sheet Formatting Engine)
+                // 💎 एक्सेल सेल स्टायलिंग आणि कलरिंग व्यवस्था
                 let ws = XLSX.utils.aoa_to_sheet(sheetData); ws["!merges"] = merges;
-                let finalColLimit = groupType === "SubCenterConsolidated" ? verticalColCount : 60;
+                let finalColLimit = groupType === "SubCenterConsolidated" ? verticalColCount : 75;
                 
                 for(let R=0; R<sheetData.length; R++) {
                     for(let C=0; C<finalColLimit; C++) { 
                         let cellRef = XLSX.utils.encode_cell({r: R, c: C}); if(!ws[cellRef]) continue;
                         
-                        // बेसिक अलाइनमेंट आणि फॉन्ट
                         let cellStyle = { 
                             font: { name: "Arial", sz: 10, color: { rgb: "000000" } }, 
                             alignment: { vertical: "center", horizontal: "center", wrapText: true },
                             border: { 
-                                top: { style: "thin", color: { rgb: "D3D3D3" } }, 
-                                bottom: { style: "thin", color: { rgb: "D3D3D3" } }, 
-                                left: { style: "thin", color: { rgb: "D3D3D3" } }, 
-                                right: { style: "thin", color: { rgb: "D3D3D3" } } 
+                                top: { style: "thin", color: { rgb: "D3D3D3" } }, bottom: { style: "thin", color: { rgb: "D3D3D3" } }, 
+                                left: { style: "thin", color: { rgb: "D3D3D3" } }, right: { style: "thin", color: { rgb: "D3D3D3" } } 
                             }
                         };
                         
-                        // १. मुख्य केंद्र टायटल रो (Forest Green Header)
                         if(R === 0) { 
-                            cellStyle.fill = { fgColor: { rgb: "00705A" } }; 
-                            cellStyle.font = { name: "Arial", sz: 14, bold: true, color: { rgb: "FFFFFF" } }; 
-                        } 
-                        // २. अहवाल नाव व महिना सब-टायटल रो (Light Mint Green)
-                        else if(R === 1) { 
-                            cellStyle.fill = { fgColor: { rgb: "E8F5E9" } }; 
-                            cellStyle.font = { name: "Arial", sz: 11, bold: true, color: { rgb: "00705A" } }; 
-                        } 
-                        // ३. मुख्य टेबल हेडिंग रो १ - उपकेंद्रांची नावे (Yellow / Gold Layout)
-                        else if(R === startR) { 
-                            cellStyle.fill = { fgColor: { rgb: "F4B400" } }; 
-                            cellStyle.font = { name: "Arial", sz: 10, bold: true, color: { rgb: "000000" } }; 
-                            cellStyle.border = { 
-                                top: { style: "medium", color: { rgb: "000000" } }, 
-                                bottom: { style: "medium", color: { rgb: "000000" } }, 
-                                left: { style: "thin", color: { rgb: "000000" } }, 
-                                right: { style: "thin", color: { rgb: "000000" } } 
-                            };
-                        } 
-                        // ४. मुख्य टेबल हेडिंग रो २ - मासिक / प्रगत सब-टॅब (Light Gold Grid)
-                        else if(rep.isProg && R === startR + 1) { 
-                            cellStyle.fill = { fgColor: { rgb: "FFF3E0" } }; 
-                            cellStyle.font = { name: "Arial", sz: 9, bold: true, color: { rgb: "444444" } }; 
-                            cellStyle.border = { 
-                                bottom: { style: "medium", color: { rgb: "000000" } }, 
-                                left: { style: "thin", color: { rgb: "D3D3D3" } }, 
-                                right: { style: "thin", color: { rgb: "D3D3D3" } } 
-                            };
-                        } 
-                        // ५. शेवटची एकूण बेरीज रो (PHC Total Green Base)
-                        else if(headerRowIndices.includes(R) && R > startR + 1) {
-                            cellStyle.fill = { fgColor: { rgb: "C8E6C9" } }; 
-                            cellStyle.font = { name: "Arial", sz: 10, bold: true, color: { rgb: "004D40" } };
-                            cellStyle.border = { 
-                                top: { style: "medium", color: { rgb: "000000" } }, 
-                                bottom: { style: "medium", color: { rgb: "000000" } }, 
-                                left: { style: "thin", color: { rgb: "000000" } }, 
-                                right: { style: "thin", color: { rgb: "000000" } } 
-                            };
-                        }
-                        // ६. रेग्युलर डेटा रो व्यवस्थापन (Data Cell Zebra Styling)
-                        else { 
-                            // जर उभी मांडणी असेल आणि दुसरा कॉलम (प्रश्नाचे नाव) असेल तर मजकूर डावीकडे सारखवणे (Left Align)
-                            if (groupType === "SubCenterConsolidated" && C === 1) {
-                                cellStyle.alignment.horizontal = "left";
+                            cellStyle.fill = { fgColor: { rgb: "00705A" } }; cellStyle.font = { name: "Arial", sz: 14, bold: true, color: { rgb: "FFFFFF" } }; 
+                        } else if(R === 1) { 
+                            cellStyle.fill = { fgColor: { rgb: "E8F5E9" } }; cellStyle.font = { name: "Arial", sz: 11, bold: true, color: { rgb: "00705A" } }; 
+                        } else if(headerRowIndices.includes(R)) { 
+                            cellStyle.fill = { fgColor: { rgb: "F4B400" } }; cellStyle.font = { name: "Arial", sz: 10, bold: true, color: { rgb: "000000" } }; 
+                            cellStyle.border = { top: { style: "medium", color: { rgb: "000000" } }, bottom: { style: "medium", color: { rgb: "000000" } }, left: { style: "thin", color: { rgb: "000000" } }, right: { style: "thin" } };
+                        } else if(rep.isProg && R === startR + 1) { 
+                            cellStyle.fill = { fgColor: { rgb: "FFF3E0" } }; cellStyle.font = { name: "Arial", sz: 9, bold: true, color: { rgb: "444444" } }; 
+                        } else { 
+                            // गावनिहाय लेआउटमध्ये सुरुवातीचे उपकेंद्र, कर्मचारी आणि गावाचे रकाने ठळक करणे
+                            if (groupType === "Village" && (C === 1 || C === 2 || C === 3)) {
                                 cellStyle.font.bold = true;
-                                cellStyle.font.color = { rgb: "333333" };
+                                if (C === 3) cellStyle.font.color = { rgb: "702963" }; // गावाला जांभळा शेड
                             }
-                            
-                            // प्रगत रकान्यांच्या बॅकग्राउंडला हलका वेगळा रंग देणे (Zebra/Column Coding)
-                            if (groupType === "SubCenterConsolidated" && rep.isProg && C >= 2 && C < (verticalColCount - 2)) {
-                                if (C % 2 !== 0) { // विषम कॉलम म्हणजे 'प्रगत'
-                                    cellStyle.fill = { fgColor: { rgb: "FFF9F2" } }; // हलका केशरी शेड
-                                }
-                            }
+                            if (groupType === "SubCenterConsolidated" && C === 1) { cellStyle.alignment.horizontal = "left"; cellStyle.font.bold = true; }
                         }
                         ws[cellRef].s = cellStyle;
                     }
                 }
                 
-                // रकान्यांची रुंदी ऑटो-मॅनेजमेंट करणे
                 let wscols = [{ wch: 8 }]; 
                 if (groupType === "SubCenterConsolidated") { 
-                    wscols.push({ wch: 45 }); // प्रश्नांच्या नावासाठी मोठा रकाना
-                    for(let c=2; c<150; c++) wscols.push({ wch: 13 }); 
+                    wscols.push({ wch: 45 }); for(let c=2; c<150; c++) wscols.push({ wch: 13 }); 
                 } else { 
-                    wscols.push({ wch: 18 }); 
+                    wscols.push({ wch: 16 }, { wch: 18 }, { wch: 16 }); // उपकेंद्र, कर्मचारी, गाव विड्थ
                     for(let c=wscols.length; c<150; c++) wscols.push({ wch: 15 }); 
                 }
                 ws["!cols"] = wscols;
