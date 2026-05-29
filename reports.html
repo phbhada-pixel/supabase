@@ -126,6 +126,22 @@
             7: "जुलै", 8: "ऑगस्ट", 9: "सप्टेंबर", 10: "ऑक्टोबर", 11: "नोव्हेंबर", 12: "डिसेंबर"
         };
 
+        // 🟢 ऍक्टिव्ह फंक्शन: लेव्हल ३ मधील ग्रुप्सचे नाव उपप्रश्नांसोबत मॅप करून फुल हेडिंग बनवणारे फंक्शन (सर्वात वर घोषित केले)
+        function getFullFieldLabel(fields, fieldObj) {
+            let fullLabel = fieldObj.label;
+            let currentField = fieldObj;
+            while (currentField && currentField.parent_id) {
+                let parentField = fields.find(f => f.id === currentField.parent_id);
+                if (parentField) {
+                    if (parentField.type === 'group_header') {
+                        fullLabel = parentField.label + " - " + fullLabel;
+                    }
+                    currentField = parentField;
+                } else { break; }
+            }
+            return fullLabel;
+        }
+
         window.onload = async function() {
             const userDataString = localStorage.getItem('loggedInUser');
             if (!userDataString) { window.location.href = "index.html"; return; }
@@ -291,7 +307,7 @@
             let downArea = document.getElementById('downloadButtonsArea');
             
             downArea.innerHTML = `
-                <div style="display:flex; justify-content:flex-end; gap:10px; flex-wrap:wrap; margin-bottom: 12px;">
+                <div class="no-print" style="display:flex; justify-content:flex-end; gap:10px; flex-wrap:wrap; margin-bottom: 12px;">
                     <button onclick="copyPendingListText()" style="background:#6c757d; color:white; border:none; padding:10px 20px; border-radius:5px; cursor:pointer; font-weight:bold; font-size:12px;">📋 यादी कॉपी करा (WhatsApp साठी)</button>
                     <button onclick="window.print()" style="background:#e74c3c; color:white; border:none; padding:10px 20px; border-radius:5px; cursor:pointer; font-weight:bold; font-size:12px;">📥 PDF प्रिंट करा</button>
                 </div>
@@ -389,7 +405,7 @@
             let filterSubCenter = document.getElementById('reportSubCenterFilter').value; 
             let groupType = document.getElementById('reportGroupFilter').value;
 
-            document.getElementById('reportLoader').style.display = "block"; 
+            document.getElementById('reportLoader').classList.remove('hidden'); 
             document.getElementById('reportContentArea').classList.add('hidden'); 
             document.getElementById('reportTableContainer').innerHTML = "";
             
@@ -402,7 +418,7 @@
                 if(!selectedIDs.includes("ALL")) { query = query.in('form_id', selectedIDs); }
 
                 const { data: dbData, error } = await query;
-                document.getElementById('reportLoader').style.display = "none";
+                document.getElementById('reportLoader').classList.add('hidden');
                 
                 if (error || !dbData || dbData.length === 0) { alert("डेटाबेसमध्ये माहिती उपलब्ध नाही."); return; }
 
@@ -468,7 +484,7 @@
                     document.getElementById('reportContentArea').classList.remove('hidden'); 
                 } else { alert("डेटा उपलब्ध नाही."); }
 
-            } catch(e) { document.getElementById('reportLoader').style.display = "none"; alert("एरर: " + e.message); }
+            } catch(e) { document.getElementById('reportLoader').classList.add('hidden'); alert("एरर: " + e.message); }
         }
 
         function renderMultipleTables(reports, month, year) {
@@ -587,7 +603,10 @@
             container.innerHTML = html;
         }
 
-        // 🟢 📥 प्रिट प्रिव्ह्यू फॉरमॅटशी १००% मॅच होणारे व्यावसायिक एक्सेल निर्मिती इंजिन (FIXED LOGIC)
+        function downloadConsolidatedPDF() {
+            window.print();
+        }
+
         function downloadConsolidatedExcel() {
             if(currentReports.length === 0) return;
             
@@ -636,10 +655,8 @@
                 let startR = 3;
 
                 if (groupType === "SubCenterConsolidated") {
-                    // 📊 🟢 उभी एकत्रित मांडणीनुसार एक्सेल निर्मिती इंजिन (Fixed Tree Transposition)
                     let verticalColCount = 2 + (dataRows.length * (rep.isProg ? 2 : 1)) + (rep.isProg ? 2 : 1);
                     
-                    // टायटल रोज मर्ज करणे
                     merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: verticalColCount - 1 } });
                     merges.push({ s: { r: 1, c: 0 }, e: { r: 1, c: verticalColCount - 1 } });
 
@@ -700,7 +717,6 @@
                         sheetData.push(rowData); 
                     });
                 } else {
-                    // 📊 आडव्या मांडणीनुसार एक्सेल निर्मिती इंजिन
                     let modifiedHeaders = ["अ.क्र.", groupType !== 'Village' ? 'उपकेंद्र' : 'गाव'];
                     showIndices.forEach(idx => {
                         if (rep.isProg) { 
@@ -725,7 +741,6 @@
                         sheetData.push(rowData);
                     });
 
-                    // PHC Total बेरीज ओळ
                     let totalRow = ["एकूण बेरीज", "प्रा. आ. केंद्र टोटल"];
                     showIndices.forEach(idx => {
                         let colSumM = 0; let colSumP = 0;
@@ -740,7 +755,6 @@
                     sheetData.push(totalRow); headerRowIndices.push(sheetData.length - 1);
                 }
 
-                // 💎 एक्सेल सेल स्टायलिंग आणि आकर्षक डेकोरेशन
                 let ws = XLSX.utils.aoa_to_sheet(sheetData); ws["!merges"] = merges;
                 let finalColLimit = groupType === "SubCenterConsolidated" ? (2 + (dataRows.length * (rep.isProg ? 2 : 1)) + (rep.isProg ? 2 : 1)) : 60;
                 
