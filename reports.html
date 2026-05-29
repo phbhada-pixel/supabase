@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>प्रगत अहवाल केंद्र - स्मार्ट बेरीज प्रणाली</title>
+    <title>प्रगत अहवाल केंद्र</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
@@ -24,7 +24,7 @@
 
     <div class="max-w-7xl mx-auto bg-white p-4 rounded-lg shadow-md flex justify-between items-center mb-6 no-print">
         <div>
-            <h1 class="text-xl font-bold text-green-700">📊 प्रगत अहवाल केंद्र (सलग तक्ते प्रणाली)</h1>
+            <h1 id="mainTitle" class="text-xl font-bold text-green-700">📊 प्रगत अहवाल केंद्र</h1>
             <p class="text-xs text-gray-500">प्राथमिक आरोग्य केंद्र भादा, तालुका औसा</p>
         </div>
         <button onclick="window.location.href='dashboard.html'" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition text-sm font-bold">डॅशबोर्डवर परत जा</button>
@@ -68,7 +68,7 @@
                 <input type="number" id="reportYear" class="w-full p-2 border rounded text-sm font-mono" value="2026">
             </div>
 
-            <div>
+            <div id="subcenterFilterDiv">
                 <label class="block text-gray-700 text-xs font-bold mb-1">उपकेंद्र फिल्टर</label>
                 <select id="reportSubCenterFilter" class="w-full p-2 border rounded bg-white text-sm">
                     <option value="सर्व">सर्व उपकेंद्र (All Sub-centers)</option>
@@ -77,7 +77,7 @@
         </div>
 
         <div class="grid grid-cols-1 gap-4 border-t pt-4">
-            <div>
+            <div id="groupFilterDiv">
                 <label class="block text-gray-700 text-xs font-bold mb-1">अहवाल मांडणी प्रकार (Group View)</label>
                 <select id="reportGroupFilter" class="w-full p-2 border rounded bg-white text-sm font-medium text-purple-700">
                     <option value="Village">१. गावनिहाय कर्मचारी गटबद्ध यादी (Employee Blocks)</option>
@@ -210,6 +210,14 @@
             const sessionUser = JSON.parse(userDataString);
             user.role = sessionUser.role === 'admin' ? 'Admin' : 'User';
             user.mobile = sessionUser.mobile_number || '';
+
+            // 🟢 जर युझर ऍडमिन नसेल, तर ऍडमिनचे फिल्टर्स लपवा
+            if (user.role !== 'Admin') {
+                document.getElementById('subcenterFilterDiv').classList.add('hidden');
+                document.getElementById('groupFilterDiv').classList.add('hidden');
+                document.getElementById('mainTitle').innerText = "📊 माझे अहवाल केंद्र (My Reports)";
+            }
+
             const mIdx = new Date().getMonth() + 1;
             document.getElementById('reportMonth').value = monthNamesNumeric[mIdx];
             document.getElementById('reportYear').value = new Date().getFullYear();
@@ -261,6 +269,7 @@
 
             const { data: respData } = await supabaseClient.from('form_responses').select('form_id, village_id, report_month, report_year');
             masterData.filledStats = respData || [];
+
             document.getElementById('chkAllReports').checked = true;
             updateMultiSelectText();
         }
@@ -359,7 +368,8 @@
             let selectedIDs = getSelectedReportIDs(); if(selectedIDs.length === 0) { alert("कृपया किमान एक अहवाल निवडा!"); return; }
 
             const selMonth = document.getElementById('reportMonth').value; const selMonthNum = monthNamesMarathi[selMonth]; const selYear = document.getElementById('reportYear').value;
-            let filterSubCenter = document.getElementById('reportSubCenterFilter').value; let groupType = document.getElementById('reportGroupFilter').value;
+            let filterSubCenter = document.getElementById('reportSubCenterFilter').value; 
+            let groupType = document.getElementById('reportGroupFilter').value;
 
             document.getElementById('reportLoader').classList.remove('hidden'); document.getElementById('reportContentArea').classList.add('hidden'); document.getElementById('reportTableContainer').innerHTML = "";
             try {
@@ -389,9 +399,17 @@
                     currentMonthResp.forEach(res => {
                         let villageObj = masterData.villages.find(v => v.id === res.village_id);
                         let empObj = masterData.employees.find(e => e.id === res.employee_id);
+                        
+                        // 🟢 सिक्युरिटी फिल्टर: जर युझर कर्मचारी असेल तर फक्त स्वतःचाच डेटा दिसेल
+                        if (user.role !== 'Admin') {
+                            if (!empObj || String(empObj.mobile_number).trim() !== String(user.mobile).trim()) {
+                                return;
+                            }
+                        }
+
                         let scObj = villageObj ? masterData.subCenters.find(s => s.id === villageObj.sub_center_id) : null;
                         let scName = scObj ? scObj.name : '-';
-                        if(filterSubCenter !== "सर्व" && scName !== filterSubCenter) return;
+                        if(user.role === 'Admin' && filterSubCenter !== "सर्व" && scName !== filterSubCenter) return;
 
                         let row = { month: selMonth, year: selYear, subcenter: scName, village: villageObj?villageObj.name:'-', employee: empObj?empObj.full_name:'-', values: {} };
                         validDataFields.forEach(f => {
@@ -412,7 +430,7 @@
                 });
 
                 if(finalReports.length > 0) { currentReports = finalReports; renderMultipleTables(finalReports, selMonth, selYear, groupType); document.getElementById('reportContentArea').classList.remove('hidden'); } 
-                else { alert("डेटा उपलब्ध नाही."); }
+                else { alert("या महिन्यासाठी तुमचा कोणताही अहवाल भरलेला नाही."); }
             } catch(e) { alert("एरर: " + e.message); }
         }
 
@@ -931,7 +949,6 @@
                     merges.push({ s: { r: pRowIdx, c: 0 }, e: { r: pRowIdx, c: 1 } });
                 }
 
-                // 💎 एक्सेल सेल स्टायलिंग
                 let ws = XLSX.utils.aoa_to_sheet(sheetData); ws["!merges"] = merges;
                 let finalColLimit = sheetData[3] ? sheetData[3].length : 60;
                 
