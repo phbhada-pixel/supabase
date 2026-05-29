@@ -326,6 +326,27 @@
             return chain; // Returns like ["NCD रुग्ण", "मधुमेह"]
         }
 
+        // 🟢 FIXED: गेट प्रोग्रेसिव्ह मंथ फंक्शन (GetProgressive error resolved)
+        function getProgressiveMonthsList(targetMonthNumeric, targetYear) {
+            let startYear = parseInt(targetYear);
+            let targetMonth = parseInt(targetMonthNumeric);
+            let periods = [];
+            // आर्थिक वर्ष एप्रिल (४) पासून सुरू होते
+            if (targetMonth >= 4) {
+                for (let m = 4; m <= targetMonth; m++) {
+                    periods.push({ month: m, year: startYear });
+                }
+            } else {
+                for (let m = 4; m <= 12; m++) {
+                    periods.push({ month: m, year: startYear - 1 });
+                }
+                for (let m = 1; m <= targetMonth; m++) {
+                    periods.push({ month: m, year: startYear });
+                }
+            }
+            return periods;
+        }
+
         async function fetchReportData() {
             let selectedIDs = getSelectedReportIDs(); if(selectedIDs.length === 0) { alert("कृपया किमान एक अहवाल निवडा!"); return; }
             const selMonth = document.getElementById('reportMonth').value; const selMonthNum = monthNamesMarathi[selMonth]; const selYear = document.getElementById('reportYear').value;
@@ -334,7 +355,8 @@
             document.getElementById('reportLoader').classList.remove('hidden'); document.getElementById('reportContentArea').classList.add('hidden'); document.getElementById('reportTableContainer').innerHTML = "";
             try {
                 let query = supabaseClient.from('form_responses').select('*').eq('report_month', parseInt(selMonthNum)).eq('report_year', parseInt(selYear));
-                const progressivePeriods = getProgressiveMonthsList(selMonthNum, selYear);
+                
+                // प्रगतसाठी एप्रिलपासूनचा डेटा ओढणे
                 if (selMonthNum < 4) {
                     query = supabaseClient.from('form_responses').select('*').or(`and(report_year.eq.${parseInt(selYear)}),and(report_year.eq.${parseInt(selYear-1)},report_month.gte.4)`);
                 }
@@ -359,6 +381,7 @@
 
                     let fData = [];
                     let currentMonthResp = formResp.filter(r => r.report_month === parseInt(selMonthNum) && r.report_year === parseInt(selYear));
+                    
                     currentMonthResp.forEach(res => {
                         let villageObj = masterData.villages.find(v => v.id === res.village_id);
                         let empObj = masterData.employees.find(e => e.id === res.employee_id);
@@ -399,7 +422,6 @@
             reports.forEach(rep => {
                 let columns = rep.fields; let rows = rep.rows;
                 if(groupType === "SubCenter") {
-                    // उपकेंद्र वाईज समरी कम्पाईलर
                     let agg = {};
                     rows.forEach(r => {
                         if(!agg[r.subcenter]) { agg[r.subcenter] = { month: month, year: year, subcenter: r.subcenter, village: "एकत्रित", employee: "एकत्रित", values: {} }; }
@@ -428,10 +450,9 @@
                     let span = 1; let j = i + 1;
                     if(c.l1 !== "") {
                         while(j < columns.length && columns[j].l1 === c.l1) { span++; j++; }
-                        let colSpanMultiplier = rep.isProg && c.type === 'number' ? 2 : 1; // प्रगत असेल तर डबल कॉलम
+                        let colSpanMultiplier = rep.isProg && c.type === 'number' ? 2 : 1; 
                         l1Row += `<th colspan="${span * colSpanMultiplier}" class="border p-2 bg-purple-100 text-purple-900">${c.l1}</th>`;
                         
-                        // लेव्हल २ प्रोसेसिंग
                         let k = i;
                         while(k < j) {
                             let c2 = columns[k]; let span2 = 1; let m = k + 1;
@@ -448,14 +469,12 @@
                                 }
                                 k = m;
                             } else {
-                                // लेव्हल २ कोरी असल्यास लेव्हल ३ लाच वर ओढणे
                                 l2Row += `<th colspan="${colSpanMultiplier}" rowspan="2" class="border p-2 text-xs">${c2.l3}</th>`;
                                 k++;
                             }
                         }
                         i = j;
                     } else {
-                        // मुख्य लेव्हल १ लाच पूर्ण ३ लेव्हल खाली ओढणे (Rowspan=3)
                         let colSpanMultiplier = rep.isProg && c.type === 'number' ? 2 : 1;
                         if(colSpanMultiplier === 2) {
                             l1Row += `<th colspan="2" class="border p-2 text-xs">${c.l3}</th>`;
@@ -466,7 +485,6 @@
                 }
                 l1Row += `</tr>`; l2Row += `</tr>`; l3Row += `</tr>`;
 
-                // तक्ता बॉडी भरणे
                 let tbodyHtml = '';
                 rows.forEach((row, rIdx) => {
                     tbodyHtml += `<tr class="hover:bg-gray-50 text-xs">
@@ -514,9 +532,8 @@
                 let sheetData = []; let merges = [];
                 sheetData.push(["प्राथमिक आरोग्य केंद्र भादा, तालुका औसा"]);
                 sheetData.push([`व्यावसायिक अहवाल: ${rep.formName} | कालावधी: ${monthStr} ${yearStr} (${groupType})`]);
-                sheetData.push([]); // कोरी जागा
+                sheetData.push([]); 
 
-                // ३ लेव्हलच्या ३ रिकाम्या ओळी तयार करणे
                 let r1 = ["अ.क्र.", groupType==='Village'?'गाव':'उपकेंद्र'];
                 let r2 = ["", ""]; let r3 = ["", ""];
 
@@ -567,13 +584,11 @@
                     }
                 }
 
-                // अ.क्र. आणि गाव रकान्यांना उभं (Vertical 3 Row Merge) करणे
                 merges.push({ s: { r: 3, c: 0 }, e: { r: 5, c: 0 } });
                 merges.push({ s: { r: 3, c: 1 }, e: { r: 5, c: 1 } });
 
                 sheetData.push(r1); sheetData.push(r2); sheetData.push(r3);
 
-                // डेटा रोज पुश करणे
                 rows.forEach((row, rIdx) => {
                     let rowData = [rIdx + 1, groupType==='Village'?row.village:row.subcenter];
                     columns.forEach(c => {
@@ -587,12 +602,11 @@
 
                 let ws = XLSX.utils.aoa_to_sheet(sheetData);
                 
-                // टायटल रोज मर्जिंग
                 merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: r1.length - 1 } });
                 merges.push({ s: { r: 1, c: 0 }, e: { r: 1, c: r1.length - 1 } });
                 ws["!merges"] = merges;
 
-                // 💎 सेल डेकोरेशन आणि प्रोफेशनल बॉर्डर्स रंगांचे कोडिंग
+                // 💎 सेल डेकोरेशन आणि प्रोफेशनल बॉर्डर्स
                 for(let R=0; R<sheetData.length; R++) {
                     for(let C=0; C<r1.length; C++) {
                         let cellRef = XLSX.utils.encode_cell({r: R, c: C}); if(!ws[cellRef]) continue;
@@ -601,14 +615,13 @@
                         if(R === 0) { style.fill = { fgColor: { rgb: "00705A" } }; style.font = { sz: 14, bold: true, color: { rgb: "FFF" } }; }
                         else if(R === 1) { style.fill = { fgColor: { rgb: "E8F5E9" } }; style.font = { sz: 11, bold: true, color: { rgb: "00705A" } }; }
                         else if(R >= 3 && R <= 5) {
-                            // ३ लेव्हल हेडर बॅकग्राउंड कलर्स
                             if(R===3) style.fill = { fgColor: { rgb: "F4B400" } };
                             else if(R===4) style.fill = { fgColor: { rgb: "FFE082" } };
                             else style.fill = { fgColor: { rgb: "FFF3E0" } };
                             style.font.bold = true;
                         } else {
                             if (C === 1) { style.alignment.horizontal = "left"; style.font.bold = true; }
-                            if (rep.isProg && C >= 2 && C % 2 !== 0) style.fill = { fgColor: { rgb: "FFF9F2" } }; // प्रगत शेड
+                            if (rep.isProg && C >= 2 && C % 2 !== 0) style.fill = { fgColor: { rgb: "FFF9F2" } };
                         }
                         ws[cellRef].s = style;
                     }
