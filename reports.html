@@ -6,6 +6,7 @@
     <title>अहवाल केंद्र - प्राथमिक आरोग्य केंद्र भादा</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- 🟢 Excel प्रगत स्टाईल आणि कलरिंग लायब्ररी -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
         :root { --primary: #00705a; }
@@ -23,6 +24,7 @@
 </head>
 <body class="bg-gray-100 p-6 min-h-screen">
 
+    <!-- Header -->
     <div class="max-w-7xl mx-auto bg-white p-4 rounded-lg shadow-md flex justify-between items-center mb-6 no-print">
         <div>
             <h1 class="text-xl font-bold text-green-700">📊 प्रगत अहवाल केंद्र (कंट्रोल पॅनेल)</h1>
@@ -31,9 +33,11 @@
         <button onclick="window.location.href='dashboard.html'" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition text-sm font-bold">डॅशबोर्डवर परत जा</button>
     </div>
 
+    <!-- मुख्य कंट्रोल फिल्टर पॅनेल -->
     <div class="max-w-7xl mx-auto bg-white p-6 rounded-lg shadow-md border-t-4 border-green-700 mb-6 no-print">
         
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+            <!-- १. मल्टि-सिलेक्ट ड्रॉपडाऊन कंटेनर -->
             <div class="relative" id="multiSelectContainer">
                 <label class="block text-gray-700 text-xs font-bold mb-1">अहवाल / फॉर्म निवडा</label>
                 <button onclick="toggleMultiSelect()" class="w-full p-2 border rounded bg-white text-left text-sm font-medium flex justify-between items-center min-h-[38px]">
@@ -52,6 +56,7 @@
                 <select id="reportFormSelect" class="hidden"></select>
             </div>
 
+            <!-- २. अहवाल महिना -->
             <div>
                 <label class="block text-gray-700 text-xs font-bold mb-1">अहवाल महिना</label>
                 <select id="reportMonth" class="w-full p-2 border rounded bg-white text-sm">
@@ -64,11 +69,13 @@
                 </select>
             </div>
 
+            <!-- ३. अहवाल वर्ष -->
             <div>
                 <label class="block text-gray-700 text-xs font-bold mb-1">अहवाल वर्ष</label>
                 <input type="number" id="reportYear" class="w-full p-2 border rounded text-sm font-mono" value="2026">
             </div>
 
+            <!-- ४. उपकेंद्र फिल्टर -->
             <div>
                 <label class="block text-gray-700 text-xs font-bold mb-1">उपकेंद्र फिल्टर</label>
                 <select id="reportSubCenterFilter" class="w-full p-2 border rounded bg-white text-sm">
@@ -78,6 +85,7 @@
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 border-t pt-4">
+            <!-- ५. अहवाल गटवारी मांडणी प्रकार -->
             <div>
                 <label class="block text-gray-700 text-xs font-bold mb-1">अहवाल मांडणी प्रकार (Group View)</label>
                 <select id="reportGroupFilter" class="w-full p-2 border rounded bg-white text-sm font-medium text-purple-700">
@@ -95,13 +103,16 @@
 
     </div>
 
+    <!-- लोडर मेसेज -->
     <div id="reportLoader" class="text-center py-10 hidden no-print">
         <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-green-700 border-t-transparent mb-2"></div>
         <p class="text-gray-500 font-medium text-sm">डेटाबेस मधून प्रगत अहवाल आकडेमोड सुरू आहे, कृपया थांबा...</p>
     </div>
 
+    <!-- डाऊनलोड बटन क्षेत्र -->
     <div id="downloadButtonsArea" class="max-w-7xl mx-auto mb-4 no-print"></div>
 
+    <!-- अहवाल कंटेनर -->
     <div id="reportContentArea" class="max-w-7xl mx-auto bg-white p-6 rounded-lg shadow-md hidden">
         <div id="reportTableContainer"></div>
     </div>
@@ -126,7 +137,6 @@
             7: "जुलै", 8: "ऑगस्ट", 9: "सप्टेंबर", 10: "ऑक्टोबर", 11: "नोव्हेंबर", 12: "डिसेंबर"
         };
 
-        // 🟢 ऍक्टिव्ह फंक्शन: लेव्हल ३ मधील ग्रुप्सचे नाव उपप्रश्नांसोबत मॅप करून फुल हेडिंग बनवणारे फंक्शन (सर्वात वर घोषित केले)
         function getFullFieldLabel(fields, fieldObj) {
             let fullLabel = fieldObj.label;
             let currentField = fieldObj;
@@ -405,7 +415,7 @@
             let filterSubCenter = document.getElementById('reportSubCenterFilter').value; 
             let groupType = document.getElementById('reportGroupFilter').value;
 
-            document.getElementById('reportLoader').classList.remove('hidden'); 
+            document.getElementById('reportLoader').style.display = "block"; 
             document.getElementById('reportContentArea').classList.add('hidden'); 
             document.getElementById('reportTableContainer').innerHTML = "";
             
@@ -418,7 +428,7 @@
                 if(!selectedIDs.includes("ALL")) { query = query.in('form_id', selectedIDs); }
 
                 const { data: dbData, error } = await query;
-                document.getElementById('reportLoader').classList.add('hidden');
+                document.getElementById('reportLoader').style.display = "none";
                 
                 if (error || !dbData || dbData.length === 0) { alert("डेटाबेसमध्ये माहिती उपलब्ध नाही."); return; }
 
@@ -484,7 +494,7 @@
                     document.getElementById('reportContentArea').classList.remove('hidden'); 
                 } else { alert("डेटा उपलब्ध नाही."); }
 
-            } catch(e) { document.getElementById('reportLoader').classList.add('hidden'); alert("एरर: " + e.message); }
+            } catch(e) { document.getElementById('reportLoader').style.display = "none"; alert("एरर: " + e.message); }
         }
 
         function renderMultipleTables(reports, month, year) {
@@ -603,10 +613,7 @@
             container.innerHTML = html;
         }
 
-        function downloadConsolidatedPDF() {
-            window.print();
-        }
-
+        // 🟢 📥 प्रिट प्रिव्ह्यू फॉरमॅटशी १००% मॅच होणारे व्यावसायिक एक्सेल निर्मिती इंजिन (डिझाईन आणि कलर स्टाईलसह)
         function downloadConsolidatedExcel() {
             if(currentReports.length === 0) return;
             
@@ -653,10 +660,10 @@
                 sheetData.push([]); 
 
                 let startR = 3;
+                let verticalColCount = 2 + (dataRows.length * (rep.isProg ? 2 : 1)) + (rep.isProg ? 2 : 1);
 
                 if (groupType === "SubCenterConsolidated") {
-                    let verticalColCount = 2 + (dataRows.length * (rep.isProg ? 2 : 1)) + (rep.isProg ? 2 : 1);
-                    
+                    // 📊 उभी एकत्रित मांडणीनुसार एक्सेल निर्मिती इंजिन
                     merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: verticalColCount - 1 } });
                     merges.push({ s: { r: 1, c: 0 }, e: { r: 1, c: verticalColCount - 1 } });
 
@@ -717,6 +724,7 @@
                         sheetData.push(rowData); 
                     });
                 } else {
+                    // 📊 आडव्या मांडणीनुसार एक्सेल निर्मिती इंजिन
                     let modifiedHeaders = ["अ.क्र.", groupType !== 'Village' ? 'उपकेंद्र' : 'गाव'];
                     showIndices.forEach(idx => {
                         if (rep.isProg) { 
@@ -741,6 +749,7 @@
                         sheetData.push(rowData);
                     });
 
+                    // PHC Total बेरीज ओळ
                     let totalRow = ["एकूण बेरीज", "प्रा. आ. केंद्र टोटल"];
                     showIndices.forEach(idx => {
                         let colSumM = 0; let colSumP = 0;
@@ -755,35 +764,92 @@
                     sheetData.push(totalRow); headerRowIndices.push(sheetData.length - 1);
                 }
 
+                // 💎 एक्सेल प्रगत सेल स्टायलिंग आणि कलरिंग मॉड्युल (Professional Sheet Formatting Engine)
                 let ws = XLSX.utils.aoa_to_sheet(sheetData); ws["!merges"] = merges;
-                let finalColLimit = groupType === "SubCenterConsolidated" ? (2 + (dataRows.length * (rep.isProg ? 2 : 1)) + (rep.isProg ? 2 : 1)) : 60;
+                let finalColLimit = groupType === "SubCenterConsolidated" ? verticalColCount : 60;
                 
                 for(let R=0; R<sheetData.length; R++) {
                     for(let C=0; C<finalColLimit; C++) { 
                         let cellRef = XLSX.utils.encode_cell({r: R, c: C}); if(!ws[cellRef]) continue;
-                        let cellStyle = { font: { name: "Arial", sz: 10, color: { rgb: "000000" } }, alignment: { vertical: "center", horizontal: "center", wrapText: true } };
                         
+                        // बेसिक अलाइनमेंट आणि फॉन्ट
+                        let cellStyle = { 
+                            font: { name: "Arial", sz: 10, color: { rgb: "000000" } }, 
+                            alignment: { vertical: "center", horizontal: "center", wrapText: true },
+                            border: { 
+                                top: { style: "thin", color: { rgb: "D3D3D3" } }, 
+                                bottom: { style: "thin", color: { rgb: "D3D3D3" } }, 
+                                left: { style: "thin", color: { rgb: "D3D3D3" } }, 
+                                right: { style: "thin", color: { rgb: "D3D3D3" } } 
+                            }
+                        };
+                        
+                        // १. मुख्य केंद्र टायटल रो (Forest Green Header)
                         if(R === 0) { 
                             cellStyle.fill = { fgColor: { rgb: "00705A" } }; 
                             cellStyle.font = { name: "Arial", sz: 14, bold: true, color: { rgb: "FFFFFF" } }; 
-                        } else if(R === 1) { 
+                        } 
+                        // २. अहवाल नाव व महिना सब-टायटल रो (Light Mint Green)
+                        else if(R === 1) { 
                             cellStyle.fill = { fgColor: { rgb: "E8F5E9" } }; 
                             cellStyle.font = { name: "Arial", sz: 11, bold: true, color: { rgb: "00705A" } }; 
-                        } else if(headerRowIndices.includes(R)) { 
+                        } 
+                        // ३. मुख्य टेबल हेडिंग रो १ - उपकेंद्रांची नावे (Yellow / Gold Layout)
+                        else if(R === startR) { 
                             cellStyle.fill = { fgColor: { rgb: "F4B400" } }; 
                             cellStyle.font = { name: "Arial", sz: 10, bold: true, color: { rgb: "000000" } }; 
-                            cellStyle.border = { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } }; 
-                        } else { 
-                            cellStyle.border = { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } }; 
-                            if (groupType === "SubCenterConsolidated" && C === 1) cellStyle.alignment.horizontal = "left"; 
+                            cellStyle.border = { 
+                                top: { style: "medium", color: { rgb: "000000" } }, 
+                                bottom: { style: "medium", color: { rgb: "000000" } }, 
+                                left: { style: "thin", color: { rgb: "000000" } }, 
+                                right: { style: "thin", color: { rgb: "000000" } } 
+                            };
+                        } 
+                        // ४. मुख्य टेबल हेडिंग रो २ - मासिक / प्रगत सब-टॅब (Light Gold Grid)
+                        else if(rep.isProg && R === startR + 1) { 
+                            cellStyle.fill = { fgColor: { rgb: "FFF3E0" } }; 
+                            cellStyle.font = { name: "Arial", sz: 9, bold: true, color: { rgb: "444444" } }; 
+                            cellStyle.border = { 
+                                bottom: { style: "medium", color: { rgb: "000000" } }, 
+                                left: { style: "thin", color: { rgb: "D3D3D3" } }, 
+                                right: { style: "thin", color: { rgb: "D3D3D3" } } 
+                            };
+                        } 
+                        // ५. शेवटची एकूण बेरीज रो (PHC Total Green Base)
+                        else if(headerRowIndices.includes(R) && R > startR + 1) {
+                            cellStyle.fill = { fgColor: { rgb: "C8E6C9" } }; 
+                            cellStyle.font = { name: "Arial", sz: 10, bold: true, color: { rgb: "004D40" } };
+                            cellStyle.border = { 
+                                top: { style: "medium", color: { rgb: "000000" } }, 
+                                bottom: { style: "medium", color: { rgb: "000000" } }, 
+                                left: { style: "thin", color: { rgb: "000000" } }, 
+                                right: { style: "thin", color: { rgb: "000000" } } 
+                            };
+                        }
+                        // ६. रेग्युलर डेटा रो व्यवस्थापन (Data Cell Zebra Styling)
+                        else { 
+                            // जर उभी मांडणी असेल आणि दुसरा कॉलम (प्रश्नाचे नाव) असेल तर मजकूर डावीकडे सारखवणे (Left Align)
+                            if (groupType === "SubCenterConsolidated" && C === 1) {
+                                cellStyle.alignment.horizontal = "left";
+                                cellStyle.font.bold = true;
+                                cellStyle.font.color = { rgb: "333333" };
+                            }
+                            
+                            // प्रगत रकान्यांच्या बॅकग्राउंडला हलका वेगळा रंग देणे (Zebra/Column Coding)
+                            if (groupType === "SubCenterConsolidated" && rep.isProg && C >= 2 && C < (verticalColCount - 2)) {
+                                if (C % 2 !== 0) { // विषम कॉलम म्हणजे 'प्रगत'
+                                    cellStyle.fill = { fgColor: { rgb: "FFF9F2" } }; // हलका केशरी शेड
+                                }
+                            }
                         }
                         ws[cellRef].s = cellStyle;
                     }
                 }
                 
+                // रकान्यांची रुंदी ऑटो-मॅनेजमेंट करणे
                 let wscols = [{ wch: 8 }]; 
                 if (groupType === "SubCenterConsolidated") { 
-                    wscols.push({ wch: 45 }); 
+                    wscols.push({ wch: 45 }); // प्रश्नांच्या नावासाठी मोठा रकाना
                     for(let c=2; c<150; c++) wscols.push({ wch: 13 }); 
                 } else { 
                     wscols.push({ wch: 18 }); 
