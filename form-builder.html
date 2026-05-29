@@ -10,7 +10,7 @@
 <body class="bg-gray-100 p-6 min-h-screen">
 
     <div class="max-w-5xl mx-auto bg-white p-4 rounded-lg shadow-md flex justify-between items-center mb-6">
-        <h1 class="text-xl font-bold text-green-600" id="builderTitle">प्रगत फॉर्म बिल्डर (गट प्रणाली)</h1>
+        <h1 class="text-xl font-bold text-green-600" id="builderTitle">प्रगत फॉर्म बिल्डर (कंडिशनल सिस्टीम)</h1>
         <button onclick="window.location.href='dashboard.html'" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition">परत जा</button>
     </div>
 
@@ -76,11 +76,7 @@
 
             document.getElementById('formName').value = data.form_name;
             document.getElementById('formType').value = data.form_type;
-            
-            // 🟢 एडिट करताना जुना मोड परत सिलेक्ट करणे
-            if(data.data_entry_mode) {
-                document.getElementById('dataEntryMode').value = data.data_entry_mode;
-            }
+            if(data.data_entry_mode) document.getElementById('dataEntryMode').value = data.data_entry_mode;
 
             const fields = data.schema_json.fields;
             let currentGroupLabel = null;
@@ -109,6 +105,14 @@
                 document.getElementById(`${field.id}_min`).value = field.min || '';
                 document.getElementById(`${field.id}_max`).value = field.max || '';
                 document.getElementById(`${field.id}_formula`).value = field.formula || '';
+                
+                // नवीन प्रगत व्हॅल्यूज भरणे
+                document.getElementById(`${field.id}_default`).value = field.default_value || '';
+                document.getElementById(`${field.id}_options`).value = field.options || '';
+                document.getElementById(`${field.id}_cond_field`).value = field.cond_field || '';
+                document.getElementById(`${field.id}_cond_val`).value = field.cond_val || '';
+                
+                toggleDropdownInput(field.id);
             });
         }
 
@@ -116,6 +120,13 @@
             fieldCount++;
             const fId = `f${fieldCount}`;
             createFieldHTML(fId, containerId, isInsideGroup);
+        }
+
+        function toggleDropdownInput(fId) {
+            const type = document.getElementById(`${fId}_type`).value;
+            const optDiv = document.getElementById(`${fId}_options_div`);
+            if(type === 'dropdown') optDiv.classList.remove('hidden');
+            else optDiv.classList.add('hidden');
         }
 
         function createFieldHTML(fId, containerId, isInsideGroup) {
@@ -128,23 +139,43 @@
                             <input type="text" id="${fId}_label" class="w-full p-2 border rounded text-sm" placeholder="प्रश्नाचे नाव">
                         </div>
                         <div>
-                            <label class="text-xs text-gray-500">प्रकार</label>
-                            <select id="${fId}_type" class="w-full p-2 border rounded text-sm bg-white">
+                            <label class="text-xs text-gray-500">प्रकार (Field Type)</label>
+                            <select id="${fId}_type" onchange="toggleDropdownInput('${fId}')" class="w-full p-2 border rounded text-sm bg-white">
                                 <option value="number">संख्या (Number)</option>
+                                <option value="dropdown">ड्रॉपडाऊन बॉक्स (Dropdown)</option>
                                 <option value="date">तारीख (Date)</option> 
                                 <option value="text">मजकूर (Text)</option>
-                                <option value="phone">मोबाईल</option>
                                 <option value="yes_no">होय/नाही</option>
                             </select>
                         </div>
                         <div class="flex items-center gap-4 h-10">
                             <div class="flex items-center gap-1">
                                 <input type="checkbox" id="${fId}_req" class="w-4 h-4">
-                                <label class="text-xs">सक्तीचे</label>
+                                <label class="text-xs font-bold">सक्तीचे</label>
                             </div>
                             <button onclick="document.getElementById('${fId}_box').remove()" class="text-red-500 text-sm font-bold ml-auto">काढा</button>
                         </div>
                     </div>
+
+                    <div class="mt-3 pt-3 border-t grid grid-cols-1 md:grid-cols-3 gap-3 bg-blue-50/50 p-2 rounded">
+                        <div>
+                            <label class="text-[11px] font-bold text-gray-600">डिफॉल्ट व्हॅल्यू (Default Value)</label>
+                            <input type="text" id="${fId}_default" placeholder="उदा. 0 किंवा नाही" class="w-full p-1.5 border text-xs rounded bg-white">
+                        </div>
+                        <div id="${fId}_options_div" class="hidden">
+                            <label class="text-[11px] font-bold text-blue-700">ड्रॉपडाऊन पर्याय (स्वल्पविराम द्या)</label>
+                            <input type="text" id="${fId}_options" placeholder="पर्याय १, पर्याय २, पर्याय ३" class="w-full p-1.5 border text-xs rounded bg-white border-blue-200">
+                        </div>
+                        <div>
+                            <label class="text-[11px] font-bold text-purple-700">कंडिशन: हा प्रश्न कधी दिसावा? (फिल्ड ID)</label>
+                            <input type="text" id="${fId}_cond_field" placeholder="उदा. f1 (रिकामे सोडल्यास नेहमी दिसेल)" class="w-full p-1.5 border text-xs rounded bg-white border-purple-200">
+                        </div>
+                        <div>
+                            <label class="text-[11px] font-bold text-purple-700">कंडिशन व्हॅल्यू (काही असल्यास)</label>
+                            <input type="text" id="${fId}_cond_val" placeholder="उदा. होय" class="w-full p-1.5 border text-xs rounded bg-white border-purple-200">
+                        </div>
+                    </div>
+
                     <div class="mt-2 grid grid-cols-1 md:grid-cols-3 gap-4">
                          <input type="text" id="${fId}_formula" placeholder="फॉर्म्युला उदा. [f1]+[f2]" class="md:col-span-2 p-1 border border-blue-100 bg-blue-50 text-xs rounded">
                          <div class="flex gap-1">
@@ -210,7 +241,6 @@
 
             let result;
             if (editFormId) {
-                // 🟢 अपडेट करताना 'data_entry_mode' समाविष्ट केला आहे
                 result = await supabaseClient.from('dynamic_forms').update({
                     form_name: formName,
                     form_type: document.getElementById('formType').value,
@@ -218,7 +248,6 @@
                     schema_json: schema
                 }).eq('id', editFormId);
             } else {
-                // 🟢 नवीन सेव्ह करताना 'data_entry_mode' समाविष्ट केला आहे
                 result = await supabaseClient.from('dynamic_forms').insert([{
                     form_name: formName,
                     form_type: document.getElementById('formType').value,
@@ -241,7 +270,13 @@
                 group_name: parentLabel,
                 min: document.getElementById(`${fId}_min`).value || null,
                 max: document.getElementById(`${fId}_max`).value || null,
-                formula: document.getElementById(`${fId}_formula`).value || null
+                formula: document.getElementById(`${fId}_formula`).value || null,
+                
+                // प्रगत प्रॉपर्टीज स्कीमामध्ये पुश करणे
+                default_value: document.getElementById(`${fId}_default`).value || null,
+                options: document.getElementById(`${fId}_options`).value || null,
+                cond_field: document.getElementById(`${fId}_cond_field`).value || null,
+                cond_val: document.getElementById(`${fId}_cond_val`).value || null
             };
         }
     </script>
