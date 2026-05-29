@@ -3,68 +3,83 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>आरोग्य उपकेंद्र व्यवस्थापन प्रणाली</title>
+    <title>लॉगिन - आरोग्य उपकेंद्र प्रणाली</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-<body class="bg-gray-100 p-6 flex items-center justify-center min-h-screen">
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
 
-    <div class="max-w-md w-full bg-white p-8 rounded-lg shadow-lg text-center">
-        <h1 class="text-2xl font-bold text-blue-600 mb-2">आरोग्य उपकेंद्र प्रणाली</h1>
-        <p class="text-gray-500 mb-6">कृपया तुमचा नोंदणीकृत मोबाईल नंबर टाका</p>
-        
-        <input type="number" id="mobileNumber" placeholder="१० अंकी मोबाईल नंबर" class="w-full p-3 border border-gray-300 rounded mb-4 focus:outline-none focus:border-blue-500" onkeypress="if(this.value.length==10) return false;">
-        
-        <button onclick="login()" class="w-full bg-blue-600 text-white font-bold p-3 rounded hover:bg-blue-700">
-            लॉगिन करा
-        </button>
-        
-        <p id="statusMessage" class="mt-4 font-semibold text-sm"></p>
+    <div class="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md border-t-8 border-blue-600">
+        <div class="text-center mb-8">
+            <h1 class="text-2xl font-extrabold text-blue-700 mb-2">🏥 आरोग्य उपकेंद्र प्रणाली</h1>
+            <p class="text-gray-500 font-medium">प्राथमिक आरोग्य केंद्र भादा, तालुका औसा</p>
+        </div>
+
+        <form id="loginForm" onsubmit="login(event)">
+            <div class="mb-5">
+                <label class="block text-gray-700 font-bold mb-2">मोबाईल नंबर</label>
+                <input type="tel" id="mobile" class="w-full p-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 font-bold text-lg tracking-wider" placeholder="तुमचा १० अंकी मोबाईल नंबर" required pattern="[0-9]{10}">
+            </div>
+
+            <div class="mb-6">
+                <label class="block text-gray-700 font-bold mb-2">पासवर्ड</label>
+                <input type="password" id="password" class="w-full p-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 font-bold text-lg" placeholder="तुमचा पासवर्ड टाका" required>
+                <p class="text-xs text-red-500 mt-2 font-bold">टीप: पहिल्यांदा लॉगिन करताना पासवर्ड 123456 वापरा.</p>
+            </div>
+
+            <button type="submit" id="loginBtn" class="w-full bg-blue-600 text-white font-extrabold p-3 rounded-lg shadow-lg hover:bg-blue-700 transition transform hover:scale-105 text-lg">
+                लॉगिन करा
+            </button>
+            <p id="errorMsg" class="text-red-500 text-sm font-bold mt-4 text-center hidden">मोबाईल नंबर किंवा पासवर्ड चुकीचा आहे!</p>
+        </form>
     </div>
 
     <script>
-        // आपण 'supabaseClient' हे नवीन नाव वापरत आहोत जेणेकरून एरर येणार नाही
         const SUPABASE_URL = 'https://qbmjsfiievcautxybaai.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_sdgZ9G8ko4H_3Mh9RouYFg_JOQ-4Mdx'; 
-        
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        async function login() {
+        // जर युझर आधीच लॉगिन असेल, तर थेट डॅशबोर्डवर पाठवणे
+        window.onload = function() {
+            if (localStorage.getItem('loggedInUser')) {
+                window.location.href = "dashboard.html";
+            }
+        };
+
+        async function login(e) {
+            e.preventDefault();
+            const mobile = document.getElementById('mobile').value.trim();
+            const password = document.getElementById('password').value.trim();
+            const errorMsg = document.getElementById('errorMsg');
+            const loginBtn = document.getElementById('loginBtn');
+
+            errorMsg.classList.add('hidden');
+            loginBtn.innerText = "तपासत आहे...";
+            loginBtn.disabled = true;
+
             try {
-                const mobile = document.getElementById('mobileNumber').value;
-                const statusLabel = document.getElementById('statusMessage');
-
-                if(mobile.length !== 10) {
-                    statusLabel.style.color = "red";
-                    statusLabel.innerText = "कृपया योग्य १० अंकी मोबाईल नंबर टाका.";
-                    return;
-                }
-
-                statusLabel.style.color = "blue";
-                statusLabel.innerText = "डेटाबेसमध्ये तपासत आहे... कृपया थांबा.";
-
-                // डेटा शोधण्यासाठी supabaseClient वापरणे
+                // 🟢 मोबाईल नंबर आणि पासवर्ड दोन्ही तपासणे
                 const { data, error } = await supabaseClient
                     .from('employees')
                     .select('*')
                     .eq('mobile_number', mobile)
+                    .eq('password', password)
                     .single();
 
                 if (error || !data) {
-                    statusLabel.style.color = "red";
-                    statusLabel.innerText = "हा मोबाईल नंबर सिस्टीममध्ये नोंदणीकृत नाही. कृपया एडमिनशी संपर्क साधा.";
+                    errorMsg.classList.remove('hidden');
+                    loginBtn.innerText = "लॉगिन करा";
+                    loginBtn.disabled = false;
                 } else {
-                    statusLabel.style.color = "green";
-                    statusLabel.innerText = `लॉगिन यशस्वी! स्वागत आहे, ${data.full_name}`;
-                    
+                    // यशस्वी लॉगिन
                     localStorage.setItem('loggedInUser', JSON.stringify(data));
-                    
-                    setTimeout(() => { 
-                        window.location.href = "dashboard.html"; 
-                    }, 1500);
+                    window.location.href = 'dashboard.html';
                 }
             } catch (err) {
-                alert("लॉगिन करताना काहीतरी तांत्रिक अडचण आली: " + err.message);
+                console.error(err);
+                alert("इंटरनेट कनेक्शन तपासा आणि पुन्हा प्रयत्न करा.");
+                loginBtn.innerText = "लॉगिन करा";
+                loginBtn.disabled = false;
             }
         }
     </script>
