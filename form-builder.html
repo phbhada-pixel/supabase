@@ -15,8 +15,8 @@
     </div>
 
     <div class="max-w-5xl mx-auto bg-white p-6 rounded-lg shadow-md border-t-4 border-green-500">
-        
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 pb-6 border-b">
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 pb-6 border-b">
             <div>
                 <label class="block text-gray-700 font-bold mb-2">अहवाल/फॉर्मचे नाव</label>
                 <input type="text" id="formName" class="w-full p-2 border rounded" placeholder="उदा. रुग्ण नोंदणी">
@@ -27,6 +27,13 @@
                     <option value="list">यादी (List)</option>
                     <option value="monthly">मासिक अहवाल</option>
                     <option value="progressive">प्रगत अहवाल</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-gray-700 font-bold mb-2">डेटा एन्ट्री मोड (कोणी भरावे?)</label>
+                <select id="dataEntryMode" class="w-full p-2 border rounded bg-white font-medium text-blue-700">
+                    <option value="shared">सामायिक (उपकेंद्रातील कोणत्याही एका कर्मचाऱ्याने)</option>
+                    <option value="individual">वैयक्तिक (सर्व कर्मचाऱ्यांनी प्रत्येकी स्वतंत्रपणे)</option>
                 </select>
             </div>
         </div>
@@ -69,6 +76,11 @@
 
             document.getElementById('formName').value = data.form_name;
             document.getElementById('formType').value = data.form_type;
+            
+            // 🟢 एडिट करताना जुना मोड परत सिलेक्ट करणे
+            if(data.data_entry_mode) {
+                document.getElementById('dataEntryMode').value = data.data_entry_mode;
+            }
 
             const fields = data.schema_json.fields;
             let currentGroupLabel = null;
@@ -90,7 +102,7 @@
                 }
 
                 createFieldHTML(field.id, currentGroupContainerId, field.group_name ? true : false);
-                
+
                 document.getElementById(`${field.id}_label`).value = field.label;
                 document.getElementById(`${field.id}_type`).value = field.type;
                 document.getElementById(`${field.id}_req`).checked = field.required;
@@ -119,7 +131,8 @@
                             <label class="text-xs text-gray-500">प्रकार</label>
                             <select id="${fId}_type" class="w-full p-2 border rounded text-sm bg-white">
                                 <option value="number">संख्या (Number)</option>
-                                <option value="date">तारीख (Date)</option> <option value="text">मजकूर (Text)</option>
+                                <option value="date">तारीख (Date)</option> 
+                                <option value="text">मजकूर (Text)</option>
                                 <option value="phone">मोबाईल</option>
                                 <option value="yes_no">होय/नाही</option>
                             </select>
@@ -182,7 +195,7 @@
                 } else if(item.id.endsWith('_group')) {
                     const gId = item.id.replace('_group', '');
                     const gLabel = document.getElementById(`${gId}_label`).value;
-                    
+
                     const subFields = item.querySelectorAll('[id$="_box"]');
                     subFields.forEach(sub => {
                         const fId = sub.id.replace('_box', '');
@@ -193,17 +206,23 @@
 
             if(schema.fields.length === 0) return alert("फॉर्ममध्ये किमान एक प्रश्न हवा!");
 
+            const selectedMode = document.getElementById('dataEntryMode').value;
+
             let result;
             if (editFormId) {
+                // 🟢 अपडेट करताना 'data_entry_mode' समाविष्ट केला आहे
                 result = await supabaseClient.from('dynamic_forms').update({
                     form_name: formName,
                     form_type: document.getElementById('formType').value,
+                    data_entry_mode: selectedMode,
                     schema_json: schema
                 }).eq('id', editFormId);
             } else {
+                // 🟢 नवीन सेव्ह करताना 'data_entry_mode' समाविष्ट केला आहे
                 result = await supabaseClient.from('dynamic_forms').insert([{
                     form_name: formName,
                     form_type: document.getElementById('formType').value,
+                    data_entry_mode: selectedMode,
                     schema_json: schema,
                     is_active: true
                 }]);
