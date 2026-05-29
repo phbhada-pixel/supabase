@@ -6,6 +6,7 @@
     <title>अहवाल केंद्र - प्राथमिक आरोग्य केंद्र भादा</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Excel/Google Sheet प्रगत स्टाईल लायब्ररी -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
         :root { --primary: #00705a; }
@@ -21,6 +22,7 @@
 </head>
 <body class="bg-gray-100 p-6 min-h-screen">
 
+    <!-- Header -->
     <div class="max-w-7xl mx-auto bg-white p-4 rounded-lg shadow-md flex justify-between items-center mb-6 no-print">
         <div>
             <h1 class="text-xl font-bold text-green-700">📊 प्रगत अहवाल केंद्र</h1>
@@ -29,9 +31,11 @@
         <button onclick="window.location.href='dashboard.html'" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition text-sm font-bold">डॅशबोर्डवर परत जा</button>
     </div>
 
+    <!-- मुख्य फिल्टर कंट्रोल पॅनेल -->
     <div class="max-w-7xl mx-auto bg-white p-6 rounded-lg shadow-md border-t-4 border-green-700 mb-6 no-print">
         
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+            <!-- १. अहवाल यादी -->
             <div class="relative" id="multiSelectContainer">
                 <label class="block text-gray-700 text-xs font-bold mb-1">अहवाल/फॉर्म निवडा</label>
                 <button onclick="toggleMultiSelect()" class="w-full p-2 border rounded bg-white text-left text-sm font-medium flex justify-between items-center min-h-[38px]">
@@ -50,6 +54,7 @@
                 <select id="reportFormSelect" class="hidden"></select>
             </div>
 
+            <!-- २. अहवाल महिना -->
             <div>
                 <label class="block text-gray-700 text-xs font-bold mb-1">अहवाल महिना</label>
                 <select id="reportMonth" class="w-full p-2 border rounded bg-white text-sm">
@@ -62,11 +67,13 @@
                 </select>
             </div>
 
+            <!-- ३. अहवाल वर्ष -->
             <div>
                 <label class="block text-gray-700 text-xs font-bold mb-1">अहवाल वर्ष</label>
                 <input type="number" id="reportYear" class="w-full p-2 border rounded text-sm font-mono" value="2026">
             </div>
 
+            <!-- ४. उपकेंद्र फिल्टर -->
             <div>
                 <label class="block text-gray-700 text-xs font-bold mb-1">उपकेंद्र फिल्टर</label>
                 <select id="reportSubCenterFilter" class="w-full p-2 border rounded bg-white text-sm">
@@ -76,6 +83,7 @@
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 border-t pt-4">
+            <!-- ५. अहवाल मांडणी प्रकार -->
             <div>
                 <label class="block text-gray-700 text-xs font-bold mb-1">अहवाल मांडणी प्रकार (Group View)</label>
                 <select id="reportGroupFilter" class="w-full p-2 border rounded bg-white text-sm font-medium text-purple-700">
@@ -93,6 +101,7 @@
 
     </div>
 
+    <!-- लोडर संदेश -->
     <div id="reportLoader" class="text-center py-10 hidden no-print">
         <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-green-700 border-t-transparent mb-2"></div>
         <p class="text-gray-500 font-medium text-sm">डेटाबेस मधून प्रगत अहवाल गोळा होत आहे, कृपया थांबा...</p>
@@ -100,6 +109,7 @@
 
     <div id="downloadButtonsArea" class="max-w-7xl mx-auto mb-4 no-print"></div>
 
+    <!-- अहवाल प्रदर्शित होण्याची जागा -->
     <div id="reportContentArea" class="max-w-7xl mx-auto bg-white p-6 rounded-lg shadow-md hidden">
         <div id="reportTableContainer"></div>
     </div>
@@ -390,18 +400,14 @@
             return fullLabel;
         }
 
-        // 📅 आर्थिक वर्षाच्या (Financial Year - एप्रिल ते मार्च) नियमानुसार प्रगत महिने काढणारे हेल्प इंजिन
         function getProgressiveMonthsList(targetMonthNumeric, targetYear) {
             let startYear = targetYear;
             let periods = [];
-            
-            // आर्थिक वर्ष एप्रिल (४) पासून सुरू होते
             if (targetMonthNumeric >= 4) {
                 for (let m = 4; m <= targetMonthNumeric; m++) {
                     periods.push({ month: m, year: startYear });
                 }
             } else {
-                // जर महिना जानेवारी ते मार्च असेल तर मागील वर्षाचे एप्रिल ते डिसेंबर आणावे लागेल
                 for (let m = 4; m <= 12; m++) {
                     periods.push({ month: m, year: startYear - 1 });
                 }
@@ -412,7 +418,6 @@
             return periods;
         }
 
-        // 🟢 मुख्य डेटा फेचिंग आणि आकडेमोड इंजिन
         async function fetchReportData() {
             let selectedIDs = getSelectedReportIDs();
             if(selectedIDs.length === 0) { alert("कृपया किमान एक अहवाल निवडा!"); return; }
@@ -428,14 +433,10 @@
             document.getElementById('reportTableContainer').innerHTML = "";
 
             try {
-                // प्रगत अहवालाची बेरीज करण्यासाठी चालू आर्थिक वर्षातील मागील महिन्यांची यादी काढणे
                 const progressivePeriods = getProgressiveMonthsList(selMonthNumeric, selYear);
-                
-                // प्रगत अहवालासाठी डेटाबेस मधून फक्त चालू महिन्याचा नाही, तर एप्रिल पासूनचा सर्व डेटा एकत्र आणणे
                 let query = supabaseClient.from('form_responses').select('*').eq('report_year', selYear);
                 
                 if (selMonthNumeric < 4) {
-                    // जानेवारी ते मार्च कालावधीसाठी मागील वर्षाचा डेटा सुद्धा सोबत ओढणे
                     query = supabaseClient.from('form_responses').select('*')
                         .or(`and(report_year.eq.${selYear}),and(report_year.eq.${selYear-1},report_month.gte.4)`);
                 }
@@ -455,23 +456,15 @@
                 formsToProcess.forEach(formObj => {
                     const allFields = formObj.schema_json.fields;
                     const validDataFields = allFields.filter(f => f.type !== 'group_header');
-                    const isProgressiveForm = formObj.form_type === 'progressive'; // प्रगत प्रकार चेक
+                    const isProgressiveForm = formObj.form_type === 'progressive';
 
-                    // १. हेडर रो तयार करणे (मासिक आणि प्रगत वर्गीकरण रचनेसह)
                     let headers = ["महिना", "वर्ष", "उपकेंद्र", "गाव", "कर्मचाऱ्याचे नाव"];
                     validDataFields.forEach(f => { 
                         let professionalLabel = getFullFieldLabel(allFields, f);
-                        if (isProgressiveForm && f.type === 'number') {
-                            headers.push(professionalLabel + " - (मासिक)");
-                            headers.push(professionalLabel + " - (प्रगत)");
-                        } else {
-                            headers.push(professionalLabel); 
-                        }
+                        headers.push(professionalLabel); 
                     });
 
                     let sheetData = [headers];
-
-                    // २. फक्त चालू फिल्टर महिन्याचा मुख्य डेटा फिल्टर करणे
                     let activeMonthResponses = allDatabaseResponses.filter(r => r.form_id === formObj.id && r.report_month === selMonthNumeric && r.report_year === selYear);
                     
                     if(activeMonthResponses.length === 0) return;
@@ -491,12 +484,10 @@
                             empObj ? empObj.full_name : '-'
                         ];
 
-                        // ३. प्रत्येक प्रश्नासाठी प्रगत बेरीज (Progressive Sum Logic) काढणे
                         validDataFields.forEach(f => {
                             let monthlyVal = res.response_data[f.id] ? res.response_data[f.id].value : '';
                             
                             if (isProgressiveForm && f.type === 'number') {
-                                // एप्रिलपासून चालू महिन्यापर्यंत या विशिष्ट गावच्या (`village_id`) डेटाची बेरीज करणे
                                 let sumProgressive = 0;
                                 progressivePeriods.forEach(p => {
                                     let pastRes = allDatabaseResponses.find(r => 
@@ -506,13 +497,11 @@
                                         r.report_year === p.year
                                     );
                                     if(pastRes && pastRes.response_data[f.id]) {
-                                        let v = parseFloat(pastRes.response_data[f.id].value) || 0;
-                                        sumProgressive += v;
+                                        sumProgressive += parseFloat(pastRes.response_data[f.id].value) || 0;
                                     }
                                 });
-
-                                row.push(formatNumberDecimals(monthlyVal)); // मासिक कॉलम
-                                row.push(formatNumberDecimals(sumProgressive)); // प्रगत कॉलम
+                                // प्रिव्ह्यूसाठी ऑब्जेक्ट स्वरूपात दोन्ही व्हॅल्यूज पास करणे
+                                row.push({ M: formatNumberDecimals(monthlyVal), P: formatNumberDecimals(sumProgressive) });
                             } else {
                                 row.push(formatNumberDecimals(monthlyVal));
                             }
@@ -548,7 +537,7 @@
 
             downArea.innerHTML = `
                 <div class="flex justify-end gap-2 p-2 bg-gray-50 rounded border mb-4">
-                    <button onclick="downloadConsolidatedExcel()" class="bg-green-600 text-white font-bold px-4 py-2 rounded text-xs shadow hover:bg-green-700">📥 Excel (.xlsx) स्वरूपात डाऊनलोड</button>
+                    <button onclick="downloadConsolidatedExcel('${groupType}')" class="bg-green-600 text-white font-bold px-4 py-2 rounded text-xs shadow hover:bg-green-700">📥 Excel (.xlsx) स्वरूपात डाऊनलोड</button>
                     <button onclick="window.print()" class="bg-red-600 text-white font-bold px-4 py-2 rounded text-xs shadow hover:bg-red-700">📥 PDF / प्रिंट काढा</button>
                 </div>
             `;
@@ -569,35 +558,68 @@
                     </div>`;
 
                 if (groupType === "SubCenterConsolidated") {
+                    // 📊 प्रगत उभी एकत्रित मांडणी (Vertical Layout प्रिव्ह्यू)
                     html += `<div class="overflow-x-auto"><table class="report-table w-full border">
-                        <thead><tr class="bg-gray-100 text-xs text-center">
-                            <th class="border p-2">क्र.</th>
-                            <th class="border p-2 text-left">तपशील / मुख्य प्रश्न</th>`;
+                        <thead>
+                            <tr class="bg-gray-100 text-xs text-center">
+                                <th rowspan="${rep.isProg ? 2 : 1}" class="border p-2">क्र.</th>
+                                <th rowspan="${rep.isProg ? 2 : 1}" class="border p-2 text-left">तपशील / मुख्य प्रश्न</th>`;
                             
-                    dataRows.forEach(row => { html += `<th class="border p-2">${row[3]} (${row[2]})</th>`; });
-                    html += `<th class="border p-2 bg-green-100 font-bold">एकूण बेरीज (PHC Total)</th></tr></thead><tbody>`;
+                    dataRows.forEach(row => { 
+                        html += `<th colspan="${rep.isProg ? 2 : 1}" class="border p-2 bg-purple-50">${row[3]} (${row[2]})</th>`; 
+                    });
+                    html += `<th colspan="${rep.isProg ? 2 : 1}" class="border p-2 bg-green-100 font-bold">एकूण बेरीज (PHC Total)</th></tr>`;
+                    
+                    if (rep.isProg) {
+                        html += `<tr class="bg-gray-50 text-[10px] text-center">`;
+                        dataRows.forEach(() => { html += `<th class="border p-1 text-purple-700">मासिक</th><th class="border p-1 text-orange-700">प्रगत</th>`; });
+                        html += `<th class="border p-1 text-green-800 font-bold">मासिक</th><th class="border p-1 text-green-800 font-bold">प्रगत</th></tr>`;
+                    }
+                    html += `</thead><tbody>`;
 
                     showIndices.forEach((idx, vIdx) => {
-                        let totalSum = 0;
+                        let totalSumM = 0;
+                        let totalSumP = 0;
                         html += `<tr class="text-xs"><td class="border p-2 text-center font-medium">${vIdx+1}</td>
                             <td class="border p-2 text-left font-semibold text-gray-700">${headers[idx]}</td>`;
                         
                         dataRows.forEach(row => {
-                            let val = parseFloat(row[idx]) || 0;
-                            totalSum += val;
-                            html += `<td class="border p-2">${row[idx] !== '' ? row[idx] : '-'}</td>`;
+                            let cellData = row[idx];
+                            if (rep.isProg && typeof cellData === 'object') {
+                                totalSumM += parseFloat(cellData.M) || 0;
+                                totalSumP += parseFloat(cellData.P) || 0;
+                                html += `<td class="border p-2">${cellData.M}</td><td class="border p-2 font-medium bg-orange-50/40">${cellData.P}</td>`;
+                            } else {
+                                totalSumM += parseFloat(cellData) || 0;
+                                html += `<td class="border p-2">${cellData !== '' ? cellData : '-'}</td>`;
+                            }
                         });
-                        html += `<td class="border p-2 bg-green-50 font-bold text-green-700">${formatNumberDecimals(totalSum)}</td></tr>`;
+                        
+                        if (rep.isProg) {
+                            html += `<td class="border p-2 bg-green-50 font-bold text-green-700">${formatNumberDecimals(totalSumM)}</td>
+                                     <td class="border p-2 bg-orange-50 font-bold text-orange-700">${formatNumberDecimals(totalSumP)}</td>`;
+                        } else {
+                            html += `<td class="border p-2 bg-green-50 font-bold text-green-700">${formatNumberDecimals(totalSumM)}</td>`;
+                        }
+                        html += `</tr>`;
                     });
                     html += `</tbody></table></div>`;
                 } else {
+                    // 📊 नेहमीची आडवी गाववार मांडणी
                     html += `<div class="overflow-x-auto"><table class="report-table w-full border">
                         <thead><tr class="bg-gray-100 text-xs">
                             <th class="border p-2">अहवाल कालावधी</th>
                             <th class="border p-2">उपकेंद्र</th>
                             <th class="border p-2">गाव</th>
                             <th class="border p-2">कर्मचारी</th>`;
-                    showIndices.forEach(idx => { html += `<th class="border p-2">${headers[idx]}</th>`; });
+                    showIndices.forEach(idx => { 
+                        if (rep.isProg) {
+                            html += `<th class="border p-2">${headers[idx]} (मासिक)</th>`;
+                            html += `<th class="border p-2 bg-orange-50">${headers[idx]} (प्रगत)</th>`;
+                        } else {
+                            html += `<th class="border p-2">${headers[idx]}</th>`; 
+                        }
+                    });
                     html += `</tr></thead><tbody>`;
 
                     dataRows.forEach(row => {
@@ -606,7 +628,14 @@
                             <td class="border p-2 font-medium">${row[2]}</td>
                             <td class="border p-2 font-bold text-purple-700">${row[3]}</td>
                             <td class="border p-2 text-gray-600">${row[4]}</td>`;
-                        showIndices.forEach(idx => { html += `<td class="border p-2">${row[idx] !== '' ? row[idx] : '-'}</td>`; });
+                        showIndices.forEach(idx => { 
+                            let cellData = row[idx];
+                            if (rep.isProg && typeof cellData === 'object') {
+                                html += `<td class="border p-2">${cellData.M}</td><td class="border p-2 bg-orange-50/30 font-medium">${cellData.P}</td>`;
+                            } else {
+                                html += `<td class="border p-2">${cellData !== '' ? cellData : '-'}</td>`; 
+                            }
+                        });
                         html += `</tr>`;
                     });
                     html += `</tbody></table></div>`;
@@ -617,13 +646,13 @@
             container.innerHTML = html;
         }
 
-        function downloadConsolidatedExcel() {
+        // 🟢 📥 प्रिट प्रिव्ह्यू फॉरमॅटशी १००% मॅच होणारे प्रगत एक्सेल निर्मिती इंजिन
+        function downloadConsolidatedExcel(groupType) {
             if(currentReports.length === 0) return;
 
             let wb = XLSX.utils.book_new();
             let monthStr = document.getElementById('reportMonth').value;
             let yearStr = document.getElementById('reportYear').value;
-            let groupType = document.getElementById('reportGroupFilter').value;
 
             currentReports.forEach((rep, index) => {
                 let headers = rep.data[0];
@@ -632,58 +661,132 @@
                 for(let i=5; i<headers.length; i++) showIndices.push(i);
 
                 let sheetData = [];
+                let merges = [];
+
+                // १. मुख्य शासकीय हेडिंग रचना
                 sheetData.push(["प्राथमिक आरोग्य केंद्र भादा, तालुका औसा"]);
                 sheetData.push([`मासिक अहवाल: ${rep.formName} | कालावधी: ${monthStr} ${yearStr}`]);
-                sheetData.push([]); 
+                sheetData.push([]); // रिकामी ओळ
+
+                let currentExcelRow = 3; // हेडिंग रो इंडेक्स
 
                 if (groupType === "SubCenterConsolidated") {
-                    let vertHeaders = ["अ.क्र.", "तपशील / आरोग्य निर्देशांक प्रश्न"];
-                    dataRows.forEach(r => { vertHeaders.push(`${r[3]} (${r[2]})`); });
-                    vertHeaders.push("एकूण एकत्रित बेरीज");
-                    sheetData.push(vertHeaders);
+                    // 📊 प्रिव्ह्यू सारखी उभी एकत्रित मांडणी (Vertical Excel Generator)
+                    let row1Headers = ["अ.क्र.", "तपशील / आरोग्य निर्देशांक प्रश्न"];
+                    let row2Headers = ["", ""];
 
+                    dataRows.forEach(r => {
+                        if (rep.isProg) {
+                            row1Headers.push(`${r[3]} (${r[2]})`);
+                            row1Headers.push(""); // मर्जिंगसाठी जागा
+                            row2Headers.push("मासिक");
+                            row2Headers.push("प्रगत");
+                        } else {
+                            row1Headers.push(`${r[3]} (${r[2]})`);
+                        }
+                    });
+
+                    // एकूण बेरीज हेडर जोडणे
+                    if (rep.isProg) {
+                        row1Headers.push("एकूण एकत्रित बेरीज (PHC Total)");
+                        row1Headers.push("");
+                        row2Headers.push("मासिक");
+                        row2Headers.push("प्रगत");
+                    } else {
+                        row1Headers.push("एकूण एकत्रित बेरीज (PHC Total)");
+                    }
+
+                    sheetData.push(row1Headers);
+                    currentExcelRow++;
+
+                    if (rep.isProg) {
+                        sheetData.push(row2Headers);
+                        // अ.क्र. आणि प्रश्नांच्या कॉलमला उभे (Vertical Merge) करणे
+                        merges.push({ s: { r: 3, c: 0 }, e: { r: 4, c: 0 } });
+                        merges.push({ s: { r: 3, c: 1 }, e: { r: 4, c: 1 } });
+
+                        // प्रत्येक गावच्या हेडिंगला आडवे (Horizontal Merge) करणे
+                        let colStart = 2;
+                        dataRows.forEach(() => {
+                            merges.push({ s: { r: 3, c: colStart }, e: { r: 3, c: colStart + 1 } });
+                            colStart += 2;
+                        });
+                        // एकूण बेरीज हेडिंगला आडवे मर्ज करणे
+                        merges.push({ s: { r: 3, c: colStart }, e: { r: 3, c: colStart + 1 } });
+                        currentExcelRow++;
+                    }
+
+                    // प्रत्यक्ष डेटा रोज तयार करणे
                     showIndices.forEach((idx, vIdx) => {
                         let rowData = [vIdx + 1, headers[idx]];
-                        let rowSum = 0;
+                        let rowSumM = 0;
+                        let rowSumP = 0;
+
                         dataRows.forEach(r => {
-                            let num = parseFloat(r[idx]) || 0;
-                            rowSum += num;
-                            rowData.push(r[idx] !== '' ? Number(r[idx]) : 0);
+                            let cellData = r[idx];
+                            if (rep.isProg && typeof cellData === 'object') {
+                                rowSumM += parseFloat(cellData.M) || 0;
+                                rowSumP += parseFloat(cellData.P) || 0;
+                                rowData.push(cellData.M !== '' ? Number(cellData.M) : 0);
+                                rowData.push(cellData.P !== '' ? Number(cellData.P) : 0);
+                            } else {
+                                rowSumM += parseFloat(cellData) || 0;
+                                rowData.push(cellData !== '' ? Number(cellData) : 0);
+                            }
                         });
-                        rowData.push(formatNumberDecimals(rowSum));
+
+                        rowData.push(formatNumberDecimals(rowSumM));
+                        if (rep.isProg) rowData.push(formatNumberDecimals(rowSumP));
+
                         sheetData.push(rowData);
                     });
                 } else {
+                    // 📊 नेहमीची प्रिव्ह्यू सारखी आडवी गाववार मांडणी
                     let horizHeaders = ["अहवाल महिना", "वर्ष", "आरोग्य उपकेंद्र", "गाव/कार्यक्षेत्र", "कर्मचाऱ्याचे नाव"];
-                    for(let i=5; i<headers.length; i++) horizHeaders.push(headers[i]);
+                    
+                    showIndices.forEach(idx => {
+                        if (rep.isProg) {
+                            horizHeaders.push(headers[idx] + " - (मासिक)");
+                            horizHeaders.push(headers[idx] + " - (प्रगत)");
+                        } else {
+                            horizHeaders.push(headers[idx]);
+                        }
+                    });
                     sheetData.push(horizHeaders);
 
                     dataRows.forEach(r => {
                         let rowData = [r[0], r[1], r[2], r[3], r[4]];
-                        for(let i=5; i<r.length; i++) {
-                            rowData.push(r[i] !== '' ? (isNaN(Number(r[i])) ? r[i] : Number(r[i])) : '');
-                        }
+                        showIndices.forEach(idx => {
+                            let cellData = r[idx];
+                            if (rep.isProg && typeof cellData === 'object') {
+                                rowData.push(cellData.M !== '' ? Number(cellData.M) : 0);
+                                rowData.push(cellData.P !== '' ? Number(cellData.P) : 0);
+                            } else {
+                                rowData.push(cellData !== '' ? (isNaN(Number(cellData)) ? cellData : Number(cellData)) : '');
+                            }
+                        });
                         sheetData.push(rowData);
                     });
                 }
 
+                // शीट तयार करणे आणि डिझाईन देणे
                 let ws = XLSX.utils.aoa_to_sheet(sheetData);
 
-                let merges = [
-                    { s: { r: 0, c: 0 }, e: { r: 0, c: 10 } },
-                    { s: { r: 1, c: 0 }, e: { r: 1, c: 10 } }
-                ];
+                // मुख्य टायटल मर्जिंग नियम
+                merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: 12 } });
+                merges.push({ s: { r: 1, c: 0 }, e: { r: 1, c: 12 } });
                 ws["!merges"] = merges;
 
+                // कॉलम रुंदी व्यवस्थापन
                 let wscols = [{ wch: 8 }, { wch: 45 }];
-                for(let c=2; c<100; c++) wscols.push({ wch: 18 });
+                for(let c=2; c<150; c++) wscols.push({ wch: 16 });
                 ws["!cols"] = wscols;
 
                 let safeName = rep.formName.replace(/[\\\/\?\*\[\]\:]/g, "").substring(0, 30);
                 XLSX.utils.book_append_sheet(wb, ws, safeName || `Sheet ${index+1}`);
             });
 
-            XLSX.writeFile(wb, `आरोग्य_अहवाल_${monthStr}_${yearStr}.xlsx`);
+            XLSX.writeFile(wb, `आरोग्य_अहवाल_${groupType}_${monthStr}_${yearStr}.xlsx`);
         }
     </script>
 </body>
