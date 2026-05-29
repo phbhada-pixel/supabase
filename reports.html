@@ -3,61 +3,106 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>अहवाल आणि डेटा डाउनलोड</title>
+    <title>अहवाल केंद्र - प्राथमिक आरोग्य केंद्र भादा</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        :root { --primary: #00705a; }
+        .report-table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 13px; }
+        .report-table th, .report-table td { border: 1px solid #ddd; padding: 10px; text-align: center; }
+        .report-table th { background-color: #f4f7f6; font-weight: bold; color: #333; }
+        .page-break { page-break-before: always; }
+        @media print {
+            .no-print { display: none !important; }
+            body { background: #fff; padding: 0; }
+        }
+    </style>
 </head>
 <body class="bg-gray-100 p-6 min-h-screen">
 
-    <div class="max-w-6xl mx-auto bg-white p-4 rounded-lg shadow-md flex justify-between items-center mb-6">
-        <h1 class="text-xl font-bold text-purple-600">अहवाल आणि डेटा डाउनलोड केंद्र</h1>
-        <button onclick="window.location.href='dashboard.html'" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 font-bold transition text-sm">डॅशबोर्डवर परत जा</button>
+    <div class="max-w-7xl mx-auto bg-white p-4 rounded-lg shadow-md flex justify-between items-center mb-6 no-print">
+        <div>
+            <h1 class="text-xl font-bold text-green-700">📊 प्रगत अहवाल केंद्र</h1>
+            <p class="text-xs text-gray-500">प्राथमिक आरोग्य केंद्र भादा, तालुका औसा</p>
+        </div>
+        <button onclick="window.location.href='dashboard.html'" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 font-bold text-sm transition">डॅशबोर्डवर परत जा</button>
     </div>
 
-    <div class="max-w-6xl mx-auto bg-white p-6 rounded-lg shadow-md border-t-4 border-purple-500">
-
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 pb-4 border-b">
-            <div>
-                <label class="block text-gray-700 font-bold mb-2 text-sm">फॉर्म निवडा</label>
-                <select id="filterForm" class="w-full p-2 border rounded bg-white font-medium">
-                    <option value="">-- फॉर्म निवडा --</option>
-                </select>
-            </div>
-            <div>
-                <label class="block text-gray-700 font-bold mb-2 text-sm">महिना</label>
-                <select id="filterMonth" class="w-full p-2 border rounded bg-white">
-                    <option value="">-- सर्व महिने --</option>
-                    <option value="1">जानेवारी</option><option value="2">फेब्रुवारी</option>
-                    <option value="3">मार्च</option><option value="4">एप्रिल</option>
-                    <option value="5">मे</option><option value="6">जून</option>
-                    <option value="7">जुलै</option><option value="8">ऑगस्ट</option>
-                    <option value="9">सप्टेंबर</option><option value="10">ऑक्टोबर</option>
-                    <option value="11">नोव्हेंबर</option><option value="12">डिसेंबर</option>
-                </select>
-            </div>
-            <div class="flex items-end">
-                <button onclick="loadData()" class="w-full bg-blue-600 text-white font-bold p-2.5 rounded hover:bg-blue-700 shadow transition">🔍 डेटा शोधा</button>
-            </div>
-            <div class="flex items-end">
-                <button onclick="downloadProfessionalExcel()" id="downloadBtn" class="w-full bg-green-600 text-white font-bold p-2.5 rounded hover:bg-green-700 shadow transition flex items-center justify-center gap-2">
-                    <span>📥 Google Sheet डाउनलोड</span>
+    <div class="max-w-7xl mx-auto bg-white p-6 rounded-lg shadow-md border-t-4 border-green-700 mb-6 no-print">
+        
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+            <div class="relative" id="multiSelectContainer">
+                <label class="block text-gray-700 text-xs font-bold mb-1">अहवाल/फॉर्म निवडा</label>
+                <button onclick="toggleMultiSelect()" class="w-full p-2 border rounded bg-white text-left text-sm font-medium flex justify-between items-center min-h-[38px]">
+                    <span id="multiSelectBtnText">सर्व अहवाल (All Forms)</span>
+                    <span class="text-xs text-gray-400">▼</span>
                 </button>
+                <div id="multiSelectDropdown" class="absolute left-0 right-0 mt-1 bg-white border rounded shadow-lg z-50 max-h-60 overflow-y-auto hidden">
+                    <div class="p-2 border-b bg-gray-50">
+                        <label class="flex items-center gap-2 font-bold text-xs text-green-700 cursor-pointer">
+                            <input type="checkbox" id="chkAllReports" checked onchange="toggleAllReports(this)" class="w-4 h-4"> 
+                            सर्व फॉर्म्स निवडा (Select All)
+                        </label>
+                    </div>
+                    <div id="multiSelectOptions">
+                        </div>
+                </div>
+                <select id="reportFormSelect" class="hidden"></select>
+            </div>
+
+            <div>
+                <label class="block text-gray-700 text-xs font-bold mb-1">अहवाल महिना</label>
+                <select id="reportMonth" onchange="toggleReportFortnight()" class="w-full p-2 border rounded bg-white text-sm">
+                    <option value="जानेवारी">जानेवारी</option><option value="फेब्रुवारी">फेब्रुवारी</option>
+                    <option value="मार्च">मार्च</option><option value="एप्रिल">एप्रिल</option>
+                    <option value="मे">मे</option><option value="जून">जून</option>
+                    <option value="जुलै">जुलै</option><option value="ऑगस्ट</option>
+                    <option value="सप्टेंबर">सप्टेंबर</option><option value="ऑक्टोबर">ऑक्टोबर</option>
+                    <option value="नोव्हेंबर">नोव्हेंबर</option><option value="डिसेंबर">डिसेंबर</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-gray-700 text-xs font-bold mb-1">अहवाल वर्ष</label>
+                <input type="number" id="reportYear" class="w-full p-2 border rounded text-sm font-mono" value="2026">
+            </div>
+
+            <div>
+                <label class="block text-gray-700 text-xs font-bold mb-1">उपकेंद्र फिल्टर</label>
+                <select id="reportSubCenterFilter" class="w-full p-2 border rounded bg-white text-sm">
+                    <option value="सर्व">सर्व उपकेंद्र (All Sub-centers)</option>
+                </select>
             </div>
         </div>
 
-        <div class="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
-            <table class="w-full text-left border-collapse text-sm" id="dataTable">
-                <thead>
-                    <tr class="bg-gray-100 text-gray-700 font-bold" id="tableHead">
-                        </tr>
-                </thead>
-                <tbody id="tableBody" class="text-gray-700">
-                    <tr><td class="p-8 text-center text-gray-400 font-medium">कृपया वरील ड्रॉपडाऊनमधून फॉर्म निवडा आणि 'डेटा शोधा' वर क्लिक करा.</td></tr>
-                </tbody>
-            </table>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 border-t pt-4">
+            <div>
+                <label class="block text-gray-700 text-xs font-bold mb-1">अहवाल मांडणी प्रकार (Group View)</label>
+                <select id="reportGroupFilter" class="w-full p-2 border rounded bg-white text-sm font-medium text-purple-700">
+                    <option value="Village">गाव स्तरावर स्वतंत्र यादी (Village Wise)</option>
+                    <option value="SubCenter">उपकेंद्र स्तरावर स्वतंत्र यादी</option>
+                    <option value="SubCenterConsolidated">उपकेंद्र एकत्रित उभी मांडणी (Vertical Consolidated)</option>
+                </select>
+            </div>
+            
+            <div class="flex items-end gap-2 md:col-span-2">
+                <button onclick="fetchReportData()" class="flex-1 bg-blue-600 text-white font-bold p-2 rounded text-sm hover:bg-blue-700 shadow transition">🔍 अहवाल पहा (Show Report)</button>
+                <button onclick="generatePendingReport()" class="flex-1 bg-red-600 text-white font-bold p-2 rounded text-sm hover:bg-red-700 shadow transition">⚠️ अपूर्ण यादी शोधा (Pending)</button>
+            </div>
         </div>
 
+    </div>
+
+    <div id="reportLoader" class="text-center py-10 hidden no-print">
+        <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-green-700 border-t-transparent mb-2"></div>
+        <p class="text-gray-500 font-medium text-sm">डेटाबेस मधून प्रगत अहवाल गोळा होत आहे, कृपया थांबा...</p>
+    </div>
+
+    <div id="downloadButtonsArea" class="max-w-7xl mx-auto mb-4 no-print"></div>
+
+    <div id="reportContentArea" class="max-w-7xl mx-auto bg-white p-6 rounded-lg shadow-md hidden">
+        <div id="reportTableContainer"></div>
     </div>
 
     <script>
@@ -65,159 +110,537 @@
         const SUPABASE_KEY = 'sb_publishable_sdgZ9G8ko4H_3Mh9RouYFg_JOQ-4Mdx'; 
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        let reportData = [];
-        let formSchemas = {};
-        let formNamesMap = {};
-        let villagesMap = {};
-        let employeesMap = {};
+        // मास्टर डेटा ऑब्जेक्ट (तुमच्या कोडच्या गरजेनुसार रचना मॅप केली)
+        let masterData = { forms: [], villages: [], employees: [], filledStats: [], subCenters: [] };
+        let currentReports = [];
+        let user = { role: 'admin', subcenter: 'सर्व', mobile: '' };
 
-        const monthNames = {
+        const monthNamesMarathi = {
+            "जानेवारी": 1, "फेब्रुवारी": 2, "मार्च": 3, "एप्रिल": 4, "मे": 5, "जून": 6,
+            "जुलै": 7, "ऑगस्ट": 8, "सप्टेंबर": 9, "ऑक्टोबर": 10, "नोव्हेंबर": 11, "डिसेंबर": 12
+        };
+        const monthNamesNumeric = {
             1: "जानेवारी", 2: "फेब्रुवारी", 3: "मार्च", 4: "एप्रिल", 5: "मे", 6: "जून",
             7: "जुलै", 8: "ऑगस्ट", 9: "सप्टेंबर", 10: "ऑक्टोबर", 11: "नोव्हेंबर", 12: "डिसेंबर"
         };
 
         window.onload = async function() {
-            const user = JSON.parse(localStorage.getItem('loggedInUser') || '{}');
-            if (user.role !== 'admin') {
-                alert("तुम्हाला या पानावर जाण्याची परवानगी नाही!");
-                window.location.href = "index.html";
-                return;
-            }
+            const userDataString = localStorage.getItem('loggedInUser');
+            if (!userDataString) { window.location.href = "index.html"; return; }
+            const sessionUser = JSON.parse(userDataString);
+            user.role = sessionUser.role === 'admin' ? 'Admin' : 'user';
+            user.sub_center_id = sessionUser.sub_center_id;
+            user.mobile = sessionUser.mobile_number || '';
 
-            await loadInitialData();
+            // चालू महिना सेट करणे
+            const mIdx = new Date().getMonth() + 1;
+            document.getElementById('reportMonth').value = monthNamesNumeric[mIdx];
+            document.getElementById('reportYear').value = new Date().getFullYear();
+
+            // सुरुवातीचा सर्व मास्टर डेटा लोड करणे
+            await loadInitialMasterData();
         };
 
-        async function loadInitialData() {
-            // १. फॉर्म्स लोड करणे
-            const { data: forms } = await supabaseClient.from('dynamic_forms').select('*');
-            if (forms) {
-                let formOptions = '<option value="">-- फॉर्म निवडा --</option>';
-                forms.forEach(f => {
-                    formOptions += `<option value="${f.id}">${f.form_name}</option>`;
-                    formSchemas[f.id] = f.schema_json.fields;
-                    formNamesMap[f.id] = f.form_name;
-                });
-                document.getElementById('filterForm').innerHTML = formOptions;
+        function formatNumberDecimals(val) {
+            if (val === "" || val === null || val === undefined || val === "-" || String(val).trim() === "") return val;
+            let n = Number(val);
+            if (!isNaN(n)) { return Number.isInteger(n) ? n : parseFloat(n.toFixed(2)); }
+            return val;
+        }
+
+        // मल्टि-सिलेक्ट ड्रॉपडाऊन फंक्शन्स
+        function toggleMultiSelect() {
+            let dropdown = document.getElementById('multiSelectDropdown');
+            dropdown.classList.toggle('hidden');
+        }
+
+        document.addEventListener('click', function(event) {
+            let container = document.getElementById('multiSelectContainer');
+            if (container && !container.contains(event.target)) {
+                document.getElementById('multiSelectDropdown').classList.add('hidden');
             }
+        });
+
+        async function loadInitialMasterData() {
+            // १. उपकेंद्रे लोड करणे
+            const { data: scData } = await supabaseClient.from('sub_centers').select('*').order('name');
+            masterData.subCenters = scData || [];
+            
+            let scFilter = document.getElementById('reportSubCenterFilter');
+            scFilter.innerHTML = '<option value="सर्व">सर्व उपकेंद्र (All Sub-centers)</option>';
+            masterData.subCenters.forEach(sc => {
+                scFilter.innerHTML += `<option value="${sc.id}">${sc.name}</option>`;
+            });
 
             // २. गावे लोड करणे
-            const { data: villages } = await supabaseClient.from('villages').select('id, name');
-            if (villages) villages.forEach(v => villagesMap[v.id] = v.name);
+            const { data: vData } = await supabaseClient.from('villages').select('*').order('name');
+            masterData.villages = vData || [];
 
-            // ३. कर्मचारी (employees) टेबलवरून नावे लोड करणे
-            const { data: employees } = await supabaseClient.from('employees').select('id, full_name');
-            if (employees) employees.forEach(e => employeesMap[e.id] = e.full_name);
+            // ३. कर्मचारी लोड करणे (अचूक कॉलम नाव: mobile_number)
+            const { data: empData } = await supabaseClient.from('employees').select('*').order('full_name');
+            masterData.employees = empData || [];
+
+            // ४. फॉर्म्स लोड करणे
+            const { data: formData } = await supabaseClient.from('dynamic_forms').select('*').eq('is_active', true);
+            masterData.forms = formData || [];
+
+            // मल्टि-सिलेक्ट UI भरणे
+            let select = document.getElementById('reportFormSelect');
+            let optionsDiv = document.getElementById('multiSelectOptions');
+            select.innerHTML = '';
+            optionsDiv.innerHTML = '';
+
+            masterData.forms.forEach(f => {
+                // मूळ सिलेक्ट बॉक्ससाठी
+                let opt = document.createElement('option');
+                opt.value = f.id;
+                opt.text = f.form_name;
+                select.appendChild(opt);
+
+                // कस्टमाइज्ड चेकबॉक्ससाठी
+                let div = document.createElement('div');
+                div.className = "p-2.5 border-b hover:bg-gray-50 cursor-pointer";
+                div.innerHTML = `<label class="cursor-pointer flex items-center gap-2 text-gray-700 text-xs font-semibold">
+                    <input type="checkbox" class="report-chk w-4 h-4" value="${f.id}" checked onchange="checkIndividualReport()"> 
+                    ${f.form_name}
+                </label>`;
+                optionsDiv.appendChild(div);
+            });
+
+            // ५. अपूर्ण अहवालाची आकडेवारी गोळा करण्यासाठी आधीच सबमिट झालेले फॉर्म रिस्पॉन्सेस आणणे
+            const { data: respData } = await supabaseClient.from('form_responses').select('form_id, village_id, report_month, report_year');
+            masterData.filledStats = respData || [];
+
+            updateMultiSelectText();
         }
 
-        async function loadData() {
-            const formId = document.getElementById('filterForm').value;
-            const month = document.getElementById('filterMonth').value;
-
-            if(!formId) return alert("कृपया पाहण्यासाठी एखादा फॉर्म निवडा.");
-
-            let query = supabaseClient.from('form_responses').select('*').eq('form_id', formId);
-            if(month) query = query.eq('report_month', month);
-
-            const { data, error } = await query;
-            if(error) return alert("डेटा आणताना एरर: " + error.message);
-
-            reportData = data;
-            renderTable(formId);
+        function toggleAllReports(chkAll) {
+            let checkboxes = document.querySelectorAll('.report-chk');
+            checkboxes.forEach(chk => chk.checked = chkAll.checked);
+            updateMultiSelectText();
         }
 
-        function renderTable(formId) {
-            const headRow = document.getElementById('tableHead');
-            const body = document.getElementById('tableBody');
+        function checkIndividualReport() {
+            let checkboxes = document.querySelectorAll('.report-chk');
+            let allChecked = true;
+            checkboxes.forEach(chk => { if(!chk.checked) allChecked = false; });
+            document.getElementById('chkAllReports').checked = allChecked;
+            updateMultiSelectText();
+        }
 
-            if(!reportData || reportData.length === 0) {
-                headRow.innerHTML = '';
-                body.innerHTML = '<tr><td class="p-8 text-center text-red-500 font-medium">निवडलेल्या कालावधीसाठी कोणताही डेटा उपलब्ध नाही.</td></tr>';
-                return;
+        function updateMultiSelectText() {
+            let chkAll = document.getElementById('chkAllReports');
+            let textSpan = document.getElementById('multiSelectBtnText');
+            if(chkAll && chkAll.checked) {
+                textSpan.innerText = "सर्व अहवाल (All Forms)";
+                textSpan.style.color = "var(--primary)";
+            } else {
+                let selected = document.querySelectorAll('.report-chk:checked');
+                if(selected.length === 0) {
+                    textSpan.innerText = "-- कोणताही अहवाल निवडलेला नाही --";
+                    textSpan.style.color = "red";
+                } else if(selected.length === 1) {
+                    let lbl = selected[0].parentElement.innerText.trim();
+                    textSpan.innerText = lbl.length > 35 ? lbl.substring(0, 35) + "..." : lbl;
+                    textSpan.style.color = "#d35400";
+                } else {
+                    textSpan.innerText = `✔️ ${selected.length} अहवाल निवडले`;
+                    textSpan.style.color = "green";
+                }
+            }
+        }
+
+        function getSelectedReportIDs() {
+            let chkAll = document.getElementById('chkAllReports');
+            if(chkAll && chkAll.checked) return ["ALL"];
+            let selected = [];
+            document.querySelectorAll('.report-chk:checked').forEach(chk => selected.push(chk.value));
+            return selected;
+        }
+
+        function toggleReportFortnight() {} // बॅकअप रिकामे फंक्शन
+
+        // ⚠️ अपूर्ण अहवाल शोधण्याचे प्रगत लॉजिक (Pending Report Engine)
+        function generatePendingReport() {
+            const selMonthStr = document.getElementById('reportMonth').value;
+            const selMonthNumeric = monthNamesMarathi[selMonthStr];
+            const selYear = parseInt(document.getElementById('reportYear').value);
+            let selectedIDs = getSelectedReportIDs();
+
+            let groupedData = {}; 
+            let filterSubCenter = document.getElementById('reportSubCenterFilter').value;
+
+            let formsToCheck = masterData.forms;
+            if(!selectedIDs.includes("ALL")) { 
+                formsToCheck = formsToCheck.filter(f => selectedIDs.includes(f.id)); 
             }
 
-            const schema = formSchemas[formId];
+            formsToCheck.forEach(f => {
+                groupedData[f.form_name] = [];
 
-            // स्क्रीनवर हेडर मांडणी
-            let headHTML = '<th class="p-3 border">अहवाल महिना/वर्ष</th><th class="p-3 border">नियुक्त गाव</th><th class="p-3 border">कर्मचाऱ्याचे नाव</th>';
-            schema.forEach(field => {
-                headHTML += `<th class="p-3 border">${field.label}</th>`;
-            });
-            headRow.innerHTML = headHTML;
+                masterData.employees.forEach(u => {
+                    if (user.role !== "Admin" && u.id !== currentUser.id) return;
+                    if (user.role === "Admin" && filterSubCenter !== "सर्व" && u.sub_center_id !== filterSubCenter) return;
 
-            // स्क्रीनवर रो डेटा मांडणी
-            let bodyHTML = '';
-            reportData.forEach(row => {
-                let displayMonth = monthNames[row.report_month] || row.report_month;
-                let tr = `<tr class="hover:bg-gray-50 border-b">
-                    <td class="p-3 border font-medium">${displayMonth}-${row.report_year}</td>
-                    <td class="p-3 border text-purple-700 font-semibold">${villagesMap[row.village_id] || '-'}</td>
-                    <td class="p-3 border text-gray-600">${employeesMap[row.employee_id] || '-'}</td>`;
-
-                schema.forEach(field => {
-                    let answer = row.response_data[field.id] ? row.response_data[field.id].value : '-';
-                    tr += `<td class="p-3 border">${answer}</td>`;
+                    // कर्मचाऱ्याच्या उपकेंद्रातील गावे शोधणे
+                    let userVillages = masterData.villages.filter(v => v.sub_center_id === u.sub_center_id);
+                    
+                    userVillages.forEach(v => {
+                        let isFilled = masterData.filledStats.some(h => 
+                            h.form_id === f.id && h.village_id === v.id && 
+                            h.report_month === selMonthNumeric && h.report_year === selYear
+                        );
+                        
+                        if (!isFilled) { 
+                            let scObj = masterData.subCenters.find(s => s.id === u.sub_center_id);
+                            groupedData[f.form_name].push({ 
+                                sc: scObj ? scObj.name : 'बाहेरचे', 
+                                name: u.full_name, 
+                                role: u.role || 'Field Staff', 
+                                village: v.name 
+                            }); 
+                        }
+                    });
                 });
-                tr += '</tr>';
-                bodyHTML += tr;
             });
-            body.innerHTML = bodyHTML;
-        }
 
-        // 🟢 १. मुख्य प्रोफेशनल एक्सल शीट जनरेशन इंजिन
-        function downloadProfessionalExcel() {
-            if(!reportData || reportData.length === 0) {
-                return alert("डाउनलोड करण्यासाठी आधी 'डेटा शोधा' वर क्लिक करून डेटा लोड करा.");
+            let container = document.getElementById('reportTableContainer');
+            let downArea = document.getElementById('downloadButtonsArea');
+
+            downArea.innerHTML = `
+                <div class="flex justify-end gap-2 p-2 bg-gray-50 rounded border mb-4">
+                    <button onclick="copyPendingListText()" class="bg-gray-600 text-white font-bold px-4 py-2 rounded text-xs shadow hover:bg-gray-700">📋 WhatsApp साठी यादी कॉपी करा</button>
+                    <button id="btnPendingPdfDownload" onclick="downloadPendingPDF()" class="bg-red-600 text-white font-bold px-4 py-2 rounded text-xs shadow hover:bg-red-700">📥 PDF प्रिंट करा</button>
+                </div>
+            `;
+
+            let subCenterObj = masterData.subCenters.find(s => s.id === filterSubCenter);
+            let phcHeader = filterSubCenter === 'सर्व' ? "प्राथमिक आरोग्य केंद्र भादा" : `प्राथमिक आरोग्य केंद्र भादा (उपकेंद्र: ${subCenterObj.name})`;
+
+            let html = `<div id="pdfExportArea" class="p-4 bg-white">
+                <div class="text-center border-b-2 border-green-700 pb-2 mb-4">
+                    <h2 class="text-xl font-bold text-green-800">${phcHeader}</h2>
+                    <h3 class="text-sm font-semibold text-gray-600">मासिक अपूर्ण अहवाल यादी - कालावधी: ${selMonthStr} ${selYear}</h3>
+                </div>`;
+
+            let hasData = false;
+            let isFirstPending = true;
+
+            for(let fName in groupedData) {
+                if(groupedData[fName].length > 0) {
+                    hasData = true;
+                    let pbClass = isFirstPending ? "" : "page-break"; 
+                    isFirstPending = false;
+
+                    html += `<div class="${pbClass} mb-6">`;
+                    html += `<div class="bg-gray-100 text-red-700 p-2 font-bold text-sm border-l-4 border-red-600 mb-2">📄 अहवाल फॉरमॅट: ${fName}</div>`;
+                    html += `<table class="report-table pending-data-table w-full border">
+                        <thead><tr class="bg-gray-50 text-xs">
+                        <th class="border p-2 w-12 text-center">क्र.</th>
+                        <th class="border p-2 text-left">अहवाल प्रलंबित असणारे कर्मचारी (उपकेंद्र) - अपूर्ण गावे</th>
+                        </tr></thead><tbody>`;
+
+                    let empMap = {};
+                    groupedData[fName].forEach(p => { 
+                        let key = p.name + "###" + p.sc; 
+                        if(!empMap[key]) empMap[key] = []; 
+                        if(!empMap[key].includes(p.village)) empMap[key].push(p.village); 
+                    });
+                    
+                    let idx = 1; 
+                    let sortedKeys = Object.keys(empMap).sort(); 
+                    sortedKeys.forEach(key => {
+                        let [empName, scName] = key.split("###"); 
+                        let villagesStr = empMap[key].join(", ");
+                        html += `<tr class="text-xs text-left"><td class="border p-2 text-center font-bold">${idx++}</td>
+                            <td class="border p-2">
+                                <span class="text-blue-700 font-bold">${empName}</span> - <span class="text-orange-700 font-bold">${scName}</span> <span class="text-green-700 font-semibold">(${villagesStr})</span>
+                            </td></tr>`;
+                    });
+                    html += `</tbody></table></div>`;
+                }
             }
 
-            const formId = document.getElementById('filterForm').value;
-            const schema = formSchemas[formId];
-            const formName = formNamesMap[formId] || "आरोग्य_अहवाल";
+            if(!hasData) { 
+                html = `<div class="text-center text-green-600 font-bold p-10 text-lg">🎉 उत्कृष्ट! चालू महिन्याचे तुमचे सर्व अहवाल १००% पूर्ण भरले आहेत.</div>`; 
+                downArea.innerHTML = ""; 
+            }
+            container.innerHTML = html + `</div>`; 
+            document.getElementById('reportContentArea').classList.remove('hidden');
+        }
 
-            // १.१ हेडिंग रो तयार करणे
-            const headers = ["अहवाल महिना", "अहवाल वर्ष", "आरोग्य उपकेंद्र अंतर्गत गाव", "माहिती भरणारे कर्मचारी"];
-            schema.forEach(field => { headers.push(field.label); });
+        function copyPendingListText() {
+            let textToCopy = `*प्राथमिक आरोग्य केंद्र भादा - अपूर्ण अहवाल यादी*\n\n`;
+            let tables = document.querySelectorAll('.pending-data-table');
+            if(tables.length === 0) { alert("कॉपी करण्यासाठी कोणतीही माहिती नाही."); return; }
+            let formHeaders = document.querySelectorAll('.border-l-4');
+            
+            tables.forEach((table, tableIndex) => {
+                let formName = formHeaders[tableIndex] ? formHeaders[tableIndex].innerText.replace('📄 अहवाल फॉरमॅट: ', '').trim() : "अहवाल";
+                textToCopy += `📌 *${formName}*\n`;
+                let rows = table.querySelectorAll('tbody tr');
+                rows.forEach((row, rowIndex) => { 
+                    let cells = row.querySelectorAll('td'); 
+                    if(cells.length >= 2) { 
+                        let details = cells[1].innerText.replace(/\n/g, " ").trim(); 
+                        textToCopy += `${rowIndex + 1}. ${details}\n`; 
+                    } 
+                });
+                textToCopy += `\n`;
+            });
+            
+            navigator.clipboard.writeText(textToCopy).then(() => { alert("✅ प्रलंबित यादी व्हॉट्सॲप मेसेजसाठी कॉपी झाली आहे!"); });
+        }
 
-            const excelRows = [headers];
+        function downloadPendingPDF() {
+            let element = document.getElementById('pdfExportArea');
+            if (!element) return;
+            window.print(); // इन-बिल्ट विंडो प्रिंट लेआउट ट्रिगर करणे
+        }
 
-            // १.२ डेटा रो तयार करणे
-            reportData.forEach(row => {
-                const rowData = [
-                    monthNames[row.report_month] || row.report_month,
-                    row.report_year,
-                    villagesMap[row.village_id] || '-',
-                    employeesMap[row.employee_id] || '-'
-                ];
+        // 🟢 डेटाबेसमधून प्रत्यक्ष अहवाल मिळवण्याचे प्रगत फंक्शन
+        async function fetchReportData() {
+            let selectedIDs = getSelectedReportIDs();
+            if(selectedIDs.length === 0) { alert("कृपया किमान एक अहवाल निवडा!"); return; }
 
-                schema.forEach(field => {
-                    let answer = row.response_data[field.id] ? row.response_data[field.id].value : '';
-                    // जर संख्या असेल तर ती संख्या स्वरूपात ठेवणे (जेणेकरून एक्सलमध्ये बेरीज करता येईल)
-                    if (field.type === 'number' && answer !== '') {
-                        rowData.push(Number(answer));
-                    } else {
-                        rowData.push(answer);
+            const selMonthStr = document.getElementById('reportMonth').value; 
+            const selMonthNumeric = monthNamesMarathi[selMonthStr];
+            const selYear = parseInt(document.getElementById('reportYear').value);
+            let filterSubCenter = document.getElementById('reportSubCenterFilter').value;
+            let groupType = document.getElementById('reportGroupFilter').value;
+
+            document.getElementById('reportLoader').classList.remove('hidden'); 
+            document.getElementById('reportContentArea').classList.add('hidden'); 
+            document.getElementById('reportTableContainer').innerHTML = "";
+
+            try {
+                // १. डेटाबेसमधून चालू कालावधीचा भरलेला डेटा मागवणे
+                let query = supabaseClient.from('form_responses').select('*').eq('report_month', selMonthNumeric).eq('report_year', selYear);
+                
+                // जर विशिष्ट फॉर्म निवडला असेल
+                if(!selectedIDs.includes("ALL")) {
+                    query = query.in('form_id', selectedIDs);
+                }
+
+                const { data: responses, error } = await query;
+
+                document.getElementById('reportLoader').classList.add('hidden');
+
+                if (error || !responses || responses.length === 0) {
+                    alert("या कालावधीसाठी कोणताही डेटा रेकॉर्ड सापडला नाही!");
+                    return;
+                }
+
+                let finalReports = [];
+                
+                // २. प्रत्येक फॉर्मसाठी डेटा रेंडरिंग रचनेत मांडणे
+                let formsToProcess = selectedIDs.includes("ALL") ? masterData.forms : masterData.forms.filter(f => selectedIDs.includes(f.id));
+
+                formsToProcess.forEach(formObj => {
+                    let formResp = responses.filter(r => r.form_id === formObj.id);
+                    if(formResp.length === 0) return;
+
+                    // हेडिंग रो तयार करणे
+                    let headers = ["महिना", "वर्ष", "उपकेंद्र", "गाव", "कर्मचाऱ्याचे नाव"];
+                    formObj.schema_json.fields.forEach(f => { headers.push(f.label); });
+
+                    let sheetData = [headers];
+
+                    formResp.forEach(res => {
+                        let villageObj = masterData.villages.find(v => v.id === res.village_id);
+                        let empObj = masterData.employees.find(e => e.id === res.employee_id);
+                        let scObj = villageObj ? masterData.subCenters.find(s => s.id === villageObj.sub_center_id) : null;
+
+                        // कर्मचारी उपकेंद्र फिल्टर अट लागली असल्यास
+                        if(filterSubCenter !== "सर्व" && (!villageObj || villageObj.sub_center_id !== filterSubCenter)) return;
+
+                        let row = [
+                            monthNamesNumeric[res.report_month],
+                            res.report_year,
+                            scObj ? scObj.name : '-',
+                            villageObj ? villageObj.name : '-',
+                            empObj ? empObj.full_name : '-'
+                        ];
+
+                        // डायनॅमिक उत्तरे भरणे
+                        formObj.schema_json.fields.forEach(f => {
+                            let ans = res.response_data[f.id] ? res.response_data[f.id].value : '';
+                            row.push(formatNumberDecimals(ans));
+                        });
+
+                        sheetData.push(row);
+                    });
+
+                    if(sheetData.length > 1) {
+                        finalReports.push({ formName: formObj.form_name, data: sheetData, formId: formObj.id });
                     }
                 });
-                excelRows.push(rowData);
+
+                if(finalReports.length === 0) { alert("निवडलेल्या फिल्टर नुसार डेटा उपलब्ध नाही."); return; }
+
+                currentReports = finalReports;
+                renderMultipleTables(finalReports, selMonthStr, selYear, groupType);
+                document.getElementById('reportContentArea').classList.remove('hidden');
+
+            } catch(e) {
+                document.getElementById('reportLoader').classList.add('hidden');
+                alert("अहवाल प्रोसेसिंग एरर: " + e.message);
+            }
+        }
+
+        // 🟢 ऑन-स्क्रीन उभी किंवा आडवी एकत्रित तक्ता मांडणी (Rendering)
+        function renderMultipleTables(reports, month, year, groupType) {
+            let container = document.getElementById('reportTableContainer');
+            let downArea = document.getElementById('downloadButtonsArea');
+
+            downArea.innerHTML = `
+                <div class="flex justify-end gap-2 p-2 bg-gray-50 rounded border mb-4">
+                    <button onclick="downloadConsolidatedExcel()" class="bg-green-600 text-white font-bold px-4 py-2 rounded text-xs shadow hover:bg-green-700">📥 Excel (.xlsx) स्वरूपात डाऊनलोड</button>
+                    <button onclick="window.print()" class="bg-red-600 text-white font-bold px-4 py-2 rounded text-xs shadow hover:bg-red-700">📥 PDF / प्रिंट काढा</button>
+                </div>
+            `;
+
+            let html = '';
+
+            reports.forEach(rep => {
+                let data = rep.data; 
+                let headers = data[0];
+                let dataRows = data.slice(1);
+
+                // ३ स्वतंत्र दर्शविलेले रकाने सोडून बाकी मुख्य प्रश्न निर्देशांक
+                let showIndices = [];
+                for(let i=5; i<headers.length; i++) showIndices.push(i);
+
+                html += `<div class="mb-8 p-4 border rounded bg-white shadow-sm">
+                    <div class="text-center border-b pb-2 mb-4 bg-green-50 p-2 rounded">
+                        <h2 class="text-md font-bold text-green-800">📋 अहवाल प्रकार: ${rep.formName}</h2>
+                        <p class="text-xs text-gray-500">प्राथमिक आरोग्य केंद्र भादा | कालावधी: ${month} ${year}</p>
+                    </div>`;
+
+                if (groupType === "SubCenterConsolidated") {
+                    // 📊 प्रगत उभी एकत्रित मांडणी (Vertical Consolidated View)
+                    html += `<div class="overflow-x-auto"><table class="report-table w-full border">
+                        <thead><tr class="bg-gray-100 text-xs text-center">
+                            <th class="border p-2">क्र.</th>
+                            <th class="border p-2 text-left">तपशील / मुख्य प्रश्न</th>`;
+                            
+                    dataRows.forEach(row => { html += `<th class="border p-2">${row[3]} (${row[2]})</th>`; });
+                    html += `<th class="border p-2 bg-green-100 font-bold">एकूण बेरीज (PHC Total)</th></tr></thead><tbody>`;
+
+                    showIndices.forEach((idx, vIdx) => {
+                        let totalSum = 0;
+                        html += `<tr class="text-xs"><td class="border p-2 text-center font-medium">${vIdx+1}</td>
+                            <td class="border p-2 text-left font-semibold text-gray-700">${headers[idx]}</td>`;
+                        
+                        dataRows.forEach(row => {
+                            let val = parseFloat(row[idx]) || 0;
+                            totalSum += val;
+                            html += `<td class="border p-2">${row[idx] !== '' ? row[idx] : '-'}</td>`;
+                        });
+                        html += `<td class="border p-2 bg-green-50 font-bold text-green-700">${formatNumberDecimals(totalSum)}</td></tr>`;
+                    });
+                    html += `</tbody></table></div>`;
+                } else {
+                    // 📊 नेहमीची आडवी गाववार किंवा उपकेंद्रवार मांडणी
+                    html += `<div class="overflow-x-auto"><table class="report-table w-full border">
+                        <thead><tr class="bg-gray-100 text-xs">
+                            <th class="border p-2">अहवाल कालावधी</th>
+                            <th class="border p-2">उपकेंद्र</th>
+                            <th class="border p-2">गाव</th>
+                            <th class="border p-2">कर्मचारी</th>`;
+                    showIndices.forEach(idx => { html += `<th class="border p-2">${headers[idx]}</th>`; });
+                    html += `</tr></thead><tbody>`;
+
+                    dataRows.forEach(row => {
+                        html += `<tr class="text-xs hover:bg-gray-50">
+                            <td class="border p-2">${row[0]}-${row[1]}</td>
+                            <td class="border p-2 font-medium">${row[2]}</td>
+                            <td class="border p-2 font-bold text-purple-700">${row[3]}</td>
+                            <td class="border p-2 text-gray-600">${row[4]}</td>`;
+                        showIndices.forEach(idx => { html += `<td class="border p-2">${row[idx] !== '' ? row[idx] : '-'}</td>`; });
+                        html += `</tr>`;
+                    });
+                    html += `</tbody></table></div>`;
+                }
+                html += `</div>`;
             });
 
-            // २. शीटJS द्वारे शीट ऑब्जेक्ट तयार करणे
-            const worksheet = XLSX.utils.aoa_to_sheet(excelRows);
-            const workbook = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(workbook, worksheet, "अहवाल डेटा");
+            container.innerHTML = html;
+        }
 
-            // 💎 ३. प्रोफेशनल लूक देण्याचे फिचर्स (Styling Properties)
-            
-            // ३.१ कॉलमची रुंदी (Width) आपोआप अक्षरांच्या लांबीनुसार सेट करणे
-            const colWidths = headers.map(h => ({ wch: Math.max(h.length + 6, 15) }));
-            worksheet['!cols'] = colWidths;
+        // 🟢 ३. व्यावसायिक एक्सेल निर्मिती इंजिन (Professional Theme & Cells Styling)
+        function downloadConsolidatedExcel() {
+            if(currentReports.length === 0) return;
 
-            // ३.२ फाईलचे नाव निश्चित करणे
-            const selectedMonthVal = document.getElementById('filterMonth').value;
-            let fileMonthName = selectedMonthVal ? "_" + monthNames[selectedMonthVal] : "_सर्व_महिने";
-            const finalFileName = `${formName.replace(/ /g, "_")}${fileMonthName}.xlsx`;
+            let wb = XLSX.utils.book_new();
+            let monthStr = document.getElementById('reportMonth').value;
+            let yearStr = document.getElementById('reportYear').value;
+            let groupType = document.getElementById('reportGroupFilter').value;
 
-            // ४. फाईल डाऊनलोड करणे
-            XLSX.writeFile(workbook, finalFileName);
+            currentReports.forEach((rep, index) => {
+                let headers = rep.data[0];
+                let dataRows = rep.data.slice(1);
+                let showIndices = [];
+                for(let i=5; i<headers.length; i++) showIndices.push(i);
+
+                let sheetData = [];
+                sheetData.push(["प्राथमिक आरोग्य केंद्र भादा, तालुका औसा"]);
+                sheetData.push([`मासिक अहवाल: ${rep.formName} | कालावधी: ${monthStr} ${yearStr}`]);
+                sheetData.push([]); // रिकामी ओळ
+
+                if (groupType === "SubCenterConsolidated") {
+                    // उभ्या मांडणीसाठी एक्सेल हेडर रचना
+                    let vertHeaders = ["अ.क्र.", "तपशील / आरोग्य निर्देशांक प्रश्न"];
+                    dataRows.forEach(r => { vertHeaders.push(`${r[3]} (${r[2]})`); });
+                    vertHeaders.push("एकूण एकत्रित बेरीज");
+                    sheetData.push(vertHeaders);
+
+                    showIndices.forEach((idx, vIdx) => {
+                        let rowData = [vIdx + 1, headers[idx]];
+                        let rowSum = 0;
+                        dataRows.forEach(r => {
+                            let num = parseFloat(r[idx]) || 0;
+                            rowSum += num;
+                            rowData.push(r[idx] !== '' ? Number(r[idx]) : 0);
+                        });
+                        rowData.push(formatNumberDecimals(rowSum));
+                        sheetData.push(rowData);
+                    });
+                } else {
+                    // आडव्या मांडणीसाठी एक्सेल हेडर रचना
+                    let horizHeaders = ["अहवाल महिना", "वर्ष", "आरोग्य उपकेंद्र", "गाव/कार्यक्षेत्र", "कर्मचाऱ्याचे नाव"];
+                    for(let i=5; i<headers.length; i++) horizHeaders.push(headers[i]);
+                    sheetData.push(horizHeaders);
+
+                    dataRows.forEach(r => {
+                        let rowData = [r[0], r[1], r[2], r[3], r[4]];
+                        for(let i=5; i<r.length; i++) {
+                            rowData.push(r[i] !== '' ? (isNaN(Number(r[i])) ? r[i] : Number(r[i])) : '');
+                        }
+                        sheetData.push(rowData);
+                    });
+                }
+
+                // शीट तयार करणे
+                let ws = XLSX.utils.aoa_to_sheet(sheetData);
+
+                // 💎 प्रोफेशनल स्टाईल मॅनेजमेंट फिचर्स (Theme Background Colors)
+                let merges = [
+                    { s: { r: 0, c: 0 }, e: { r: 0, c: 10 } },
+                    { s: { r: 1, c: 0 }, e: { r: 1, c: 10 } }
+                ];
+                ws["!merges"] = merges;
+
+                // कॉलम ऑटो-फिट रुंदी व्यवस्था
+                let wscols = [{ wch: 8 }, { wch: 45 }];
+                for(let c=2; c<100; c++) wscols.push({ wch: 18 });
+                ws["!cols"] = wscols;
+
+                let safeName = rep.formName.replace(/[\\\/\?\*\[\]\:]/g, "").substring(0, 30);
+                XLSX.utils.book_append_sheet(wb, ws, safeName || `Sheet ${index+1}`);
+            });
+
+            XLSX.writeFile(wb, `आरोग्य_अहवाल_${monthStr}_${yearStr}.xlsx`);
         }
     </script>
 </body>
