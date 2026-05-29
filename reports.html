@@ -6,8 +6,7 @@
     <title>प्रगत अहवाल केंद्र - स्मार्ट बेरीज प्रणाली</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <!-- Excel प्रगत स्टाईल लायब्ररी -->
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
     <style>
         :root { --primary: #00705a; }
         .report-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; table-layout: auto; }
@@ -433,7 +432,6 @@
                     let l2Row = `<tr>`; let l3Row = rep.isProg ? `<tr>` : ``;
 
                     rows.forEach((r) => {
-                        // 🟢 FIXED: गावाचे नाव आणि कंसामध्ये उपकेंद्राचे नाव 
                         let vName = r.village ? `${r.village} <br/><span class="text-[10px] text-gray-500">(${r.subcenter})</span>` : "-";
                         l1Row += `<th colspan="${rep.isProg ? 2 : 1}" class="border p-2 bg-purple-100">${vName}</th>`;
                         if (rep.isProg) { l2Row += `<th class="border p-1 bg-yellow-50 text-[10px]">मासिक</th><th class="border p-1 bg-orange-50 text-[10px]">प्रगत</th>`; }
@@ -661,7 +659,6 @@
 
                     let ccIdx = 2;
                     rows.forEach(r => {
-                        // 🟢 FIXED IN EXCEL: गावाचे नाव आणि उपकेंद्राचे नाव ब्रॅकेटमध्ये
                         let vName = r.village ? `${r.village} (${r.subcenter})` : "-";
                         r1.push(vName); if(rep.isProg) r1.push("");
                         if(rep.isProg) { merges.push({ s: { r: 3, c: ccIdx }, e: { r: 3, c: ccIdx + 1 } }); r2.push("मासिक"); r2.push("प्रगत"); ccIdx += 2; } else { ccIdx += 1; }
@@ -934,16 +931,17 @@
                     merges.push({ s: { r: pRowIdx, c: 0 }, e: { r: pRowIdx, c: 1 } });
                 }
 
+                // 💎 एक्सेल सेल स्टायलिंग
                 let ws = XLSX.utils.aoa_to_sheet(sheetData); ws["!merges"] = merges;
                 let finalColLimit = sheetData[3] ? sheetData[3].length : 60;
                 
                 for(let R=0; R<sheetData.length; R++) {
                     for(let C=0; C<finalColLimit; C++) { 
-                        let cellRef = XLSX.utils.encode_cell({r: R, c: C}); if(!ws[cellRef]) continue;
-                        let style = { font: { name: "Arial", sz: 10 }, alignment: { vertical: "center", horizontal: "center", wrapText: true }, border: { top:{style:"thin",color:{rgb:"000"}}, bottom:{style:"thin",color:{rgb:"000"}}, left:{style:"thin",color:{rgb:"000"}}, right:{style:"thin",color:{rgb:"000"}} } };
+                        let cellRef = XLSX.utils.encode_cell({r: R, c: C}); if(!ws[cellRef]) ws[cellRef] = { t: "s", v: "" }; 
+                        let style = { font: { name: "Arial", sz: 10 }, alignment: { vertical: "center", horizontal: "center", wrapText: true }, border: { top:{style:"thin",color:{rgb:"000000"}}, bottom:{style:"thin",color:{rgb:"000000"}}, left:{style:"thin",color:{rgb:"000000"}}, right:{style:"thin",color:{rgb:"000000"}} } };
                         
                         if(masterHeaderRows.includes(R)) { 
-                            style.fill = { fgColor: { rgb: "00705A" } }; style.font = { sz: 12, bold: true, color: { rgb: "FFF" } }; style.alignment.horizontal = "left"; 
+                            style.fill = { fgColor: { rgb: "00705A" } }; style.font = { sz: 12, bold: true, color: { rgb: "FFFFFF" } }; style.alignment.horizontal = "left"; 
                         } else if(subTitleHeaderRows.includes(R)) {
                             let idxInGroup = subTitleHeaderRows.indexOf(R) % (rep.isProg?4:3);
                             if(idxInGroup === 0) style.fill = { fgColor: { rgb: "E1BEE7" } }; 
