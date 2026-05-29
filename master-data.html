@@ -9,140 +9,188 @@
 </head>
 <body class="bg-gray-100 p-6 min-h-screen">
 
-    <!-- Header -->
-    <div class="max-w-4xl mx-auto bg-white p-4 rounded-lg shadow-md flex justify-between items-center mb-6">
+    <div class="max-w-6xl mx-auto bg-white p-4 rounded-lg shadow-md flex justify-between items-center mb-6">
         <h1 class="text-xl font-bold text-blue-600">मास्टर डेटा मॅनेजमेंट</h1>
         <button onclick="window.location.href='dashboard.html'" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition">डॅशबोर्डवर परत जा</button>
     </div>
 
-    <div class="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6">
-
-        <!-- उपकेंद्र जोडणे -->
+    <div class="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        
         <div class="bg-white p-6 rounded-lg shadow-md border-t-4 border-blue-500">
-            <h2 class="text-lg font-bold mb-4 text-gray-700">१. नवीन उपकेंद्र जोडा</h2>
-            <input type="text" id="scName" placeholder="उपकेंद्राचे नाव" class="w-full p-2 border rounded mb-4">
-            <button onclick="addSubCenter()" class="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600">उपकेंद्र सेव्ह करा</button>
+            <h2 class="text-lg font-bold mb-4 text-gray-700">नवीन आरोग्य उपकेंद्र जोडा</h2>
+            <div class="mb-4">
+                <label class="block text-gray-600 text-sm mb-1">उपकेंद्राचे नाव</label>
+                <input type="text" id="subCenterName" class="w-full p-2 border rounded" placeholder="उदा. उपकेंद्र खडगाव">
+            </div>
+            <button onclick="saveSubCenter()" class="w-full bg-blue-500 text-white p-2 rounded font-bold hover:bg-blue-600">उपकेंद्र सेव्ह करा</button>
         </div>
 
-        <!-- गाव जोडणे -->
         <div class="bg-white p-6 rounded-lg shadow-md border-t-4 border-green-500">
-            <h2 class="text-lg font-bold mb-4 text-gray-700">२. नवीन गाव जोडा</h2>
-            <input type="text" id="vName" placeholder="गावाचे नाव" class="w-full p-2 border rounded mb-2">
-            <select id="vScSelect" class="w-full p-2 border rounded mb-4 bg-white">
-                <option value="">-- उपकेंद्र निवडा --</option>
-            </select>
-            <button onclick="addVillage()" class="w-full bg-green-500 text-white p-2 rounded hover:bg-green-600">गाव सेव्ह करा</button>
-        </div>
-
-        <!-- कर्मचारी जोडणे -->
-        <div class="bg-white p-6 rounded-lg shadow-md border-t-4 border-purple-500 md:col-span-2">
-            <h2 class="text-lg font-bold mb-4 text-gray-700">३. नवीन कर्मचारी (User) जोडा</h2>
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-                <input type="text" id="empName" placeholder="कर्मचाऱ्याचे पूर्ण नाव" class="p-2 border rounded w-full">
-                <input type="number" id="empMobile" placeholder="१० अंकी मोबाईल नंबर" class="p-2 border rounded w-full" onkeypress="if(this.value.length==10) return false;">
-                <select id="empRole" class="p-2 border rounded w-full bg-white">
-                    <option value="user">User (कर्मचारी)</option>
-                    <option value="admin">Admin (एडमिन)</option>
-                </select>
-                <select id="empScSelect" class="p-2 border rounded w-full bg-white">
-                    <option value="">-- उपकेंद्र निवडा (पर्यायी) --</option>
+            <h2 class="text-lg font-bold mb-4 text-gray-700">नवीन गाव जोडा</h2>
+            <div class="mb-3">
+                <label class="block text-gray-600 text-sm mb-1">उपकेंद्र निवडा</label>
+                <select id="subCenterSelect" class="w-full p-2 border rounded bg-white">
+                    <option value="">-- उपकेंद्र निवडा --</option>
                 </select>
             </div>
-            <button onclick="addEmployee()" class="w-full bg-purple-500 text-white p-2 rounded hover:bg-purple-600">कर्मचारी सेव्ह करा</button>
+            <div class="mb-3">
+                <label class="block text-gray-600 text-sm mb-1">गावाचे नाव</label>
+                <input type="text" id="villageName" class="w-full p-2 border rounded" placeholder="उदा. मौजे धानोरा">
+            </div>
+            <div class="grid grid-cols-2 gap-2 mb-4">
+                <div>
+                    <label class="block text-gray-600 text-sm mb-1">एकूण लोकसंख्या</label>
+                    <input type="number" id="villagePopulation" class="w-full p-2 border rounded" placeholder="उदा. 1500" value="0">
+                </div>
+                <div>
+                    <label class="block text-gray-600 text-sm mb-1">एकूण घरांची संख्या</label>
+                    <input type="number" id="villageHouses" class="w-full p-2 border rounded" placeholder="उदा. 350" value="0">
+                </div>
+            </div>
+            <button onclick="saveVillage()" class="w-full bg-green-500 text-white p-2 rounded font-bold hover:bg-green-600">गाव सेव्ह करा</button>
+        </div>
+
+    </div>
+
+    <div class="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6">
+        
+        <div class="bg-white p-6 rounded-lg shadow-md border-t-2 border-blue-400">
+            <h3 class="font-bold text-gray-700 mb-3 italic">सर्व नोंदणीकृत उपकेंद्रे</h3>
+            <div class="overflow-y-auto max-h-60 border rounded">
+                <table class="w-full text-left border-collapse text-sm">
+                    <thead>
+                        <tr class="bg-gray-100 text-gray-600 font-bold"><th class="p-2 border">उपकेंद्राचे नाव</th></tr>
+                    </thead>
+                    <tbody id="subCentersTableBody">
+                        <tr><td class="p-3 text-center text-gray-400">लोड होत आहे...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-lg shadow-md border-t-2 border-green-400">
+            <h3 class="font-bold text-gray-700 mb-3 italic">सर्व नोंदणीकृत गावे</h3>
+            <div class="overflow-y-auto max-h-60 border rounded">
+                <table class="w-full text-left border-collapse text-sm">
+                    <thead>
+                        <tr class="bg-gray-100 text-gray-600 font-bold">
+                            <th class="p-2 border">गावाचे नाव</th>
+                            <th class="p-2 border">लोकसंख्या</th>
+                            <th class="p-2 border">घरे</th>
+                        </tr>
+                    </thead>
+                    <tbody id="villagesTableBody">
+                        <tr><td colspan="3" class="p-3 text-center text-gray-400">लोड होत आहे...</td></tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
 
     </div>
 
     <script>
-        // Supabase जोडणी
         const SUPABASE_URL = 'https://qbmjsfiievcautxybaai.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_sdgZ9G8ko4H_3Mh9RouYFg_JOQ-4Mdx'; 
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        // पेज लोड झाल्यावर ऑथेंटिकेशन आणि डेटा लोड करणे
-        window.onload = function() {
-            const userDataString = localStorage.getItem('loggedInUser');
-            if (!userDataString) {
-                window.location.href = "index.html";
-                return;
-            }
-            const user = JSON.parse(userDataString);
-            
-            // फक्त एडमिनला परवानगी
-            if (user.role !== 'admin') {
-                alert("तुम्हाला या पानावर जाण्याची परवानगी नाही!");
-                window.location.href = "dashboard.html";
-                return;
-            }
+        window.onload = async function() {
+            const user = JSON.parse(localStorage.getItem('loggedInUser') || '{}');
+            if (user.role !== 'admin') { window.location.href = "index.html"; return; }
 
-            // ड्रॉपडाऊनसाठी उपकेंद्रांची यादी लोड करणे
-            loadSubCenters();
+            // डॅशबोर्ड लोड झाल्यावर सर्व डेटा एकत्र आणणे
+            await refreshData();
         };
 
-        // उपकेंद्रांची यादी डेटाबेसमधून आणणे
-        async function loadSubCenters() {
-            const { data, error } = await supabaseClient.from('sub_centers').select('id, name');
-            if (!error && data) {
-                let options = '<option value="">-- उपकेंद्र निवडा --</option>';
-                data.forEach(sc => {
-                    options += `<option value="${sc.id}">${sc.name}</option>`;
-                });
-                document.getElementById('vScSelect').innerHTML = options;
-                document.getElementById('empScSelect').innerHTML = options;
-            }
+        async function refreshData() {
+            await loadSubCenters();
+            await loadVillagesList();
         }
 
-        // १. नवीन उपकेंद्र डेटाबेसमध्ये टाकणे
-        async function addSubCenter() {
-            const name = document.getElementById('scName').value;
+        // १. उपकेंद्रे लोड करणे (ड्रॉपडाऊन आणि टेबल दोन्हीमध्ये)
+        async function loadSubCenters() {
+            const { data, error } = await supabaseClient.from('sub_centers').select('*').order('name', { ascending: true });
+            
+            const select = document.getElementById('subCenterSelect');
+            const tableBody = document.getElementById('subCentersTableBody');
+            
+            if (error || !data) { return; }
+
+            // ड्रॉपडाऊन भरा
+            let options = '<option value="">-- उपकेंद्र निवडा --</option>';
+            data.forEach(sc => { options += `<option value="${sc.id}">${sc.name}</option>`; });
+            select.innerHTML = options;
+
+            // टेबल भरा
+            let tableHTML = '';
+            if(data.length === 0) {
+                tableHTML = '<tr><td class="p-3 text-center text-gray-400">कोणतेही उपकेंद्र जोडलेले नाही.</td></tr>';
+            } else {
+                data.forEach(sc => { tableHTML += `<tr class="hover:bg-gray-50"><td class="p-2 border font-medium">${sc.name}</td></tr>`; });
+            }
+            tableBody.innerHTML = tableHTML;
+        }
+
+        // २. गावांची सुधारित यादी लोड करणे (लोकसंख्या आणि घरांसह)
+        async function loadVillagesList() {
+            const { data, error } = await supabaseClient.from('villages').select('*').order('name', { ascending: true });
+            const tableBody = document.getElementById('villagesTableBody');
+
+            if (error || !data) { return; }
+
+            let tableHTML = '';
+            if(data.length === 0) {
+                tableHTML = '<tr><td colspan="3" class="p-3 text-center text-gray-400">कोणतेही गाव जोडलेले नाही.</td></tr>';
+            } else {
+                data.forEach(v => {
+                    tableHTML += `
+                        <tr class="hover:bg-gray-50">
+                            <td class="p-2 border font-medium">${v.name}</td>
+                            <td class="p-2 border text-blue-600 font-bold">${v.population || 0}</td>
+                            <td class="p-2 border text-purple-600 font-bold">${v.total_houses || 0}</td>
+                        </tr>`;
+                });
+            }
+            tableBody.innerHTML = tableHTML;
+        }
+
+        // ३. उपकेंद्र सेव्ह करणे
+        async function saveSubCenter() {
+            const name = document.getElementById('subCenterName').value.trim();
             if(!name) return alert("कृपया उपकेंद्राचे नाव टाका!");
 
             const { error } = await supabaseClient.from('sub_centers').insert([{ name: name }]);
-            if (error) alert("एरर: " + error.message);
+            if(error) alert("एरर: " + error.message);
             else {
-                alert("उपकेंद्र यशस्वीरीत्या जोडले!");
-                document.getElementById('scName').value = '';
-                loadSubCenters(); // यादी अपडेट करणे
+                alert("उपकेंद्र यशस्वीरीत्या जोडले गेले!");
+                document.getElementById('subCenterName').value = '';
+                await refreshData();
             }
         }
 
-        // २. नवीन गाव डेटाबेसमध्ये टाकणे
-        async function addVillage() {
-            const name = document.getElementById('vName').value;
-            const scId = document.getElementById('vScSelect').value;
-            if(!name || !scId) return alert("कृपया गावाची सर्व माहिती भरा!");
+        // ४. गाव सेव्ह करणे (नवीन कॉलम्ससह)
+        async function saveVillage() {
+            const subCenterId = document.getElementById('subCenterSelect').value;
+            const name = document.getElementById('villageName').value.trim();
+            const pop = parseInt(document.getElementById('villagePopulation').value) || 0;
+            const houses = parseInt(document.getElementById('villageHouses').value) || 0;
 
-            const { error } = await supabaseClient.from('villages').insert([{ name: name, sub_center_id: scId }]);
-            if (error) alert("एरर: " + error.message);
-            else {
-                alert("गाव यशस्वीरीत्या जोडले!");
-                document.getElementById('vName').value = '';
-            }
-        }
+            if(!subCenterId) return alert("कृपया उपकेंद्र निवडा!");
+            if(!name) return alert("कृपया गावाचे नाव टाका!");
 
-        // ३. नवीन कर्मचारी डेटाबेसमध्ये टाकणे
-        async function addEmployee() {
-            const name = document.getElementById('empName').value;
-            const mobile = document.getElementById('empMobile').value;
-            const role = document.getElementById('empRole').value;
-            const scId = document.getElementById('empScSelect').value || null;
-
-            if(!name || mobile.length !== 10) return alert("कृपया योग्य नाव आणि १० अंकी मोबाईल नंबर टाका!");
-
-            const { error } = await supabaseClient.from('employees').insert([{ 
-                full_name: name, 
-                mobile_number: mobile, 
-                role: role, 
-                sub_center_id: scId 
+            const { error } = await supabaseClient.from('villages').insert([{
+                sub_center_id: subCenterId,
+                name: name,
+                population: pop,
+                total_houses: houses
             }]);
-            
-            if (error) {
-                if(error.code === '23505') alert("हा मोबाईल नंबर आधीच सिस्टीममध्ये नोंदणीकृत आहे!");
-                else alert("एरर: " + error.message);
-            } else {
-                alert("कर्मचारी यशस्वीरीत्या जोडला!");
-                document.getElementById('empName').value = '';
-                document.getElementById('empMobile').value = '';
+
+            if(error) alert("एरर: " + error.message);
+            else {
+                alert("गाव यशस्वीरीत्या जोडले गेले!");
+                document.getElementById('villageName').value = '';
+                document.getElementById('villagePopulation').value = '0';
+                document.getElementById('villageHouses').value = '0';
+                await refreshData();
             }
         }
     </script>
