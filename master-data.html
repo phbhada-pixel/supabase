@@ -8,11 +8,11 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         .tab-btn.active { border-bottom: 4px solid #2563eb; color: #1d4ed8; font-weight: bold; background-color: #eff6ff; }
-        .expand-transition { transition: max-height 0.3s ease-in-out; }
     </style>
 </head>
 <body class="bg-gray-100 p-2 md:p-6 min-h-screen">
 
+    <!-- Header -->
     <div class="max-w-7xl mx-auto bg-white p-4 rounded-lg shadow-md flex justify-between items-center mb-6">
         <div>
             <h1 class="text-xl font-bold text-blue-700">⚙️ मास्टर डेटा मॅनेजमेंट</h1>
@@ -21,6 +21,7 @@
         <button onclick="window.location.href='dashboard.html'" class="bg-gray-600 text-white px-4 py-2 rounded font-bold shadow hover:bg-gray-700 transition text-sm">डॅशबोर्डवर परत जा</button>
     </div>
 
+    <!-- OTP मॉड्यूलर बॉक्स -->
     <div id="otpModal" class="fixed inset-0 bg-gray-600 bg-opacity-70 flex items-center justify-center hidden z-50">
         <div class="bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full mx-4 border-t-8 border-red-500">
             <h3 class="text-lg font-bold text-red-600 mb-2 text-center">सुरक्षा पडताळणी (OTP)</h3>
@@ -35,6 +36,7 @@
 
     <div class="max-w-7xl mx-auto bg-white rounded-lg shadow-md overflow-hidden mb-8">
         
+        <!-- Tabs Navigation -->
         <div class="flex flex-wrap border-b bg-gray-50 text-sm md:text-base">
             <button id="tabBtnPHC" onclick="switchTab('phcTab')" class="tab-btn hidden flex-1 py-3 px-2 md:px-4 text-gray-600 font-medium hover:bg-gray-100 transition">🏥 PHC व ॲडमिन</button>
             <button id="tabBtnSubCenter" onclick="switchTab('subCenterTab')" class="tab-btn active flex-1 py-3 px-2 md:px-4 text-gray-600 font-medium hover:bg-gray-100 transition">🏢 उपकेंद्रे</button>
@@ -44,8 +46,10 @@
 
         <div class="p-4 md:p-6">
             
+            <!-- १. PHC आणि PHC ॲडमिन टॅब -->
             <div id="phcTab" class="tab-content hidden">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 mb-8">
+                    <!-- नवीन PHC जोडा -->
                     <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
                         <h3 class="font-bold text-blue-800 mb-3 border-b border-blue-200 pb-2">१. नवीन प्राथमिक आरोग्य केंद्र (PHC) जोडा</h3>
                         <form onsubmit="addPHC(event)" class="flex gap-2">
@@ -54,6 +58,7 @@
                         </form>
                     </div>
 
+                    <!-- नवीन PHC ॲडमिन जोडा -->
                     <div class="bg-purple-50 p-4 rounded-lg border border-purple-200">
                         <h3 class="font-bold text-purple-800 mb-3 border-b border-purple-200 pb-2">२. नवीन PHC ॲडमिन जोडा</h3>
                         <form onsubmit="addPHCAdmin(event)" class="space-y-3">
@@ -68,14 +73,17 @@
                     </div>
                 </div>
 
+                <!-- PHC हिरार्की (Tree View) -->
                 <div class="bg-white p-4 md:p-6 rounded-lg border border-gray-300 shadow-sm">
-                    <h3 class="font-extrabold text-gray-800 mb-4 text-xl border-b pb-3">🏥 तालुक्यातील सर्व PHC, उपकेंद्रे व गावे</h3>
-                    <p class="text-sm text-blue-600 mb-4 font-bold">माहिती पाहण्यासाठी खालील नावांवर क्लिक करा 👇</p>
+                    <h3 class="font-extrabold text-gray-800 mb-4 text-xl border-b pb-3">🏥 सर्व प्राथमिक आरोग्य केंद्र, उपकेंद्रे व गावे यादी</h3>
+                    <p class="text-sm text-blue-600 mb-4 font-bold">👉 विस्तृत माहिती पाहण्यासाठी नावांवर क्लिक करा.</p>
                     <div id="phcHierarchyTree" class="space-y-4">
-                        </div>
+                        <!-- ट्री व्ह्यू येथे जनरेट होईल -->
+                    </div>
                 </div>
             </div>
 
+            <!-- २. उपकेंद्रे टॅब -->
             <div id="subCenterTab" class="tab-content">
                 <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 mb-6">
                     <h2 class="font-bold text-gray-700 mb-3" id="subCenterFormTitle">नवीन आरोग्य उपकेंद्र जोडा</h2>
@@ -99,6 +107,7 @@
                 </div>
             </div>
 
+            <!-- ३. गावे टॅब -->
             <div id="villageTab" class="tab-content hidden">
                 <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 mb-6">
                     <h2 class="font-bold text-gray-700 mb-3" id="villageFormTitle">नवीन गाव जोडा</h2>
@@ -125,6 +134,7 @@
                 </div>
             </div>
 
+            <!-- ४. कर्मचारी टॅब -->
             <div id="employeeTab" class="tab-content hidden">
                 <div class="bg-indigo-50 p-4 rounded-lg border border-indigo-200 mb-6">
                     <h2 class="font-bold text-indigo-800 mb-3 border-b border-indigo-200 pb-2">नवीन कर्मचारी जोडा (MPW / ANM / CHO)</h2>
@@ -162,6 +172,7 @@
         </div>
     </div>
 
+    <!-- लोडर -->
     <div id="loader" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
         <div class="bg-white p-6 rounded-xl shadow-2xl text-center border-4 border-blue-500"><div class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent mb-3"></div><p class="text-lg font-bold text-gray-800">प्रोसेसिंग सुरू आहे...</p></div>
     </div>
@@ -211,7 +222,6 @@
             event.currentTarget.classList.add('active');
         }
 
-        // 🟢 हिरार्की ट्री उघडणे आणि बंद करण्याचे ग्लोबल फंक्शन
         window.toggleVisibility = function(id) {
             const el = document.getElementById(id);
             if(el) { el.classList.toggle('hidden'); }
@@ -220,14 +230,19 @@
         function showLoader() { document.getElementById('loader').classList.remove('hidden'); }
         function hideLoader() { document.getElementById('loader').classList.add('hidden'); }
 
+        // ==========================================
+        // डेटाबेस मधून माहिती ओढणे (फॉल्ट-प्रूफ बॅकअपसह)
+        // ==========================================
         async function loadMasterData() {
             showLoader();
             try {
+                // 1. PHCs Fetch
                 const { data: pData, error: pErr } = await supabaseClient.from('phcs').select('*');
                 if(pErr) console.error(pErr);
                 globalPHCs = pData || [];
-                globalPHCs.sort((a,b) => String(a.phc_name || a.name || '').localeCompare(String(b.phc_name || b.name || '')));
+                globalPHCs.sort((a,b) => String(extractPHCName(a)).localeCompare(String(extractPHCName(b))));
 
+                // 2. Sub Centers Fetch
                 let scQuery = supabaseClient.from('sub_centers').select('*');
                 if (!isTalukaAdmin && currentUser.phc_id) scQuery = scQuery.eq('phc_id', currentUser.phc_id);
                 const { data: scData, error: scErr } = await scQuery;
@@ -235,6 +250,7 @@
                 globalSubCenters = scData || [];
                 globalSubCenters.sort((a,b) => String(a.name || '').localeCompare(String(b.name || '')));
 
+                // 3. Villages Fetch
                 let vQuery = supabaseClient.from('villages').select('*');
                 if (!isTalukaAdmin) {
                     const validScIds = globalSubCenters.map(sc => sc.id);
@@ -246,6 +262,7 @@
                 globalVillages = vData || [];
                 globalVillages.sort((a,b) => String(a.name || '').localeCompare(String(b.name || '')));
 
+                // 4. Employees Fetch
                 let eQuery = supabaseClient.from('employees').select('*');
                 if (!isTalukaAdmin && currentUser.phc_id) eQuery = eQuery.eq('phc_id', currentUser.phc_id);
                 const { data: eData, error: eErr } = await eQuery;
@@ -260,13 +277,20 @@
             hideLoader();
         }
 
+        // 🟢 स्मार्ट बॅकअप फंक्शन: phc_name किंवा name दोन्हीपैकी जे असेल ते वाचणे
+        function extractPHCName(phcObj) {
+            if (!phcObj) return 'अज्ञात PHC';
+            return phcObj.phc_name || phcObj.name || 'अज्ञात PHC';
+        }
+
         function renderAllUI() {
             const adminPhcSel = document.getElementById('adminPHCSelect');
             const scPhcSel = document.getElementById('scPHCSelect');
             adminPhcSel.innerHTML = '<option value="">-- PHC निवडा --</option>';
             scPhcSel.innerHTML = '<option value="">-- PHC निवडा --</option>';
+            
             globalPHCs.forEach(p => { 
-                let pName = p.phc_name || p.name || 'अज्ञात PHC';
+                let pName = extractPHCName(p);
                 adminPhcSel.innerHTML += `<option value="${p.id}">${pName}</option>`; 
                 scPhcSel.innerHTML += `<option value="${p.id}">${pName}</option>`; 
             });
@@ -288,7 +312,7 @@
             });
 
             if (isTalukaAdmin) {
-                renderPHCHierarchy(); // 🟢 नवीन ट्री-व्ह्यू
+                renderPHCHierarchy(); 
             }
             
             renderSubCenterTable(); 
@@ -298,7 +322,7 @@
 
         function getPHCName(id) { 
             let p = globalPHCs.find(x => x.id === id); 
-            return p ? (p.phc_name || p.name || 'अज्ञात PHC') : '<span class="text-red-500">अज्ञात PHC</span>'; 
+            return p ? extractPHCName(p) : '<span class="text-red-500">अज्ञात PHC</span>'; 
         }
         function getSCName(id) { 
             let s = globalSubCenters.find(x => x.id === id); 
@@ -306,7 +330,7 @@
         }
 
         // ==========================================
-        // 🟢 स्मार्ट हिरार्की (Tree View) जनरेटर
+        // 🟢 प्रगत ट्री हिरार्की (Tree View Renderer)
         // ==========================================
         function renderPHCHierarchy() {
             let container = document.getElementById('phcHierarchyTree');
@@ -318,7 +342,7 @@
             }
 
             globalPHCs.forEach(phc => { 
-                let pName = phc.phc_name || phc.name || 'अज्ञात PHC';
+                let pName = extractPHCName(phc);
                 let scList = globalSubCenters.filter(sc => sc.phc_id === phc.id);
                 
                 let scHtml = '';
@@ -326,7 +350,7 @@
                     let vList = globalVillages.filter(v => v.sub_center_id === sc.id);
                     let vHtml = '';
                     
-                    vList.forEach((v, index) => {
+                    vList.forEach((v) => {
                         vHtml += `<li class="ml-6 md:ml-10 list-disc text-sm font-semibold text-gray-700 py-1.5 border-b border-dashed border-gray-300 last:border-0">${v.name} <span class="text-xs text-gray-500 font-normal ml-1">(लोक.: ${v.population || 0}, घरे: ${v.total_houses || 0})</span></li>`;
                     });
                     
@@ -513,7 +537,7 @@
             const token = document.getElementById('otpInput').value.trim();
             if(!token) return alert("कृपया OTP टाका!");
 
-            document.getElementById('otpVerifyBtn').innerText = "तपासत approach..."; document.getElementById('otpVerifyBtn').disabled = true;
+            document.getElementById('otpVerifyBtn').innerText = "तपासत आहे..."; document.getElementById('otpVerifyBtn').disabled = true;
 
             const adminEmail = currentUser.email || prompt("ईमेल आयडी पुन्हा टाका:");
             const { error: otpError } = await supabaseClient.auth.verifyOtp({ email: adminEmail, token: token, type: 'magiclink' });
