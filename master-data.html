@@ -12,7 +12,6 @@
 </head>
 <body class="bg-gray-100 p-2 md:p-6 min-h-screen">
 
-    <!-- Header -->
     <div class="max-w-7xl mx-auto bg-white p-4 rounded-lg shadow-md flex justify-between items-center mb-6">
         <div>
             <h1 class="text-xl font-bold text-blue-700">⚙️ मास्टर डेटा मॅनेजमेंट</h1>
@@ -21,7 +20,6 @@
         <button onclick="window.location.href='dashboard.html'" class="bg-gray-600 text-white px-4 py-2 rounded font-bold shadow hover:bg-gray-700 transition text-sm">डॅशबोर्डवर परत जा</button>
     </div>
 
-    <!-- OTP मॉड्यूलर बॉक्स (डेटा डिलीट करण्यासाठी) -->
     <div id="otpModal" class="fixed inset-0 bg-gray-600 bg-opacity-70 flex items-center justify-center hidden z-50">
         <div class="bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full mx-4 border-t-8 border-red-500">
             <h3 class="text-lg font-bold text-red-600 mb-2 text-center">सुरक्षा पडताळणी (OTP)</h3>
@@ -36,7 +34,6 @@
 
     <div class="max-w-7xl mx-auto bg-white rounded-lg shadow-md overflow-hidden mb-8">
         
-        <!-- 🟢 Tabs Navigation -->
         <div class="flex flex-wrap border-b bg-gray-50 text-sm md:text-base">
             <button id="tabBtnPHC" onclick="switchTab('phcTab')" class="tab-btn hidden flex-1 py-3 px-2 md:px-4 text-gray-600 font-medium hover:bg-gray-100 transition">🏥 PHC व ॲडमिन</button>
             <button id="tabBtnSubCenter" onclick="switchTab('subCenterTab')" class="tab-btn active flex-1 py-3 px-2 md:px-4 text-gray-600 font-medium hover:bg-gray-100 transition">🏢 उपकेंद्रे</button>
@@ -46,10 +43,8 @@
 
         <div class="p-4 md:p-6">
             
-            <!-- 🟢 १. PHC आणि PHC ॲडमिन टॅब (फक्त तालुका ॲडमिनसाठी) -->
             <div id="phcTab" class="tab-content hidden">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
-                    <!-- नवीन PHC जोडा -->
                     <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
                         <h3 class="font-bold text-blue-800 mb-3 border-b border-blue-200 pb-2">१. नवीन प्राथमिक आरोग्य केंद्र (PHC) जोडा</h3>
                         <form onsubmit="addPHC(event)" class="flex gap-2">
@@ -64,7 +59,6 @@
                         </div>
                     </div>
 
-                    <!-- नवीन PHC ॲडमिन जोडा -->
                     <div class="bg-purple-50 p-4 rounded-lg border border-purple-200">
                         <h3 class="font-bold text-purple-800 mb-3 border-b border-purple-200 pb-2">२. नवीन PHC ॲडमिन जोडा</h3>
                         <form onsubmit="addPHCAdmin(event)" class="space-y-3">
@@ -81,13 +75,13 @@
                 </div>
             </div>
 
-            <!-- 🟢 २. उपकेंद्रे टॅब -->
             <div id="subCenterTab" class="tab-content">
                 <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 mb-6">
                     <h2 class="font-bold text-gray-700 mb-3" id="subCenterFormTitle">नवीन आरोग्य उपकेंद्र जोडा</h2>
                     <input type="hidden" id="editSubCenterId" value="">
                     <form onsubmit="saveSubCenter(event)" class="flex flex-col md:flex-row gap-3">
-                        <select id="scPHCSelect" required class="p-2 border border-gray-300 rounded flex-1 font-bold hidden"><option value="">-- PHC निवडा --</option></select>
+                        <select id="scPHCSelect" class="p-2 border border-gray-300 rounded flex-1 font-bold hidden"><option value="">-- PHC निवडा --</option></select>
+                        
                         <input type="text" id="subCenterName" placeholder="नवीन उपकेंद्राचे नाव (उदा. उपकेंद्र शिवली)" required class="p-2 border border-gray-300 rounded flex-1 font-bold">
                         <div class="flex gap-2 w-full md:w-auto">
                             <button type="submit" id="subCenterSaveBtn" class="flex-1 md:flex-none bg-blue-600 text-white px-6 py-2 rounded font-bold shadow hover:bg-blue-700">सेव्ह करा</button>
@@ -105,7 +99,6 @@
                 </div>
             </div>
 
-            <!-- 🟢 ३. गावे टॅब -->
             <div id="villageTab" class="tab-content hidden">
                 <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 mb-6">
                     <h2 class="font-bold text-gray-700 mb-3" id="villageFormTitle">नवीन गाव जोडा</h2>
@@ -132,9 +125,7 @@
                 </div>
             </div>
 
-            <!-- 🟢 ४. कर्मचारी टॅब (Employee Registration) -->
             <div id="employeeTab" class="tab-content hidden">
-                
                 <div class="bg-indigo-50 p-4 rounded-lg border border-indigo-200 mb-6">
                     <h2 class="font-bold text-indigo-800 mb-3 border-b border-indigo-200 pb-2">नवीन कर्मचारी जोडा (MPW / ANM / CHO)</h2>
                     <form onsubmit="addEmployee(event)" class="grid grid-cols-1 md:grid-cols-5 gap-3">
@@ -171,7 +162,6 @@
         </div>
     </div>
 
-    <!-- लोडर -->
     <div id="loader" class="hidden fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50">
         <div class="bg-white p-6 rounded-xl shadow-2xl text-center border-4 border-blue-500"><div class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent mb-3"></div><p class="text-lg font-bold text-gray-800">प्रोसेसिंग सुरू आहे...</p></div>
     </div>
@@ -195,7 +185,7 @@
             if (!userString) { window.location.href = "index.html"; return; }
             currentUser = JSON.parse(userString);
 
-            // सिक्युरिटी चेक (फक्त ॲडमिन्सना परवानगी)
+            // सिक्युरिटी चेक
             if (currentUser.role !== 'admin' && currentUser.role !== 'taluka_admin' && currentUser.role !== 'phc_admin') { 
                 alert("परवानगी नाकारली!"); window.location.href = "dashboard.html"; return; 
             }
@@ -344,11 +334,13 @@
 
         async function saveSubCenter(e) {
             e.preventDefault(); showLoader();
+            // 🟢 जावास्क्रिप्ट मधून पडताळणी
             let phcId = isTalukaAdmin ? document.getElementById('scPHCSelect').value : currentUser.phc_id;
-            const name = document.getElementById('subCenterName').value.trim(); const id = document.getElementById('editSubCenterId').value;
             
-            if (!phcId) { alert("कृपया PHC निवडा!"); hideLoader(); return; }
+            if (isTalukaAdmin && !phcId) { alert("कृपया PHC निवडा!"); hideLoader(); return; }
+            if (!phcId) { alert("तुमच्या प्रोफाईलमध्ये PHC ची नोंद नाही. कृपया तालुका ॲडमिनशी संपर्क साधा."); hideLoader(); return; }
 
+            const name = document.getElementById('subCenterName').value.trim(); const id = document.getElementById('editSubCenterId').value;
             let error;
             if (id) { const res = await supabaseClient.from('sub_centers').update({ name: name, phc_id: phcId }).eq('id', id); error = res.error; } 
             else { const res = await supabaseClient.from('sub_centers').insert([{ name: name, phc_id: phcId }]); error = res.error; }
@@ -399,7 +391,6 @@
             if(confirm("तुम्हाला खात्री आहे की हा डेटा कायमचा डिलीट करायचा आहे?")) {
                 deleteTarget.table = table; deleteTarget.id = id;
                 
-                // जर स्वतःचा ईमेल नसेल तर पॉपअप करून मागवा
                 let adminEmail = currentUser.email;
                 if (!adminEmail) {
                     adminEmail = prompt("सुरक्षेसाठी OTP पाठवण्यासाठी कृपया तुमचा अधिकृत ॲडमिन ईमेल आयडी टाका:");
