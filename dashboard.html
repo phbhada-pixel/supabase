@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>डॅशबोर्ड - आरोग्य उपकेंद्र प्रणाली</title>
+    <title>डॅशबोर्ड - तालुका आरोग्य प्रणाली</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -11,8 +11,8 @@
 
     <div class="max-w-5xl mx-auto bg-white p-4 rounded-lg shadow-md flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
         <div class="text-center md:text-left">
-            <h1 class="text-xl font-bold text-blue-600">आरोग्य उपकेंद्र प्रणाली</h1>
-            <p class="text-sm text-gray-500">स्वागत आहे, <span id="userName" class="font-bold text-black"></span> <span id="userRole" class="text-blue-500"></span></p>
+            <h1 class="text-xl font-bold text-blue-600">तालुका आरोग्य प्रणाली</h1>
+            <p class="text-sm text-gray-500">स्वागत आहे, <span id="userName" class="font-bold text-black"></span> <span id="userRole" class="text-blue-600 font-extrabold px-2 bg-blue-50 rounded"></span></p>
         </div>
         <div class="flex gap-2">
             <button onclick="openPasswordModal()" class="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600 transition font-bold shadow text-sm">पासवर्ड बदला</button>
@@ -23,24 +23,27 @@
     <div class="max-w-5xl mx-auto">
         
         <div id="adminSection" class="hidden">
-            <h2 class="text-lg font-bold mb-4 text-gray-700">एडमिन कंट्रोल पॅनेल</h2>
+            <h2 class="text-lg font-bold mb-4 text-gray-700 border-b pb-2">कंट्रोल पॅनेल (प्रशासन)</h2>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-               <div onclick="window.location.href='master-data.html'" class="bg-white p-6 rounded-lg shadow-md border-t-4 border-blue-500 cursor-pointer hover:bg-blue-50 transition">
-                    <h3 class="font-bold text-lg mb-2 text-blue-700">मास्टर डेटा</h3>
-                    <p class="text-sm text-gray-600">उपकेंद्रे, गावे आणि कर्मचारी जोडा.</p>
+                
+                <div onclick="window.location.href='master-data.html'" class="bg-white p-6 rounded-lg shadow-md border-t-4 border-blue-500 cursor-pointer hover:bg-blue-50 transition transform hover:-translate-y-1">
+                    <h3 class="font-bold text-lg mb-2 text-blue-700">मास्टर डेटा मॅनेजमेंट</h3>
+                    <p id="masterDataDesc" class="text-sm text-gray-600">उपकेंद्रे, गावे आणि कर्मचारी जोडा.</p>
                 </div>
-                <div onclick="window.location.href='form-builder.html'" class="bg-white p-6 rounded-lg shadow-md border-t-4 border-green-500 cursor-pointer hover:bg-green-50 transition">
-                    <h3 class="font-bold text-lg mb-2 text-green-700">फॉर्म बिल्डर</h3>
-                    <p class="text-sm text-gray-600">नवीन डेटा एन्ट्री फॉर्म तयार करा.</p>
+                
+                <div id="formBuilderCard" onclick="window.location.href='form-builder.html'" class="hidden bg-white p-6 rounded-lg shadow-md border-t-4 border-green-500 cursor-pointer hover:bg-green-50 transition transform hover:-translate-y-1">
+                    <h3 class="font-bold text-lg mb-2 text-green-700">फॉर्म बिल्डर (Taluka Admin)</h3>
+                    <p class="text-sm text-gray-600">संपूर्ण तालुक्यासाठी नवीन अहवाल फॉर्म तयार करा.</p>
                 </div>
-                <div onclick="window.location.href='reports.html'" class="bg-white p-6 rounded-lg shadow-md border-t-4 border-purple-500 cursor-pointer hover:bg-purple-50 transition">
+
+                <div onclick="window.location.href='reports.html'" class="bg-white p-6 rounded-lg shadow-md border-t-4 border-purple-500 cursor-pointer hover:bg-purple-50 transition transform hover:-translate-y-1">
                     <h3 class="font-bold text-lg mb-2 text-purple-700">अहवाल केंद्र</h3>
-                    <p class="text-sm text-gray-600">भरलेला डेटा पहा आणि डाउनलोड करा.</p>
+                    <p class="text-sm text-gray-600">कर्मचाऱ्यांनी भरलेला डेटा तपासा व डाउनलोड करा.</p>
                 </div>
             </div>
 
-            <div class="bg-white p-6 rounded-lg shadow-md border-t-4 border-yellow-500 mb-8">
-                <h2 class="text-lg font-bold mb-4 text-gray-700 italic">उपलब्ध फॉर्म्स (Active Forms)</h2>
+            <div id="activeFormsListContainer" class="hidden bg-white p-6 rounded-lg shadow-md border-t-4 border-yellow-500 mb-8">
+                <h2 class="text-lg font-bold mb-4 text-gray-700 italic">तालुक्यातील सक्रिय फॉर्म्स (Manage Forms)</h2>
                 <div class="overflow-x-auto">
                     <table class="w-full text-left border-collapse">
                         <thead>
@@ -59,13 +62,13 @@
         </div>
 
         <div id="userSection" class="hidden">
-            <h2 class="text-lg font-bold mb-4 text-gray-700">माझे कामकाज</h2>
+            <h2 class="text-lg font-bold mb-4 text-gray-700 border-b pb-2">माझे कामकाज (Data Entry)</h2>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div onclick="window.location.href='data-entry.html'" class="bg-white p-6 rounded-lg shadow-md border-t-4 border-indigo-500 cursor-pointer hover:bg-indigo-50 transition">
+                <div onclick="window.location.href='data-entry.html'" class="bg-white p-6 rounded-lg shadow-md border-t-4 border-indigo-500 cursor-pointer hover:bg-indigo-50 transition transform hover:-translate-y-1">
                     <h3 class="font-bold text-lg mb-2 text-indigo-700">नवीन माहिती भरा</h3>
                     <p class="text-sm text-gray-600">मासिक आणि इतर अहवाल भरण्यासाठी येथे जा.</p>
                 </div>
-                <div onclick="showMyReports()" class="bg-white p-6 rounded-lg shadow-md border-t-4 border-teal-500 cursor-pointer hover:bg-teal-50 transition">
+                <div onclick="showMyReports()" class="bg-white p-6 rounded-lg shadow-md border-t-4 border-teal-500 cursor-pointer hover:bg-teal-50 transition transform hover:-translate-y-1">
                     <h3 class="font-bold text-lg mb-2 text-teal-700">मागील अहवाल पहा</h3>
                     <p class="text-sm text-gray-600">मी भरलेला जुना डेटा तपासा.</p>
                 </div>
@@ -113,16 +116,12 @@
         <div class="bg-white rounded-xl shadow-2xl w-full max-w-sm border-t-8 border-yellow-500">
             <div class="p-6">
                 <h2 class="text-xl font-extrabold text-gray-800 mb-6 text-center">🔒 पासवर्ड बदला</h2>
-                
                 <label class="block text-sm font-bold text-gray-700 mb-1">जुना पासवर्ड</label>
                 <input type="password" id="oldPassword" class="w-full p-2.5 border-2 border-gray-300 rounded mb-4 focus:ring-2 focus:ring-yellow-500" placeholder="सध्याचा पासवर्ड">
-                
                 <label class="block text-sm font-bold text-gray-700 mb-1">नवीन पासवर्ड</label>
                 <input type="password" id="newPassword" class="w-full p-2.5 border-2 border-gray-300 rounded mb-4 focus:ring-2 focus:ring-yellow-500" placeholder="नवीन पासवर्ड टाका">
-                
                 <label class="block text-sm font-bold text-gray-700 mb-1">नवीन पासवर्ड पुन्हा टाका</label>
                 <input type="password" id="confirmPassword" class="w-full p-2.5 border-2 border-gray-300 rounded mb-6 focus:ring-2 focus:ring-yellow-500" placeholder="खात्री करण्यासाठी पुन्हा टाका">
-                
                 <div class="flex justify-between gap-3">
                     <button onclick="closePasswordModal()" class="w-1/2 bg-gray-400 text-white px-4 py-2 rounded font-bold hover:bg-gray-500">रद्द करा</button>
                     <button onclick="changePassword()" id="btnChangePwd" class="w-1/2 bg-green-600 text-white px-4 py-2 rounded font-bold shadow-lg hover:bg-green-700">सेव्ह करा</button>
@@ -144,18 +143,32 @@
             loggedInUserObj = JSON.parse(userDataString);
             document.getElementById('userName').innerText = loggedInUserObj.full_name;
 
-            if (loggedInUserObj.role === 'admin') {
-                document.getElementById('userRole').innerText = "(Admin)";
+            // 🟢 ३-स्तरीय (3-Tier) रोल मॅनेजमेंट
+            if (loggedInUserObj.role === 'taluka_admin' || loggedInUserObj.role === 'admin') {
+                document.getElementById('userRole').innerText = "(तालुका ॲडमिन)";
                 document.getElementById('adminSection').classList.remove('hidden');
-                document.getElementById('userSection').classList.remove('hidden');
+                
+                // तालुका ॲडमिनला फॉर्म बिल्डर आणि फॉर्म लिस्ट दिसेल
+                document.getElementById('formBuilderCard').classList.remove('hidden');
+                document.getElementById('activeFormsListContainer').classList.remove('hidden');
+                document.getElementById('masterDataDesc').innerText = "PHC, उपकेंद्रे आणि PHC ॲडमिन तयार करा.";
+                
                 loadActiveForms(); 
+
+            } else if (loggedInUserObj.role === 'phc_admin') {
+                document.getElementById('userRole').innerText = "(PHC ॲडमिन)";
+                document.getElementById('adminSection').classList.remove('hidden');
+                
+                // PHC ॲडमिनला फॉर्म बिल्डर दिसणार नाही
+                document.getElementById('masterDataDesc').innerText = "तुमच्या PHC मधील उपकेंद्रे, गावे आणि कर्मचारी तयार करा.";
+
             } else {
-                document.getElementById('userRole').innerText = "(कर्मचारी)";
+                document.getElementById('userRole').innerText = `(${loggedInUserObj.role || 'कर्मचारी'})`;
                 document.getElementById('userSection').classList.remove('hidden');
             }
         };
 
-        // ... (ऍडमिन फॉर्म्स लोड करण्याचे आणि डिलीट करण्याचे जुने फक्शन्स जसेच्या तसे)
+        // फक्त तालुका ॲडमिनसाठी फॉर्म लिस्ट लोड करणे
         async function loadActiveForms() {
             const { data, error } = await supabaseClient.from('dynamic_forms').select('id, form_name, form_type').eq('is_active', true);
             const tbody = document.getElementById('formsTableBody');
@@ -168,7 +181,9 @@
                 tbody.appendChild(tr);
             });
         }
+
         function editForm(id) { window.location.href = `form-builder.html?edit=${id}`; }
+
         async function deleteForm(id) {
             if(confirm("तुम्हाला खात्री आहे की हा फॉर्म डिलीट करायचा आहे?")) {
                 const { error } = await supabaseClient.from('dynamic_forms').update({ is_active: false }).eq('id', id);
@@ -177,149 +192,85 @@
         }
 
         // ==========================================
-        // 🟢 पासवर्ड बदलण्याची नवीन प्रणाली
+        // पासवर्ड बदलण्याची प्रणाली
         // ==========================================
         function openPasswordModal() {
-            document.getElementById('oldPassword').value = "";
-            document.getElementById('newPassword').value = "";
-            document.getElementById('confirmPassword').value = "";
+            document.getElementById('oldPassword').value = ""; document.getElementById('newPassword').value = ""; document.getElementById('confirmPassword').value = "";
             document.getElementById('passwordModal').classList.remove('hidden');
         }
-
-        function closePasswordModal() {
-            document.getElementById('passwordModal').classList.add('hidden');
-        }
+        function closePasswordModal() { document.getElementById('passwordModal').classList.add('hidden'); }
 
         async function changePassword() {
-            const oldP = document.getElementById('oldPassword').value.trim();
-            const newP = document.getElementById('newPassword').value.trim();
-            const confP = document.getElementById('confirmPassword').value.trim();
-
+            const oldP = document.getElementById('oldPassword').value.trim(); const newP = document.getElementById('newPassword').value.trim(); const confP = document.getElementById('confirmPassword').value.trim();
             if (!oldP || !newP || !confP) return alert('कृपया सर्व रकाने भरा!');
             if (newP.length < 4) return alert('नवीन पासवर्ड किमान ४ अक्षरांचा/अंकांचा असावा!');
             if (newP !== confP) return alert('नवीन पासवर्ड आणि खात्री पासवर्ड जुळत नाही!');
 
-            document.getElementById('btnChangePwd').innerText = "सेव्ह होत आहे...";
-            document.getElementById('btnChangePwd').disabled = true;
+            document.getElementById('btnChangePwd').innerText = "सेव्ह होत आहे..."; document.getElementById('btnChangePwd').disabled = true;
 
             try {
-                // १. डेटाबेसमधून जुना पासवर्ड तपासणे
-                const { data, error } = await supabaseClient.from('employees').select('password').eq('id', loggedInUserObj.id).single();
+                const { data, error } = await supabaseClient.from('employees').select('password, possword').eq('id', loggedInUserObj.id).single();
+                let dbPwd = data.password || data.possword;
                 
-                if (error || !data || data.password !== oldP) {
-                    alert('तुमचा जुना पासवर्ड चुकीचा आहे!');
-                } else {
-                    // २. नवीन पासवर्ड अपडेट करणे
+                if (error || !data || String(dbPwd).trim() !== oldP) { alert('तुमचा जुना पासवर्ड चुकीचा आहे!'); } 
+                else {
                     const { error: updateErr } = await supabaseClient.from('employees').update({ password: newP }).eq('id', loggedInUserObj.id);
                     if (updateErr) throw updateErr;
-
-                    alert('✅ पासवर्ड यशस्वीरीत्या बदलला आहे! कृपया नवीन पासवर्डने पुन्हा लॉगिन करा.');
-                    logout(); // बदलल्यावर आपोआप लॉगआउट करणे
+                    alert('✅ पासवर्ड यशस्वीरीत्या बदलला आहे! कृपया नवीन पासवर्डने पुन्हा लॉगिन करा.'); logout(); 
                 }
-            } catch(e) {
-                alert("तांत्रिक एरर: " + e.message);
-            }
-            
-            document.getElementById('btnChangePwd').innerText = "सेव्ह करा";
-            document.getElementById('btnChangePwd').disabled = false;
+            } catch(e) { alert("तांत्रिक एरर: " + e.message); }
+            document.getElementById('btnChangePwd').innerText = "सेव्ह करा"; document.getElementById('btnChangePwd').disabled = false;
         }
 
-        function logout() {
-            localStorage.removeItem('loggedInUser');
-            sessionStorage.clear();
-            window.location.href = "index.html";
-        }
+        function logout() { localStorage.removeItem('loggedInUser'); sessionStorage.clear(); window.location.href = "index.html"; }
 
         // ==========================================
-        // युझरचे मागील अहवाल लोड करण्याची प्रणाली (Zero Cache)
+        // युझरचे मागील अहवाल लोड करण्याची प्रणाली
         // ==========================================
-        function showMyReports() {
-            document.getElementById('myReportsSection').classList.remove('hidden');
-            loadMyReports();
-            setTimeout(() => { document.getElementById('myReportsSection').scrollIntoView({ behavior: 'smooth' }); }, 100);
-        }
+        function showMyReports() { document.getElementById('myReportsSection').classList.remove('hidden'); loadMyReports(); setTimeout(() => { document.getElementById('myReportsSection').scrollIntoView({ behavior: 'smooth' }); }, 100); }
 
         async function loadMyReports() {
-            let tbody = document.getElementById('myReportsTableBody');
-            tbody.innerHTML = '<tr><td colspan="6" class="text-center p-6 text-blue-600 font-bold animate-pulse">डेटा लोड होत आहे, कृपया थांबा...</td></tr>';
+            let tbody = document.getElementById('myReportsTableBody'); tbody.innerHTML = '<tr><td colspan="6" class="text-center p-6 text-blue-600 font-bold animate-pulse">डेटा लोड होत आहे...</td></tr>';
             try {
                 const { data: responses, error } = await supabaseClient.from('form_responses').select('id, form_id, village_id, report_month, report_year, created_at').eq('employee_id', loggedInUserObj.id).order('created_at', { ascending: false });
                 if (error) throw error;
 
-                const { data: forms } = await supabaseClient.from('dynamic_forms').select('id, form_name');
-                const { data: villages } = await supabaseClient.from('villages').select('id, name');
-
+                const { data: forms } = await supabaseClient.from('dynamic_forms').select('id, form_name'); const { data: villages } = await supabaseClient.from('villages').select('id, name');
                 tbody.innerHTML = '';
-                if (!responses || responses.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-red-500 font-bold p-6 border bg-red-50">तुम्ही अद्याप कोणताही अहवाल भरलेला नाही.</td></tr>'; return;
-                }
+                if (!responses || responses.length === 0) { tbody.innerHTML = '<tr><td colspan="6" class="text-center text-red-500 font-bold p-6 border bg-red-50">अद्याप अहवाल भरलेला नाही.</td></tr>'; return; }
 
                 const monthNames = {1:"जानेवारी", 2:"फेब्रुवारी", 3:"मार्च", 4:"एप्रिल", 5:"मे", 6:"जून", 7:"जुलै", 8:"ऑगस्ट", 9:"सप्टेंबर", 10:"ऑक्टोबर", 11:"नोव्हेंबर", 12:"डिसेंबर"};
-
                 responses.forEach((res, index) => {
-                    let fObj = forms.find(f => f.id === res.form_id);
-                    let vObj = villages.find(v => v.id === res.village_id);
-                    let dateObj = new Date(res.created_at);
-                    let dateStr = `${dateObj.getDate().toString().padStart(2, '0')}-${(dateObj.getMonth()+1).toString().padStart(2, '0')}-${dateObj.getFullYear()}`;
-
-                    tbody.innerHTML += `
-                        <tr class="hover:bg-teal-50 border-b transition-all">
-                            <td class="p-3 border text-center font-medium">${index + 1}</td>
-                            <td class="p-3 border font-bold text-teal-700">${fObj ? fObj.form_name : '-'}</td>
-                            <td class="p-3 border text-center font-semibold text-gray-700">${monthNames[res.report_month] || res.report_month} ${res.report_year}</td>
-                            <td class="p-3 border text-center text-gray-800 font-bold">${vObj ? vObj.name : '-'}</td>
-                            <td class="p-3 border text-center text-gray-500 text-xs">${dateStr}</td>
-                            <td class="p-3 border text-center"><button onclick="viewMyReportSecure('${res.id}', '${res.form_id}')" class="bg-blue-600 text-white px-4 py-1.5 rounded text-xs font-bold hover:bg-blue-700 shadow-md transition transform hover:scale-105">👁️ अहवाल पहा</button></td>
-                        </tr>
-                    `;
+                    let fObj = forms.find(f => f.id === res.form_id); let vObj = villages.find(v => v.id === res.village_id);
+                    let dateObj = new Date(res.created_at); let dateStr = `${dateObj.getDate().toString().padStart(2, '0')}-${(dateObj.getMonth()+1).toString().padStart(2, '0')}-${dateObj.getFullYear()}`;
+                    tbody.innerHTML += `<tr class="hover:bg-teal-50 border-b transition-all"><td class="p-3 border text-center font-medium">${index + 1}</td><td class="p-3 border font-bold text-teal-700">${fObj ? fObj.form_name : '-'}</td><td class="p-3 border text-center font-semibold text-gray-700">${monthNames[res.report_month] || res.report_month} ${res.report_year}</td><td class="p-3 border text-center text-gray-800 font-bold">${vObj ? vObj.name : '-'}</td><td class="p-3 border text-center text-gray-500 text-xs">${dateStr}</td><td class="p-3 border text-center"><button onclick="viewMyReportSecure('${res.id}', '${res.form_id}')" class="bg-blue-600 text-white px-4 py-1.5 rounded text-xs font-bold hover:bg-blue-700 shadow-md transition transform hover:scale-105">👁️ अहवाल पहा</button></td></tr>`;
                 });
-            } catch (e) {
-                tbody.innerHTML = '<tr><td colspan="6" class="text-center text-red-500 font-bold p-4">अहवाल लोड करताना तांत्रिक त्रुटी आली.</td></tr>';
-            }
+            } catch (e) { tbody.innerHTML = '<tr><td colspan="6" class="text-center text-red-500 font-bold p-4">तांत्रिक त्रुटी.</td></tr>'; }
         }
 
         async function viewMyReportSecure(responseId, formId) {
-            document.getElementById('viewReportTitle').innerHTML = `लोड होत आहे... ⏳`;
-            document.getElementById('viewReportContent').innerHTML = '<div class="text-center p-10"><div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-blue-600 border-t-transparent mb-2"></div><p class="text-blue-600 font-bold">माहिती सुरक्षितपणे आणत आहे...</p></div>';
+            document.getElementById('viewReportTitle').innerHTML = `लोड होत आहे... ⏳`; document.getElementById('viewReportContent').innerHTML = '<div class="text-center p-10"><div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-blue-600 border-t-transparent mb-2"></div><p class="text-blue-600 font-bold">माहिती सुरक्षितपणे आणत आहे...</p></div>';
             document.getElementById('viewReportModal').classList.remove('hidden');
-
             try {
-                const { data: resData, error: err1 } = await supabaseClient.from('form_responses').select('*').eq('id', responseId).single();
-                if (err1 || !resData) throw err1;
-                const { data: formObj, error: err2 } = await supabaseClient.from('dynamic_forms').select('form_name, schema_json').eq('id', formId).single();
-                if (err2 || !formObj) throw err2;
+                const { data: resData, error: err1 } = await supabaseClient.from('form_responses').select('*').eq('id', responseId).single(); if (err1 || !resData) throw err1;
+                const { data: formObj, error: err2 } = await supabaseClient.from('dynamic_forms').select('form_name, schema_json').eq('id', formId).single(); if (err2 || !formObj) throw err2;
 
                 document.getElementById('viewReportTitle').innerHTML = `📑 <span class="text-teal-700">${formObj.form_name}</span> ची भरलेली माहिती`;
-                let contentDiv = document.getElementById('viewReportContent');
-                let schemaFields = formObj.schema_json.fields;
-                let responseValues = resData.response_data;
+                let contentDiv = document.getElementById('viewReportContent'); let schemaFields = formObj.schema_json.fields; let responseValues = resData.response_data;
 
                 function getFullFieldLabel(fields, fieldObj) {
                     let fullLabel = fieldObj.label; let currentField = fieldObj;
-                    while (currentField && currentField.parent_id) {
-                        let parentField = fields.find(f => f.id === currentField.parent_id);
-                        if (parentField) { if (parentField.type === 'group_header') fullLabel = parentField.label + " - " + fullLabel; currentField = parentField; } 
-                        else break;
-                    }
+                    while (currentField && currentField.parent_id) { let parentField = fields.find(f => f.id === currentField.parent_id); if (parentField) { if (parentField.type === 'group_header') fullLabel = parentField.label + " - " + fullLabel; currentField = parentField; } else break; }
                     return fullLabel;
                 }
 
                 let html = '<table class="w-full text-sm border-collapse border"><tr class="bg-gray-200"><th class="border p-2 w-3/4 text-left text-gray-700">तपशील / प्रश्न</th><th class="border p-2 text-center text-gray-700">तुमची भरलेली माहिती</th></tr>';
-                schemaFields.forEach(f => {
-                    if (f.type !== 'group_header') {
-                        let val = responseValues[f.id] ? responseValues[f.id].value : '-';
-                        html += `<tr class="hover:bg-gray-50"><td class="border p-2 font-medium text-gray-700 text-left">${getFullFieldLabel(schemaFields, f)}</td><td class="border p-2 text-center font-bold text-blue-700 text-lg bg-blue-50/30">${val}</td></tr>`;
-                    }
-                });
-                html += '</table>';
-                contentDiv.innerHTML = html;
+                schemaFields.forEach(f => { if (f.type !== 'group_header') { let val = responseValues[f.id] ? responseValues[f.id].value : '-'; html += `<tr class="hover:bg-gray-50"><td class="border p-2 font-medium text-gray-700 text-left">${getFullFieldLabel(schemaFields, f)}</td><td class="border p-2 text-center font-bold text-blue-700 text-lg bg-blue-50/30">${val}</td></tr>`; } });
+                html += '</table>'; contentDiv.innerHTML = html;
             } catch (e) { document.getElementById('viewReportContent').innerHTML = `<p class="text-red-600 font-bold text-center p-6">अहवाल उघडताना एरर: ${e.message}</p>`; }
         }
 
-        function closeMyReportModal() {
-            document.getElementById('viewReportModal').classList.add('hidden');
-            document.getElementById('viewReportContent').innerHTML = '';
-        }
+        function closeMyReportModal() { document.getElementById('viewReportModal').classList.add('hidden'); document.getElementById('viewReportContent').innerHTML = ''; }
     </script>
 </body>
 </html>
