@@ -183,7 +183,6 @@
             if (!userString) { window.location.href = "index.html"; return; }
             currentUser = JSON.parse(userString);
 
-            // 🟢 अत्यंत स्मार्ट Role Checking (Case Insensitive)
             const role = String(currentUser.role || '').toLowerCase().trim();
             if (role !== 'admin' && role !== 'taluka_admin' && role !== 'phc_admin') { 
                 alert("परवानगी नाकारली!"); window.location.href = "dashboard.html"; return; 
@@ -213,19 +212,14 @@
         function showLoader() { document.getElementById('loader').classList.remove('hidden'); }
         function hideLoader() { document.getElementById('loader').classList.add('hidden'); }
 
-        // ==========================================
-        // 🟢 स्मार्ट आणि फॉल्ट-प्रूफ डेटा लोडिंग
-        // ==========================================
         async function loadMasterData() {
             showLoader();
             try {
-                // 1. PHCs Fetch (Order in JS to avoid SQL missing column errors)
                 const { data: pData, error: pErr } = await supabaseClient.from('phcs').select('*');
                 if(pErr) console.error(pErr);
                 globalPHCs = pData || [];
                 globalPHCs.sort((a,b) => String(a.phc_name || a.name || '').localeCompare(String(b.phc_name || b.name || '')));
 
-                // 2. Sub Centers Fetch
                 let scQuery = supabaseClient.from('sub_centers').select('*');
                 if (!isTalukaAdmin && currentUser.phc_id) scQuery = scQuery.eq('phc_id', currentUser.phc_id);
                 const { data: scData, error: scErr } = await scQuery;
@@ -233,19 +227,17 @@
                 globalSubCenters = scData || [];
                 globalSubCenters.sort((a,b) => String(a.name || '').localeCompare(String(b.name || '')));
 
-                // 3. Villages Fetch
                 let vQuery = supabaseClient.from('villages').select('*');
                 if (!isTalukaAdmin) {
                     const validScIds = globalSubCenters.map(sc => sc.id);
                     if (validScIds.length > 0) vQuery = vQuery.in('sub_center_id', validScIds);
-                    else vQuery = vQuery.eq('sub_center_id', '00000000-0000-0000-0000-000000000000'); // Force empty if no SC
+                    else vQuery = vQuery.eq('sub_center_id', '00000000-0000-0000-0000-000000000000'); 
                 }
                 const { data: vData, error: vErr } = await vQuery;
                 if(vErr) console.error(vErr);
                 globalVillages = vData || [];
                 globalVillages.sort((a,b) => String(a.name || '').localeCompare(String(b.name || '')));
 
-                // 4. Employees Fetch
                 let eQuery = supabaseClient.from('employees').select('*');
                 if (!isTalukaAdmin && currentUser.phc_id) eQuery = eQuery.eq('phc_id', currentUser.phc_id);
                 const { data: eData, error: eErr } = await eQuery;
@@ -262,7 +254,7 @@
         }
 
         // ==========================================
-        // UI रेंडर करणे
+        // UI रेंडर करणे (Bug Fixed Here)
         // ==========================================
         function renderAllUI() {
             const adminPhcSel = document.getElementById('adminPHCSelect');
@@ -275,12 +267,21 @@
                 scPhcSel.innerHTML += `<option value="${p.id}">${pName}</option>`; 
             });
 
-            const subCenterSelectForms = [document.getElementById('subCenterSelect'), document.getElementById('villageSubCenterSelect'), document.getElementById('empSubCenterSelect')];
-            subCenterSelectForms.forEach(sel => sel.innerHTML = '<option value="">-- उपकेंद्र निवडा --</option>');
+            // 🟢 येथे दुरुस्ती केली आहे: villageSubCenterSelect काढून फक्त योग्य ID ठेवले आहेत
+            const subCenterSelectForms = [
+                document.getElementById('subCenterSelect'), 
+                document.getElementById('empSubCenterSelect')
+            ];
+            
+            subCenterSelectForms.forEach(sel => {
+                if (sel) sel.innerHTML = '<option value="">-- उपकेंद्र निवडा --</option>';
+            });
             
             globalSubCenters.forEach(sc => {
                 let phcName = isTalukaAdmin ? ` (${getPHCName(sc.phc_id)})` : '';
-                subCenterSelectForms.forEach(sel => sel.innerHTML += `<option value="${sc.id}">${sc.name}${phcName}</option>`);
+                subCenterSelectForms.forEach(sel => {
+                    if (sel) sel.innerHTML += `<option value="${sc.id}">${sc.name}${phcName}</option>`;
+                });
             });
 
             renderPHCTable(); renderSubCenterTable(); renderVillageTable(); renderEmployeeTable();
@@ -356,7 +357,6 @@
             hideLoader();
             if (error) {
                 if(error.message.includes('column "phc_name" does not exist')) {
-                    // जर चुकून टेबलमध्ये phc_name ऐवजी name असेल तर 
                     await supabaseClient.from('phcs').insert([{ name: name }]);
                     document.getElementById('newPHCName').value = ''; loadMasterData();
                 } else { alert("एरर: " + error.message); }
@@ -433,7 +433,7 @@
         }
 
         // ==========================================
-        // सुरक्षित डिलीट प्रणाली (OTP)
+        // सुरक्षित डिलीट प्रणाली
         // ==========================================
         async function triggerDelete(table, id) {
             if(confirm("तुम्हाला खात्री आहे की हा डेटा कायमचा डिलीट करायचा आहे?")) {
