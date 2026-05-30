@@ -53,14 +53,8 @@
                         <h3 class="font-bold text-blue-800 mb-3 border-b border-blue-200 pb-2">१. नवीन प्राथमिक आरोग्य केंद्र (PHC) जोडा</h3>
                         <form onsubmit="addPHC(event)" class="flex gap-2">
                             <input type="text" id="newPHCName" placeholder="उदा. PHC भादा" required class="flex-1 p-2 border border-blue-300 rounded focus:ring-2 focus:ring-blue-500 font-bold">
-                            <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded font-bold shadow hover:bg-blue-700">जोडा</button>
+                            <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded font-bold shadow hover:bg-blue-700">जोडा</button>
                         </form>
-                        <div class="mt-4 max-h-60 overflow-y-auto rounded border border-blue-200">
-                            <table class="w-full text-sm text-left">
-                                <thead class="bg-blue-200 sticky top-0"><tr><th class="p-2 border">PHC चे नाव</th><th class="p-2 border text-center">डेटा एन्ट्री कंट्रोल</th><th class="p-2 border text-center w-16">काढा</th></tr></thead>
-                                <tbody id="phcListTable" class="bg-white"></tbody>
-                            </table>
-                        </div>
                     </div>
 
                     <div class="bg-purple-50 p-4 rounded-lg border border-purple-200">
@@ -77,7 +71,7 @@
                     </div>
                 </div>
 
-                <!-- PHC हिरार्की (Tree View) -->
+                <!-- PHC हिरार्की (Tree View - Single Unified List) -->
                 <div class="bg-white p-4 md:p-6 rounded-lg border border-gray-300 shadow-sm">
                     <h3 class="font-extrabold text-gray-800 mb-4 text-xl border-b pb-3">🏥 सर्व प्राथमिक आरोग्य केंद्र, उपकेंद्रे व गावे यादी</h3>
                     <p class="text-sm text-blue-600 mb-4 font-bold">👉 विस्तृत माहिती पाहण्यासाठी नावांवर क्लिक करा.</p>
@@ -230,13 +224,11 @@
             await loadMasterData();
         };
 
-        // 🟢 फिक्स: switchTab फंक्शन आता सुरक्षित पद्धतीने टॅब बदलते (event क्रॅश होणार नाही)
         function switchTab(tabId) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
             document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
             document.getElementById(tabId).classList.remove('hidden');
             
-            // टॅबनुसार योग्य बटण Active करणे
             let btnId = '';
             if(tabId === 'phcTab') btnId = 'tabBtnPHC';
             else if(tabId === 'subCenterTab') btnId = 'tabBtnSubCenter';
@@ -340,7 +332,6 @@
 
             if (isTalukaAdmin) renderPHCHierarchy(); 
             
-            renderPHCTable();
             renderSubCenterTable(); 
             renderVillageTable(); 
             renderEmployeeTable();
@@ -364,27 +355,13 @@
             else loadMasterData();
         }
 
-        function renderPHCTable() {
-            let tbody = document.getElementById('phcListTable'); tbody.innerHTML = '';
-            if(globalPHCs.length === 0) { tbody.innerHTML = '<tr><td colspan="3" class="p-4 text-center text-gray-400 font-bold">अद्याप प्राथमिक आरोग्य केंद्रे (PHC) जोडलेली नाहीत.</td></tr>'; return; }
-            
-            globalPHCs.forEach(p => { 
-                let pName = extractPHCName(p);
-                let allowBtn = p.allow_creation !== false 
-                    ? `<button onclick="togglePhcCreation('${p.id}', true)" class="bg-green-100 text-green-700 px-3 py-1 rounded text-xs font-bold border border-green-400 hover:bg-green-200 shadow-sm transition">चालू आहे (ON)</button>`
-                    : `<button onclick="togglePhcCreation('${p.id}', false)" class="bg-red-100 text-red-700 px-3 py-1 rounded text-xs font-bold border border-red-400 hover:bg-red-200 shadow-sm transition">बंद आहे (OFF)</button>`;
-
-                tbody.innerHTML += `<tr class="border-b hover:bg-blue-50">
-                    <td class="p-2 border font-bold text-blue-800">${pName}</td>
-                    <td class="p-2 border text-center">${allowBtn}</td>
-                    <td class="p-2 border text-center"><button onclick="triggerDelete('phcs', '${p.id}')" class="text-red-500 font-bold hover:text-red-700 bg-red-100 px-2 rounded shadow-sm">✕</button></td>
-                </tr>`; 
-            });
-        }
-
+        // 🟢 डुप्लिकेशन फिक्स: जुना renderPHCTable काढून टाकला आणि सर्व कंट्रोल्स Tree View मध्ये मर्ज केले.
         function renderPHCHierarchy() {
             let container = document.getElementById('phcHierarchyTree'); container.innerHTML = '';
-            if(globalPHCs.length === 0) return; 
+            if(globalPHCs.length === 0) { 
+                container.innerHTML = '<p class="text-center text-gray-500 p-4 font-bold border rounded bg-gray-50">अद्याप प्राथमिक आरोग्य केंद्रे जोडलेली नाहीत.</p>'; 
+                return; 
+            } 
 
             globalPHCs.forEach(phc => { 
                 let pName = extractPHCName(phc);
@@ -399,7 +376,26 @@
                     scHtml += `<div class="mt-3 ml-2 md:ml-6 border-l-4 border-indigo-400 pl-3 py-1 bg-white rounded shadow-sm"><div class="cursor-pointer font-bold text-indigo-800 hover:text-indigo-600 flex items-center justify-between" onclick="toggleVisibility('villages_${sc.id}')"><span class="text-[15px]">🏢 ${sc.name} <span class="text-xs bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded-full ml-2 shadow-sm">${vList.length} गावे ▼</span></span></div><ul id="villages_${sc.id}" class="hidden mt-2 mb-2 bg-gray-50 p-2 rounded-lg border border-gray-200 shadow-inner">${vHtml || '<li class="text-xs text-red-500 italic font-bold">या उपकेंद्रात गावे जोडलेली नाहीत.</li>'}</ul></div>`;
                 });
 
-                let phcHtml = `<div class="bg-white border-2 border-blue-300 rounded-xl shadow-sm overflow-hidden transition-all hover:shadow-md"><div class="p-3 md:p-4 bg-blue-50 flex justify-between items-center border-b border-blue-100"><div class="cursor-pointer font-extrabold text-blue-900 text-base md:text-lg flex-1" onclick="toggleVisibility('sc_${phc.id}')">🏥 ${pName} <span class="text-xs md:text-sm font-bold bg-blue-600 text-white px-3 py-1 rounded-full ml-2 shadow-sm">${scList.length} उपकेंद्रे ▼</span></div><button onclick="triggerDelete('phcs', '${phc.id}')" class="text-red-600 hover:bg-red-600 hover:text-white p-1.5 px-3 rounded shadow-sm bg-white border border-red-300 font-bold text-xs transition">काढा ✕</button></div><div id="sc_${phc.id}" class="hidden p-3 bg-blue-50/30">${scHtml || '<p class="text-sm text-red-500 italic font-bold p-2 text-center">अद्याप उपकेंद्रे जोडलेली नाहीत.</p>'}</div></div>`;
+                let allowBtn = phc.allow_creation !== false 
+                    ? `<button onclick="togglePhcCreation('${phc.id}', true)" class="bg-green-100 text-green-700 px-3 py-1 rounded text-xs font-bold border border-green-400 hover:bg-green-200 shadow-sm transition whitespace-nowrap">एन्ट्री: चालू (ON)</button>`
+                    : `<button onclick="togglePhcCreation('${phc.id}', false)" class="bg-red-100 text-red-700 px-3 py-1 rounded text-xs font-bold border border-red-400 hover:bg-red-200 shadow-sm transition whitespace-nowrap">एन्ट्री: बंद (OFF)</button>`;
+
+                let phcHtml = `
+                    <div class="bg-white border-2 border-blue-300 rounded-xl shadow-sm overflow-hidden transition-all hover:shadow-md">
+                        <div class="p-3 md:p-4 bg-blue-50 flex flex-col md:flex-row justify-between items-start md:items-center border-b border-blue-100 gap-3">
+                            <div class="cursor-pointer font-extrabold text-blue-900 text-base md:text-lg flex-1 w-full" onclick="toggleVisibility('sc_${phc.id}')">
+                                🏥 ${pName} <span class="text-xs md:text-sm font-bold bg-blue-600 text-white px-3 py-1 rounded-full ml-2 shadow-sm">${scList.length} उपकेंद्रे ▼</span>
+                            </div>
+                            <div class="flex gap-2 w-full md:w-auto justify-end items-center">
+                                ${allowBtn}
+                                <button onclick="triggerDelete('phcs', '${phc.id}')" class="text-red-600 hover:bg-red-600 hover:text-white p-1.5 px-3 rounded shadow-sm bg-white border border-red-300 font-bold text-xs transition whitespace-nowrap" title="PHC कायमचा काढा">काढा ✕</button>
+                            </div>
+                        </div>
+                        <div id="sc_${phc.id}" class="hidden p-3 bg-blue-50/30">
+                            ${scHtml || '<p class="text-sm text-red-500 italic font-bold p-2 text-center">अद्याप उपकेंद्रे जोडलेली नाहीत.</p>'}
+                        </div>
+                    </div>
+                `;
                 container.innerHTML += phcHtml;
             });
         }
