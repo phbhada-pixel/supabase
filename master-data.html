@@ -70,7 +70,6 @@
                             </div>
                             <button type="submit" class="w-full bg-purple-600 text-white px-4 py-2 rounded font-bold shadow hover:bg-purple-700">PHC ॲडमिन तयार करा</button>
                         </form>
-                        <p class="text-[10px] text-gray-500 mt-2 text-center">टीप: हा ॲडमिन फक्त त्याच्या PHC ची गावे आणि कर्मचारी तयार करू शकेल.</p>
                     </div>
                 </div>
             </div>
@@ -81,7 +80,6 @@
                     <input type="hidden" id="editSubCenterId" value="">
                     <form onsubmit="saveSubCenter(event)" class="flex flex-col md:flex-row gap-3">
                         <select id="scPHCSelect" class="p-2 border border-gray-300 rounded flex-1 font-bold hidden"><option value="">-- PHC निवडा --</option></select>
-                        
                         <input type="text" id="subCenterName" placeholder="नवीन उपकेंद्राचे नाव (उदा. उपकेंद्र शिवली)" required class="p-2 border border-gray-300 rounded flex-1 font-bold">
                         <div class="flex gap-2 w-full md:w-auto">
                             <button type="submit" id="subCenterSaveBtn" class="flex-1 md:flex-none bg-blue-600 text-white px-6 py-2 rounded font-bold shadow hover:bg-blue-700">सेव्ह करा</button>
@@ -119,7 +117,7 @@
                 <h3 class="font-bold text-gray-700 mb-2 italic">सर्व नोंदणीकृत गावे</h3>
                 <div class="overflow-x-auto border rounded shadow-sm max-h-96">
                     <table class="w-full text-left border-collapse text-sm">
-                        <thead class="sticky top-0 bg-gray-200 text-gray-700"><tr class="font-bold"><th class="p-3 border w-12 text-center">अ.क्र.</th><th class="p-3 border">गावाचे नाव</th><th class="p-3 border">उपकेंद्र</th><th class="p-3 border text-center">लोकसंख्या</th><th class="p-3 border text-center">घरे</th><th class="p-3 border text-center w-28">कृती</th></tr></thead>
+                        <thead class="sticky top-0 bg-gray-200 text-gray-700"><tr class="font-bold"><th class="p-3 border w-12 text-center">अ.क्र.</th><th class="p-3 border">गावाचे नाव</th><th class="p-3 border">उपकेंद्र (व PHC)</th><th class="p-3 border text-center">लोकसंख्या</th><th class="p-3 border text-center">घरे</th><th class="p-3 border text-center w-28">कृती</th></tr></thead>
                         <tbody id="villageTableBody" class="bg-white"></tbody>
                     </table>
                 </div>
@@ -146,11 +144,11 @@
                     </form>
                 </div>
 
-                <h3 class="font-bold text-gray-700 mb-3 text-lg border-b pb-2 text-indigo-700">उपकेंद्रानुसार नियुक्त कर्मचारी यादी</h3>
+                <h3 class="font-bold text-gray-700 mb-3 text-lg border-b pb-2 text-indigo-700">कर्मचारी यादी (तालुका व उपकेंद्रानुसार)</h3>
                 <div class="overflow-x-auto border rounded shadow-sm max-h-96">
                     <table class="w-full text-left border-collapse text-sm">
                         <thead class="sticky top-0 bg-indigo-100 text-indigo-900 font-bold">
-                            <tr><th class="p-3 border">कर्मचाऱ्याचे नाव</th><th class="p-3 border text-center">पद (Role)</th><th class="p-3 border text-center">मोबाईल / पासवर्ड</th><th class="p-3 border">नियुक्त उपकेंद्र</th><th class="p-3 border text-center w-20">काढा</th></tr>
+                            <tr><th class="p-3 border">कर्मचाऱ्याचे नाव</th><th class="p-3 border text-center">पद (Role)</th><th class="p-3 border text-center">मोबाईल / पासवर्ड</th><th class="p-3 border">नियुक्त उपकेंद्र (व PHC)</th><th class="p-3 border text-center w-20">काढा</th></tr>
                         </thead>
                         <tbody id="employeeTableBody" class="bg-white text-gray-700">
                             <tr><td colspan="5" class="p-3 text-center text-gray-400">कर्मचारी डेटा लोड होत आहे...</td></tr>
@@ -185,12 +183,13 @@
             if (!userString) { window.location.href = "index.html"; return; }
             currentUser = JSON.parse(userString);
 
-            // सिक्युरिटी चेक
-            if (currentUser.role !== 'admin' && currentUser.role !== 'taluka_admin' && currentUser.role !== 'phc_admin') { 
+            // 🟢 अत्यंत स्मार्ट Role Checking (Case Insensitive)
+            const role = String(currentUser.role || '').toLowerCase().trim();
+            if (role !== 'admin' && role !== 'taluka_admin' && role !== 'phc_admin') { 
                 alert("परवानगी नाकारली!"); window.location.href = "dashboard.html"; return; 
             }
 
-            isTalukaAdmin = (currentUser.role === 'admin' || currentUser.role === 'taluka_admin');
+            isTalukaAdmin = (role === 'admin' || role === 'taluka_admin');
 
             if (isTalukaAdmin) {
                 document.getElementById('tabBtnPHC').classList.remove('hidden');
@@ -215,32 +214,50 @@
         function hideLoader() { document.getElementById('loader').classList.add('hidden'); }
 
         // ==========================================
-        // डेटाबेस मधून माहिती ओढणे (Role-Based)
+        // 🟢 स्मार्ट आणि फॉल्ट-प्रूफ डेटा लोडिंग
         // ==========================================
         async function loadMasterData() {
             showLoader();
             try {
-                const { data: pData } = await supabaseClient.from('phcs').select('*').order('phc_name');
+                // 1. PHCs Fetch (Order in JS to avoid SQL missing column errors)
+                const { data: pData, error: pErr } = await supabaseClient.from('phcs').select('*');
+                if(pErr) console.error(pErr);
                 globalPHCs = pData || [];
+                globalPHCs.sort((a,b) => String(a.phc_name || a.name || '').localeCompare(String(b.phc_name || b.name || '')));
 
-                let scQuery = supabaseClient.from('sub_centers').select('*').order('name');
+                // 2. Sub Centers Fetch
+                let scQuery = supabaseClient.from('sub_centers').select('*');
                 if (!isTalukaAdmin && currentUser.phc_id) scQuery = scQuery.eq('phc_id', currentUser.phc_id);
-                const { data: scData } = await scQuery;
+                const { data: scData, error: scErr } = await scQuery;
+                if(scErr) console.error(scErr);
                 globalSubCenters = scData || [];
+                globalSubCenters.sort((a,b) => String(a.name || '').localeCompare(String(b.name || '')));
 
-                const validScIds = globalSubCenters.map(sc => sc.id);
-                let vQuery = supabaseClient.from('villages').select('*').order('name');
-                if (!isTalukaAdmin && validScIds.length > 0) vQuery = vQuery.in('sub_center_id', validScIds);
-                const { data: vData } = await vQuery;
+                // 3. Villages Fetch
+                let vQuery = supabaseClient.from('villages').select('*');
+                if (!isTalukaAdmin) {
+                    const validScIds = globalSubCenters.map(sc => sc.id);
+                    if (validScIds.length > 0) vQuery = vQuery.in('sub_center_id', validScIds);
+                    else vQuery = vQuery.eq('sub_center_id', '00000000-0000-0000-0000-000000000000'); // Force empty if no SC
+                }
+                const { data: vData, error: vErr } = await vQuery;
+                if(vErr) console.error(vErr);
                 globalVillages = vData || [];
+                globalVillages.sort((a,b) => String(a.name || '').localeCompare(String(b.name || '')));
 
-                let eQuery = supabaseClient.from('employees').select('id, full_name, mobile_number, password, possword, role, sub_center_id, phc_id').order('full_name');
+                // 4. Employees Fetch
+                let eQuery = supabaseClient.from('employees').select('*');
                 if (!isTalukaAdmin && currentUser.phc_id) eQuery = eQuery.eq('phc_id', currentUser.phc_id);
-                const { data: eData } = await eQuery;
+                const { data: eData, error: eErr } = await eQuery;
+                if(eErr) console.error(eErr);
                 globalEmployees = eData || [];
+                globalEmployees.sort((a,b) => String(a.full_name || '').localeCompare(String(b.full_name || '')));
 
                 renderAllUI();
-            } catch (error) { alert("माहिती लोड करताना एरर: " + error.message); }
+            } catch (error) { 
+                alert("माहिती लोड करताना एरर: " + error.message); 
+                console.error(error);
+            }
             hideLoader();
         }
 
@@ -252,7 +269,11 @@
             const scPhcSel = document.getElementById('scPHCSelect');
             adminPhcSel.innerHTML = '<option value="">-- PHC निवडा --</option>';
             scPhcSel.innerHTML = '<option value="">-- PHC निवडा --</option>';
-            globalPHCs.forEach(p => { adminPhcSel.innerHTML += `<option value="${p.id}">${p.phc_name}</option>`; scPhcSel.innerHTML += `<option value="${p.id}">${p.phc_name}</option>`; });
+            globalPHCs.forEach(p => { 
+                let pName = p.phc_name || p.name || 'अज्ञात PHC';
+                adminPhcSel.innerHTML += `<option value="${p.id}">${pName}</option>`; 
+                scPhcSel.innerHTML += `<option value="${p.id}">${pName}</option>`; 
+            });
 
             const subCenterSelectForms = [document.getElementById('subCenterSelect'), document.getElementById('villageSubCenterSelect'), document.getElementById('empSubCenterSelect')];
             subCenterSelectForms.forEach(sel => sel.innerHTML = '<option value="">-- उपकेंद्र निवडा --</option>');
@@ -265,53 +286,81 @@
             renderPHCTable(); renderSubCenterTable(); renderVillageTable(); renderEmployeeTable();
         }
 
-        function getPHCName(id) { let p = globalPHCs.find(x => x.id === id); return p ? p.phc_name : 'अज्ञात PHC'; }
-        function getSCName(id) { let s = globalSubCenters.find(x => x.id === id); return s ? s.name : '<span class="text-red-500 italic">असाइन नाही</span>'; }
+        function getPHCName(id) { 
+            let p = globalPHCs.find(x => x.id === id); 
+            return p ? (p.phc_name || p.name || 'अज्ञात PHC') : '<span class="text-red-500">अज्ञात PHC</span>'; 
+        }
+        function getSCName(id) { 
+            let s = globalSubCenters.find(x => x.id === id); 
+            return s ? s.name : '<span class="text-red-500 italic">असाइन नाही</span>'; 
+        }
 
         function renderPHCTable() {
             let tbody = document.getElementById('phcListTable'); tbody.innerHTML = '';
-            if(globalPHCs.length === 0) { tbody.innerHTML = '<tr><td colspan="2" class="p-2 text-center text-gray-400">माहिती नाही</td></tr>'; return; }
-            globalPHCs.forEach(p => { tbody.innerHTML += `<tr class="border-b hover:bg-blue-50"><td class="p-2 border font-bold text-blue-800">${p.phc_name}</td><td class="p-2 border text-center"><button onclick="triggerDelete('phcs', '${p.id}')" class="text-red-500 font-bold hover:text-red-700 bg-red-100 px-2 rounded">✕</button></td></tr>`; });
+            if(globalPHCs.length === 0) { tbody.innerHTML = '<tr><td colspan="2" class="p-4 text-center text-gray-400 font-bold">अद्याप प्राथमिक आरोग्य केंद्रे (PHC) जोडलेली नाहीत.</td></tr>'; return; }
+            globalPHCs.forEach(p => { 
+                let pName = p.phc_name || p.name || 'अज्ञात PHC';
+                tbody.innerHTML += `<tr class="border-b hover:bg-blue-50"><td class="p-2 border font-bold text-blue-800">${pName}</td><td class="p-2 border text-center"><button onclick="triggerDelete('phcs', '${p.id}')" class="text-red-500 font-bold hover:text-red-700 bg-red-100 px-2 rounded shadow-sm">✕</button></td></tr>`; 
+            });
         }
 
         function renderSubCenterTable() {
             let tbody = document.getElementById('subCenterTableBody'); tbody.innerHTML = '';
-            if(globalSubCenters.length === 0) { tbody.innerHTML = '<tr><td colspan="4" class="p-3 text-center text-gray-400">अद्याप उपकेंद्रे जोडलेली नाहीत.</td></tr>'; return; }
+            if(globalSubCenters.length === 0) { tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-gray-400 font-bold">अद्याप उपकेंद्रे जोडलेली नाहीत.</td></tr>'; return; }
             globalSubCenters.forEach((sc, i) => {
-                let phcTd = isTalukaAdmin ? `<td class="p-3 border font-semibold text-blue-700">${getPHCName(sc.phc_id)}</td>` : '';
+                let phcTd = isTalukaAdmin ? `<td class="p-3 border font-bold text-blue-700 bg-blue-50/30">${getPHCName(sc.phc_id)}</td>` : '';
                 tbody.innerHTML += `<tr class="hover:bg-gray-50"><td class="p-3 border text-center">${i+1}</td><td class="p-3 border font-bold text-gray-800">${sc.name}</td>${phcTd}<td class="p-3 border text-center"><button onclick="startEditSubCenter(${i})" class="text-blue-600 font-bold hover:underline mr-3">Edit</button><button onclick="triggerDelete('sub_centers', '${sc.id}')" class="text-red-500 font-bold hover:underline">Delete</button></td></tr>`;
             });
         }
 
         function renderVillageTable() {
             let tbody = document.getElementById('villageTableBody'); tbody.innerHTML = '';
-            if(globalVillages.length === 0) { tbody.innerHTML = '<tr><td colspan="6" class="p-3 text-center text-gray-400">अद्याप गावे जोडलेली नाहीत.</td></tr>'; return; }
+            if(globalVillages.length === 0) { tbody.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-gray-400 font-bold">अद्याप गावे जोडलेली नाहीत.</td></tr>'; return; }
             globalVillages.forEach((v, i) => {
-                tbody.innerHTML += `<tr class="hover:bg-gray-50"><td class="p-3 border text-center">${i+1}</td><td class="p-3 border font-bold text-gray-800">${v.name}</td><td class="p-3 border font-medium text-purple-700">${getSCName(v.sub_center_id)}</td><td class="p-3 border text-center text-blue-600 font-bold">${v.population || 0}</td><td class="p-3 border text-center text-indigo-600 font-bold">${v.total_houses || 0}</td><td class="p-3 border text-center"><button onclick="startEditVillage(${i})" class="text-blue-600 font-bold hover:underline mr-3">Edit</button><button onclick="triggerDelete('villages', '${v.id}')" class="text-red-500 font-bold hover:underline">Delete</button></td></tr>`;
+                let scObj = globalSubCenters.find(x => x.id === v.sub_center_id);
+                let phcBadge = (isTalukaAdmin && scObj) ? `<br><span class="text-xs font-bold text-blue-600 bg-blue-100 px-1 rounded">🏥 ${getPHCName(scObj.phc_id)}</span>` : '';
+                
+                tbody.innerHTML += `<tr class="hover:bg-gray-50"><td class="p-3 border text-center">${i+1}</td><td class="p-3 border font-bold text-gray-800 text-base">${v.name}</td><td class="p-3 border font-medium text-gray-700">${getSCName(v.sub_center_id)}${phcBadge}</td><td class="p-3 border text-center text-blue-600 font-bold">${v.population || 0}</td><td class="p-3 border text-center text-indigo-600 font-bold">${v.total_houses || 0}</td><td class="p-3 border text-center"><button onclick="startEditVillage(${i})" class="text-blue-600 font-bold hover:underline mr-3">Edit</button><button onclick="triggerDelete('villages', '${v.id}')" class="text-red-500 font-bold hover:underline">Delete</button></td></tr>`;
             });
         }
 
         function renderEmployeeTable() {
             let tbody = document.getElementById('employeeTableBody'); tbody.innerHTML = '';
-            let validEmps = globalEmployees.filter(e => e.role !== 'admin' && e.role !== 'taluka_admin');
-            if(validEmps.length === 0) { tbody.innerHTML = '<tr><td colspan="5" class="p-3 text-center text-gray-400">अद्याप कर्मचारी जोडलेले नाहीत.</td></tr>'; return; }
+            let validEmps = globalEmployees.filter(e => {
+                let r = String(e.role || '').toLowerCase().trim();
+                return r !== 'admin' && r !== 'taluka_admin';
+            });
+
+            if(validEmps.length === 0) { tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-gray-400 font-bold">अद्याप कर्मचारी जोडलेले नाहीत.</td></tr>'; return; }
             
             validEmps.forEach(e => {
-                let scName = e.role === 'phc_admin' ? `<span class="text-blue-600 font-bold">🏥 PHC ॲडमिन: ${getPHCName(e.phc_id)}</span>` : getSCName(e.sub_center_id);
-                let pwd = e.password || e.possword || 'Set NA';
-                let roleColor = e.role === 'phc_admin' ? 'bg-purple-100 text-purple-800 border-purple-300' : 'bg-blue-100 text-blue-800 border-blue-300';
+                let isPhcAdmin = String(e.role).toLowerCase() === 'phc_admin';
+                let phcBadge = isTalukaAdmin && e.phc_id ? `<br><span class="text-xs font-bold text-blue-600 bg-blue-100 px-1 rounded">🏥 ${getPHCName(e.phc_id)}</span>` : '';
                 
-                tbody.innerHTML += `<tr class="hover:bg-gray-50"><td class="p-3 border font-bold text-gray-800">${e.full_name}</td><td class="p-3 border text-center"><span class="px-2 py-1 rounded text-xs font-bold border ${roleColor}">${e.role.toUpperCase()}</span></td><td class="p-3 border text-center text-gray-700">📱 ${e.mobile_number}<br><span class="text-xs text-gray-500">🔑 ${pwd}</span></td><td class="p-3 border">${scName}</td><td class="p-3 border text-center"><button onclick="triggerDelete('employees', '${e.id}')" class="text-red-500 font-bold hover:bg-red-50 px-2 py-1 rounded border border-red-200 shadow-sm">काढा</button></td></tr>`;
+                let scName = isPhcAdmin ? `<span class="text-purple-700 font-bold">संपूर्ण PHC ॲडमिन</span>${phcBadge}` : `${getSCName(e.sub_center_id)}${phcBadge}`;
+                let pwd = e.password || e.possword || 'Set NA';
+                let roleColor = isPhcAdmin ? 'bg-purple-100 text-purple-800 border-purple-300' : 'bg-blue-100 text-blue-800 border-blue-300';
+                
+                tbody.innerHTML += `<tr class="hover:bg-gray-50"><td class="p-3 border font-bold text-gray-800">${e.full_name}</td><td class="p-3 border text-center"><span class="px-2 py-1 rounded text-xs font-bold border ${roleColor}">${String(e.role).toUpperCase()}</span></td><td class="p-3 border text-center text-gray-700">📱 ${e.mobile_number}<br><span class="text-xs text-gray-500">🔑 ${pwd}</span></td><td class="p-3 border">${scName}</td><td class="p-3 border text-center"><button onclick="triggerDelete('employees', '${e.id}')" class="text-red-500 font-bold hover:bg-red-50 px-2 py-1 rounded border border-red-200 shadow-sm">काढा</button></td></tr>`;
             });
         }
 
         // ==========================================
-        // 🟢 CRUD ऑपरेशन्स (तालुका आणि PHC)
+        // CRUD ऑपरेशन्स
         // ==========================================
         async function addPHC(e) {
-            e.preventDefault(); showLoader(); const name = document.getElementById('newPHCName').value.trim();
-            const { error } = await supabaseClient.from('phcs').insert([{ phc_name: name }]); hideLoader();
-            if (error) alert("एरर: " + error.message); else { document.getElementById('newPHCName').value = ''; loadMasterData(); }
+            e.preventDefault(); showLoader(); 
+            const name = document.getElementById('newPHCName').value.trim();
+            const { error } = await supabaseClient.from('phcs').insert([{ phc_name: name }]); 
+            
+            hideLoader();
+            if (error) {
+                if(error.message.includes('column "phc_name" does not exist')) {
+                    // जर चुकून टेबलमध्ये phc_name ऐवजी name असेल तर 
+                    await supabaseClient.from('phcs').insert([{ name: name }]);
+                    document.getElementById('newPHCName').value = ''; loadMasterData();
+                } else { alert("एरर: " + error.message); }
+            } else { document.getElementById('newPHCName').value = ''; loadMasterData(); }
         }
 
         async function addPHCAdmin(e) {
@@ -334,7 +383,6 @@
 
         async function saveSubCenter(e) {
             e.preventDefault(); showLoader();
-            // 🟢 जावास्क्रिप्ट मधून पडताळणी
             let phcId = isTalukaAdmin ? document.getElementById('scPHCSelect').value : currentUser.phc_id;
             
             if (isTalukaAdmin && !phcId) { alert("कृपया PHC निवडा!"); hideLoader(); return; }
