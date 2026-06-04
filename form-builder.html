@@ -3,67 +3,61 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>प्रगत फॉर्म बिल्डर - लेव्हल ३ (चेकबॉक्ससह)</title>
+    <title>फॉर्म बिल्डर - तालुका आरोग्य प्रणाली</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.14.0/Sortable.min.js"></script>
 </head>
-<body class="bg-gray-100 p-6 min-h-screen">
+<body class="bg-gray-100 p-2 md:p-6 min-h-screen">
 
-    <div class="max-w-5xl mx-auto bg-white p-4 rounded-lg shadow-md flex justify-between items-center mb-6">
+    <div class="max-w-6xl mx-auto bg-white p-4 rounded-lg shadow-md flex justify-between items-center mb-6 border-t-8 border-green-600">
         <div>
-            <h1 class="text-xl font-bold text-green-600" id="builderTitle">प्रगत फॉर्म बिल्डर (लेव्हल ३)</h1>
-            <p class="text-xs text-gray-500">मुख्य विषय ➡️ उप-गट ➡️ उपप्रश्न रचना</p>
+            <h1 class="text-xl md:text-2xl font-extrabold text-green-800" id="pageTitle">🛠️ नवीन फॉर्म तयार करा</h1>
+            <p class="text-sm font-bold text-gray-500 mt-1">तालुक्यातील सर्व उपकेंद्रांसाठी डायनॅमिक अहवाल फॉर्म बनवा</p>
         </div>
-        <button onclick="window.location.href='dashboard.html'" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition text-sm font-bold">परत जा</button>
+        <button onclick="window.location.href='dashboard.html'" class="bg-gray-600 text-white px-4 py-2 rounded font-bold shadow-lg hover:bg-gray-700 transition">डॅशबोर्डवर परत जा</button>
     </div>
 
-    <div class="max-w-5xl mx-auto bg-white p-6 rounded-lg shadow-md border-t-4 border-green-500">
-
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 pb-6 border-b">
-            <div>
-                <label class="block text-gray-700 font-bold mb-2 text-sm">अहवाल/फॉर्मचे नाव</label>
-                <input type="text" id="formName" class="w-full p-2 border rounded" placeholder="उदा. रुग्ण नोंदणी">
+    <div class="max-w-6xl mx-auto bg-white p-6 rounded-lg shadow-md mb-8">
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 border-b-2 border-gray-200 pb-6">
+            <div class="md:col-span-1">
+                <label class="block text-sm font-bold text-gray-700 mb-1">फॉर्मचे नाव <span class="text-red-500">*</span></label>
+                <input type="text" id="formName" placeholder="उदा. गरोदर माता नोंदणी" class="w-full p-3 border-2 border-gray-300 rounded font-bold focus:ring-2 focus:ring-green-500">
             </div>
             <div>
-                <label class="block text-gray-700 font-bold mb-2 text-sm">फॉर्मचा प्रकार</label>
-                <select id="formType" class="w-full p-2 border rounded bg-white">
-                    <option value="list">यादी (List)</option>
-                    <option value="monthly">मासिक अहवाल</option>
-                    <option value="progressive">प्रगत अहवाल</option>
+                <label class="block text-sm font-bold text-gray-700 mb-1">अहवालाचा प्रकार <span class="text-red-500">*</span></label>
+                <select id="formType" class="w-full p-3 border-2 border-gray-300 rounded font-bold focus:ring-2 focus:ring-green-500 text-blue-800 bg-blue-50">
+                    <option value="monthly">📊 मासिक (Monthly) - महिन्यातून एकदाच</option>
+                    <option value="progressive">📈 प्रगत (Progressive) - मागील + चालू बेरीज</option>
+                    <option value="list">📝 यादी (List) - एका गावात अनेक नोंदी</option>
                 </select>
             </div>
             <div>
-                <label class="block text-gray-700 font-bold mb-2 text-sm">डेटा एन्ट्री मोड</label>
-                <select id="dataEntryMode" class="w-full p-2 border rounded bg-white font-medium text-blue-700">
-                    <option value="shared">सामायिक (कोणत्याही एकाने)</option>
-                    <option value="individual">वैयक्तिक (सर्वांनी)</option>
-                </select>
-            </div>
-            
-            <div>
-                <label class="block text-gray-700 font-bold mb-2 text-sm">फॉर्म कोणी भरावा? (Tick करा)</label>
-                <div class="flex items-center gap-3 bg-white p-2 border rounded font-bold text-purple-700 min-h-[42px]">
-                    <label class="flex items-center gap-1 cursor-pointer">
-                        <input type="checkbox" class="role-chk w-4 h-4 text-purple-600" value="MPW" checked> MPW
-                    </label>
-                    <label class="flex items-center gap-1 cursor-pointer">
-                        <input type="checkbox" class="role-chk w-4 h-4 text-purple-600" value="ANM" checked> ANM
-                    </label>
-                    <label class="flex items-center gap-1 cursor-pointer">
-                        <input type="checkbox" class="role-chk w-4 h-4 text-purple-600" value="CHO" checked> CHO
-                    </label>
-                </div>
+                <label class="block text-sm font-bold text-gray-700 mb-1">कोणाला भरता येईल? <span class="text-red-500">*</span></label>
+                <input type="text" id="allowedRoles" placeholder="उदा. ANM, MPW, CHO" value="ANM,MPW,CHO" class="w-full p-3 border-2 border-gray-300 rounded font-bold text-gray-600">
             </div>
         </div>
 
-        <div id="fieldsContainer" class="space-y-4 mb-6">
-            <h2 class="text-sm font-bold text-gray-500 border-b pb-1">फॉर्मची रचना (Form Elements)</h2>
+        <div class="mb-4 flex justify-between items-center">
+            <h2 class="text-lg font-extrabold text-gray-800">प्रश्न आणि रकाने (Form Fields)</h2>
+            <button onclick="addField()" class="bg-blue-600 text-white px-4 py-2 rounded-lg font-extrabold shadow hover:bg-blue-700 transition">➕ नवीन प्रश्न जोडा</button>
         </div>
 
-        <div class="flex flex-wrap gap-4 border-t pt-6">
-            <button onclick="addNewElement(null, 'group_header')" class="bg-purple-600 text-white px-5 py-2 rounded hover:bg-purple-700 font-bold shadow-md text-sm">+ नवीन मुख्य गट जोडा (Level 1)</button>
-            <button onclick="addNewElement(null, 'number')" class="bg-blue-500 text-white px-5 py-2 rounded hover:bg-blue-600 font-bold shadow-md text-sm">+ स्वतंत्र मुख्य प्रश्न जोडा (Level 1)</button>
-            <button onclick="saveForm()" class="bg-green-600 text-white px-8 py-2 rounded hover:bg-green-700 font-bold ml-auto shadow-lg text-sm" id="saveBtn">फॉर्म पूर्ण सेव्ह करा</button>
+        <div id="fieldsContainer" class="space-y-4 mb-8 min-h-[100px] border-2 border-dashed border-gray-300 p-4 rounded-lg bg-gray-50">
+            </div>
+
+        <div class="border-t-2 border-gray-200 pt-6 flex justify-end">
+            <button id="saveFormBtn" onclick="saveForm()" class="bg-green-600 text-white px-10 py-4 rounded-xl font-extrabold text-xl shadow-xl hover:bg-green-700 transition transform hover:-translate-y-1 w-full md:w-auto">
+                💾 फॉर्म सेव्ह आणि पब्लिश करा
+            </button>
+        </div>
+    </div>
+
+    <div id="loader" class="hidden fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
+        <div class="bg-white p-8 rounded-xl shadow-2xl text-center border-t-8 border-green-600">
+            <div class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-green-600 border-t-transparent mb-3"></div>
+            <p class="text-xl font-extrabold text-gray-800">फॉर्म सेव्ह होत आहे...</p>
         </div>
     </div>
 
@@ -72,237 +66,210 @@
         const SUPABASE_KEY = 'sb_publishable_sdgZ9G8ko4H_3Mh9RouYFg_JOQ-4Mdx'; 
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        let fieldCount = 0;
+        let fieldCounter = 0;
         let editFormId = null;
+
+        // 🟢 नवीन: मोबाईल नंबर (१० अंकी) हा पर्याय जोडला आहे
+        const fieldTypes = {
+            'text': '🔤 सामान्य मजकूर (Text)',
+            'number': '🔢 फक्त आकडे (Number)',
+            'mobile': '📱 मोबाईल नंबर (१० अंकी)', 
+            'date': '📅 दिनांक (Date)',
+            'dropdown': '🔽 ड्रॉपडाऊन (Select)',
+            'yes_no': '🔘 होय / नाही (Yes/No)',
+            'group_header': '📁 ग्रुप हेडिंग (Heading)',
+            'formula': '🧮 स्वयंचलित बेरीज (Formula)'
+        };
 
         window.onload = async function() {
             const urlParams = new URLSearchParams(window.location.search);
             editFormId = urlParams.get('edit');
 
             if (editFormId) {
-                document.getElementById('builderTitle').innerText = "फॉर्म सुधारा (Edit Mode)";
-                document.getElementById('saveBtn').innerText = "बदल अपडेट करा";
-                await loadFormForEditing(editFormId);
+                document.getElementById('pageTitle').innerText = "🛠️ फॉर्म सुधारा (Edit Form)";
+                await loadExistingForm(editFormId);
             } else {
-                addNewElement(null, 'group_header');
+                addField('group_header', 'नवीन ग्रुप (उदा. लसीकरण)'); 
+                addField('text', 'उदा. रुग्णाचे नाव');
             }
+
+            // Drag and Drop (Sortable JS)
+            var el = document.getElementById('fieldsContainer');
+            Sortable.create(el, { animation: 150, handle: '.drag-handle' });
         };
 
-        async function loadFormForEditing(id) {
+        function showLoader() { document.getElementById('loader').classList.remove('hidden'); }
+        function hideLoader() { document.getElementById('loader').classList.add('hidden'); }
+
+        async function loadExistingForm(id) {
+            showLoader();
             const { data, error } = await supabaseClient.from('dynamic_forms').select('*').eq('id', id).single();
-            if (error || !data) { alert("फॉर्म लोड करताना एरर आली!"); return; }
+            hideLoader();
+            
+            if (error || !data) { alert("फॉर्म सापडला नाही!"); window.location.href="dashboard.html"; return; }
 
             document.getElementById('formName').value = data.form_name;
             document.getElementById('formType').value = data.form_type;
-            if(data.data_entry_mode) document.getElementById('dataEntryMode').value = data.data_entry_mode;
-            
-            // 🟢 डेटाबेसमधून आलेला रोल वाचून चेकबॉक्स टिक करणे
-            if (data.allowed_roles) {
-                const checkboxes = document.querySelectorAll('.role-chk');
-                if (data.allowed_roles === "ALL") {
-                    checkboxes.forEach(chk => chk.checked = true);
-                } else {
-                    const rolesArray = data.allowed_roles.split(',');
-                    checkboxes.forEach(chk => {
-                        chk.checked = rolesArray.includes(chk.value);
-                    });
-                }
-            }
+            if(data.allowed_roles) document.getElementById('allowedRoles').value = data.allowed_roles;
 
-            const fields = data.schema_json.fields;
-            
-            fields.forEach(field => {
-                const numId = parseInt(field.id.replace('f', ''));
-                if(numId > fieldCount) fieldCount = numId;
-                renderElementToDOM(field.id, field.parent_id);
-            });
-
-            fields.forEach(field => {
-                document.getElementById(`${field.id}_label`).value = field.label || '';
-                document.getElementById(`${field.id}_type`).value = field.type || 'number';
-                document.getElementById(`${field.id}_req`).checked = field.required || false;
-                document.getElementById(`${field.id}_min`).value = field.min || '';
-                document.getElementById(`${field.id}_max`).value = field.max || '';
-                document.getElementById(`${field.id}_formula`).value = field.formula || '';
-                document.getElementById(`${field.id}_default`).value = field.default_value || '';
-                document.getElementById(`${field.id}_options`).value = field.options || '';
-                document.getElementById(`${field.id}_cond_field`).value = field.cond_field || '';
-                document.getElementById(`${field.id}_cond_val`).value = field.cond_val || '';
-                
-                toggleDropdownInput(field.id);
+            let fields = data.schema_json.fields || [];
+            fields.forEach(f => {
+                let actualType = f.type;
+                if(f.formula && String(f.formula).trim() !== "") actualType = 'formula';
+                addField(actualType, f.label, f.required, f.options, f.formula, f.parent_id, f.id);
             });
         }
 
-        function addNewElement(parentId = null, defaultType = 'number') {
-            fieldCount++;
-            const fId = `f${fieldCount}`;
-            renderElementToDOM(fId, parentId, defaultType);
-        }
-
-        function renderElementToDOM(fId, parentId, defaultType = 'number') {
+        function addField(type = 'text', label = '', isReq = false, options = [], formula = '', parentId = '', forceId = null) {
+            fieldCounter++;
+            let fId = forceId || `f_${new Date().getTime()}_${fieldCounter}`;
             let container = document.getElementById('fieldsContainer');
-            let indentClass = "bg-gray-50 border-l-4 border-blue-500 p-4 rounded-lg shadow-sm mb-2"; 
-            let levelLabel = "Level 1 (मुख्य)";
 
-            if (parentId) {
-                const parentBox = document.getElementById(`${parentId}_sub_wrapper`);
-                if (parentBox) {
-                    container = parentBox;
-                    const parentLevel = parseInt(document.getElementById(`${parentId}_box`).getAttribute('data-level') || 1);
-                    if (parentLevel === 1) {
-                        indentClass = "bg-purple-50/50 border-l-4 border-purple-400 p-3 rounded-md ml-6 mb-2";
-                        levelLabel = "Level 2 (उप-गट)";
-                    } else {
-                        indentClass = "bg-white border-l-2 border-dashed border-gray-300 p-3 rounded ml-12 mb-2 text-sm";
-                        levelLabel = "Level 3 (प्रत्यक्ष प्रश्न)";
-                    }
-                }
+            let typeOptionsHtml = '';
+            for (let t in fieldTypes) {
+                typeOptionsHtml += `<option value="${t}" ${type === t ? 'selected' : ''}>${fieldTypes[t]}</option>`;
             }
 
-            const currentLevelNum = parentId ? (parseInt(document.getElementById(`${parentId}_box`).getAttribute('data-level') || 1) + 1) : 1;
+            let optsStr = options ? options.join(', ') : '';
 
-            const html = `
-                <div id="${fId}_box" data-level="${currentLevelNum}" class="${indentClass} transition-all">
-                    <input type="hidden" id="${fId}_parent_val" value="${parentId || ''}">
+            let card = document.createElement('div');
+            card.className = "field-card bg-white p-4 rounded-lg border-2 border-gray-200 shadow-sm flex flex-col md:flex-row gap-4 items-start md:items-center relative";
+            card.dataset.id = fId;
+
+            let extraInputs = '';
+            if (type === 'dropdown') {
+                extraInputs = `<input type="text" class="field-options w-full p-2 border border-purple-300 rounded mt-2 text-sm bg-purple-50" placeholder="पर्याय स्वल्पविरामाने (,) वेगळे करा उदा. होय, नाही, इतर" value="${optsStr}">`;
+            } else if (type === 'formula') {
+                extraInputs = `<input type="text" class="field-formula w-full p-2 border border-orange-300 rounded mt-2 text-sm font-mono text-orange-800 bg-orange-50" placeholder="सूत्र टाका उदा. [f_1]+[f_2]" value="${formula}">`;
+            }
+
+            let bgClass = type === 'group_header' ? 'bg-indigo-100 border-indigo-400' : 'bg-white';
+
+            card.innerHTML = `
+                <div class="drag-handle cursor-move text-gray-400 hover:text-gray-700 text-2xl px-2" title="वर-खाली हलवा">☰</div>
+                
+                <div class="flex-1 w-full grid grid-cols-1 md:grid-cols-12 gap-3 ${bgClass} p-2 rounded">
                     
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end mb-2">
-                        <div class="md:col-span-2">
-                            <span class="text-[9px] font-mono font-bold px-1.5 py-0.5 bg-gray-200 text-gray-700 rounded uppercase">ID: ${fId}</span>
-                            <span class="text-[9px] font-bold px-1.5 py-0.5 bg-green-100 text-green-800 rounded uppercase ml-1">${levelLabel}</span>
-                            <input type="text" id="${fId}_label" class="w-full p-2 border rounded text-sm font-semibold mt-1" placeholder="नाव / प्रश्न लिहा...">
-                        </div>
-                        <div>
-                            <label class="text-[11px] text-gray-500 font-bold block mb-0.5">प्रकार (Field Type)</label>
-                            <select id="${fId}_type" onchange="toggleDropdownInput('${fId}')" class="w-full p-2 border rounded text-sm bg-white font-medium">
-                                <option value="number" ${defaultType==='number'?'selected':''}>संख्या बॉक्स (Number)</option>
-                                <option value="group_header" ${defaultType==='group_header'?'selected':''}>प्रश्नांचा गट हेडर (Group Header)</option>
-                                <option value="dropdown" ${defaultType==='dropdown'?'selected':''}>ड्रॉपडाऊन बॉक्स (Dropdown)</option>
-                                <option value="date" ${defaultType==='date'?'selected':''}>तारीख (Date)</option> 
-                                <option value="text" ${defaultType==='text'?'selected':''}>मजकूर (Text)</option>
-                                <option value="yes_no" ${defaultType==='yes_no'?'selected':''}>होय/नाही</option>
-                            </select>
-                        </div>
-                        <div class="flex items-center gap-2 h-10">
-                            <label class="flex items-center gap-1 text-xs font-bold cursor-pointer bg-white px-2 py-1.5 border rounded">
-                                <input type="checkbox" id="${fId}_req" class="w-3.5 h-3.5"> सक्तीचे
-                            </label>
-                            <button onclick="document.getElementById('${fId}_box').remove()" class="text-red-500 text-xs font-bold ml-auto border border-red-200 px-2 py-1.5 rounded bg-white hover:bg-red-50">X काढा</button>
-                        </div>
+                    <div class="md:col-span-5">
+                        <input type="text" class="field-label w-full p-2 border-2 border-gray-300 rounded font-bold" placeholder="${type==='group_header'?'ग्रुपचे नाव टाका':'प्रश्नाचे नाव टाका'}" value="${label}">
+                        ${extraInputs}
                     </div>
 
-                    <div class="mt-2 grid grid-cols-1 md:grid-cols-4 gap-2 bg-gray-100/50 p-2 rounded text-xs">
-                        <div>
-                            <label class="text-[10px] text-gray-500 font-bold">डिफॉल्ट व्हॅल्यू</label>
-                            <input type="text" id="${fId}_default" placeholder="उदा. 0" class="w-full p-1 border rounded bg-white">
-                        </div>
-                        <div id="${fId}_options_div" class="hidden">
-                            <label class="text-[10px] text-blue-700 font-bold">ड्रॉपडाऊन पर्याय (स्वल्पविराम द्या)</label>
-                            <input type="text" id="${fId}_options" placeholder="पर्याय १, पर्याय २" class="w-full p-1 border rounded bg-white border-blue-200">
-                        </div>
-                        <div>
-                            <label class="text-[10px] text-purple-700 font-bold">कंडिशन: फिल्ड ID</label>
-                            <input type="text" id="${fId}_cond_field" placeholder="उदा. f1" class="w-full p-1 border rounded bg-white">
-                        </div>
-                        <div>
-                            <label class="text-[10px] text-purple-700 font-bold">कंडिशन व्हॅल्यू</label>
-                            <input type="text" id="${fId}_cond_val" placeholder="उदा. होय" class="w-full p-1 border rounded bg-white">
-                        </div>
+                    <div class="md:col-span-3">
+                        <select class="field-type w-full p-2 border-2 border-gray-300 rounded font-bold text-gray-700" onchange="changeFieldType(this)">
+                            ${typeOptionsHtml}
+                        </select>
                     </div>
 
-                    <div class="mt-2 grid grid-cols-1 md:grid-cols-3 gap-2 text-xs">
-                         <input type="text" id="${fId}_formula" placeholder="फॉर्म्युला उदा. [f1]+[f2]" class="md:col-span-2 p-1 border border-blue-50 bg-blue-50/50 rounded font-mono">
-                         <div class="flex gap-1">
-                             <input type="number" id="${fId}_min" placeholder="Min" class="w-1/2 p-1 border rounded">
-                             <input type="number" id="${fId}_max" placeholder="Max" class="w-1/2 p-1 border rounded">
-                         </div>
+                    <div class="md:col-span-2 flex items-center justify-center">
+                        <label class="font-bold text-sm text-gray-700 flex items-center cursor-pointer ${type==='group_header'?'hidden':''}">
+                            <input type="checkbox" class="field-required w-5 h-5 mr-2 text-blue-600 rounded focus:ring-blue-500" ${isReq ? 'checked' : ''}> अनिवार्य
+                        </label>
                     </div>
 
-                    ${currentLevelNum < 3 ? `
-                    <div class="mt-3 flex gap-2 no-print border-t pt-2 border-dashed">
-                        <button onclick="addNewElement('${fId}', 'group_header')" class="text-[11px] bg-purple-100 text-purple-700 font-bold px-2.5 py-1 rounded hover:bg-purple-200">+ याच्या अंतर्गत उप-गट जोडा</button>
-                        <button onclick="addNewElement('${fId}', 'number')" class="text-[11px] bg-blue-100 text-blue-700 font-bold px-2.5 py-1 rounded hover:bg-blue-200">+ याच्या अंतर्गत उपप्रश्न जोडा</button>
+                    <div class="md:col-span-2 text-center md:text-right">
+                        <button onclick="this.closest('.field-card').remove()" class="text-red-500 font-bold hover:bg-red-100 px-3 py-2 rounded transition">✕ काढा</button>
                     </div>
-                    ` : ''}
-
-                    <div id="${fId}_sub_wrapper" class="mt-3 space-y-2"></div>
                 </div>
             `;
-            container.insertAdjacentHTML('beforeend', html);
+            container.appendChild(card);
         }
 
-        function toggleDropdownInput(fId) {
-            const type = document.getElementById(`${fId}_type`).value;
-            const optDiv = document.getElementById(`${fId}_options_div`);
-            if(type === 'dropdown') optDiv.classList.remove('hidden');
-            else optDiv.classList.add('hidden');
+        function changeFieldType(selectEl) {
+            let card = selectEl.closest('.field-card');
+            let type = selectEl.value;
+            let labelVal = card.querySelector('.field-label').value;
+            let reqVal = card.querySelector('.field-required') ? card.querySelector('.field-required').checked : false;
+            let idVal = card.dataset.id;
+            
+            // Re-render that specific card
+            card.remove();
+            addField(type, labelVal, reqVal, [], '', '', idVal);
         }
 
         async function saveForm() {
-            const formName = document.getElementById('formName').value;
-            if(!formName) return alert("फॉर्मला नाव द्या!");
+            let formName = document.getElementById('formName').value.trim();
+            let formType = document.getElementById('formType').value;
+            let roles = document.getElementById('allowedRoles').value.trim();
 
-            const schema = { fields: [] };
-            const allBoxes = document.getElementById('fieldsContainer').querySelectorAll('[id$="_box"]');
+            if (!formName) return alert("कृपया फॉर्मचे नाव टाका!");
 
-            allBoxes.forEach(box => {
-                const fId = box.id.replace('_box', '');
-                const label = document.getElementById(`${fId}_label`).value.trim();
-                const parentVal = document.getElementById(`${fId}_parent_val`).value || null;
+            let fieldCards = document.querySelectorAll('.field-card');
+            if (fieldCards.length === 0) return alert("फॉर्ममध्ये किमान एक प्रश्न असावा!");
 
-                if(label) {
-                    schema.fields.push({
-                        id: fId,
-                        label: label,
-                        parent_id: parentVal, 
-                        type: document.getElementById(`${fId}_type`).value,
-                        required: document.getElementById(`${fId}_req`).checked,
-                        min: document.getElementById(`${fId}_min`).value || null,
-                        max: document.getElementById(`${fId}_max`).value || null,
-                        formula: document.getElementById(`${fId}_formula`).value || null,
-                        default_value: document.getElementById(`${fId}_default`).value || null,
-                        options: document.getElementById(`${fId}_options`).value || null,
-                        cond_field: document.getElementById(`${fId}_cond_field`).value || null,
-                        cond_val: document.getElementById(`${fId}_cond_val`).value || null
-                    });
+            let schemaFields = [];
+            let currentParentId = null;
+
+            for (let i = 0; i < fieldCards.length; i++) {
+                let card = fieldCards[i];
+                let fId = card.dataset.id;
+                let fTypeSelect = card.querySelector('.field-type').value;
+                let fLabel = card.querySelector('.field-label').value.trim();
+                let fReq = card.querySelector('.field-required') ? card.querySelector('.field-required').checked : false;
+
+                if (!fLabel) { alert(`ओळ क्रमांक ${i+1} मध्ये प्रश्नाचे नाव रिकामे आहे!`); return; }
+
+                let actualType = fTypeSelect;
+                let optionsArr = null;
+                let formulaStr = null;
+
+                if (fTypeSelect === 'group_header') {
+                    currentParentId = fId; // यापुढील प्रश्न या ग्रुपमध्ये जातील
+                    fReq = false;
+                } else if (fTypeSelect === 'dropdown') {
+                    let optVal = card.querySelector('.field-options').value;
+                    if(!optVal) { alert(`'${fLabel}' साठी ड्रॉपडाऊन पर्याय दिलेले नाहीत!`); return; }
+                    optionsArr = optVal.split(',').map(s => s.trim()).filter(s => s !== "");
+                } else if (fTypeSelect === 'formula') {
+                    actualType = 'number'; // डेटाबेसमध्ये 'number' म्हणून सेव्ह होते
+                    formulaStr = card.querySelector('.field-formula').value.trim();
+                    if(!formulaStr) { alert(`'${fLabel}' साठी फॉर्म्युला दिलेला नाही!`); return; }
                 }
-            });
 
-            if(schema.fields.length === 0) return alert("फॉर्ममध्ये किमान एक प्रश्न हवा!");
-            
-            // 🟢 चेकबॉक्सेस वाचून रोल निश्चित करणे
-            let checkedRoles = [];
-            document.querySelectorAll('.role-chk:checked').forEach(chk => checkedRoles.push(chk.value));
-            
-            if (checkedRoles.length === 0) {
-                return alert("कृपया फॉर्म कोणी भरायचा यासाठी किमान एक पद (Role) टिक करा!");
+                let fieldObj = {
+                    id: fId,
+                    label: fLabel,
+                    type: actualType,
+                    required: fReq
+                };
+
+                if (currentParentId && fTypeSelect !== 'group_header') {
+                    fieldObj.parent_id = currentParentId;
+                }
+
+                if (optionsArr) fieldObj.options = optionsArr;
+                if (formulaStr) fieldObj.formula = formulaStr;
+
+                schemaFields.push(fieldObj);
             }
 
-            // जर तिन्ही टिक केले असतील तर 'ALL' म्हणून सेव्ह करणे
-            let allowedRoles = (checkedRoles.length === 3) ? "ALL" : checkedRoles.join(',');
-            const selectedMode = document.getElementById('dataEntryMode').value;
+            let finalSchema = { fields: schemaFields };
 
-            let result;
-            if (editFormId) {
-                result = await supabaseClient.from('dynamic_forms').update({
-                    form_name: formName, 
-                    form_type: document.getElementById('formType').value,
-                    data_entry_mode: selectedMode,
-                    allowed_roles: allowedRoles, // 🟢 टिक केलेले रोल्स सेव्ह
-                    schema_json: schema
-                }).eq('id', editFormId);
-            } else {
-                result = await supabaseClient.from('dynamic_forms').insert([{
-                    form_name: formName, 
-                    form_type: document.getElementById('formType').value,
-                    data_entry_mode: selectedMode, 
-                    allowed_roles: allowedRoles, // 🟢 टिक केलेले रोल्स सेव्ह
-                    schema_json: schema, 
+            showLoader();
+            try {
+                let payload = {
+                    form_name: formName,
+                    form_type: formType,
+                    schema_json: finalSchema,
+                    allowed_roles: roles,
                     is_active: true
-                }]);
-            }
+                };
 
-            if (result.error) alert("एरर: " + result.error.message);
-            else { alert("फॉर्म यशस्वीरीत्या पूर्ण सेव्ह झाला!"); window.location.href = 'dashboard.html'; }
+                let errorObj;
+                if (editFormId) {
+                    const { error } = await supabaseClient.from('dynamic_forms').update(payload).eq('id', editFormId);
+                    errorObj = error;
+                } else {
+                    const { error } = await supabaseClient.from('dynamic_forms').insert([payload]);
+                    errorObj = error;
+                }
+
+                if (errorObj) throw errorObj;
+                alert("✅ फॉर्म यशस्वीरीत्या सेव्ह झाला!");
+                window.location.href = "dashboard.html";
+
+            } catch (err) { alert("फॉर्म सेव्ह करताना एरर: " + err.message); }
+            hideLoader();
         }
     </script>
 </body>
