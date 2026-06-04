@@ -53,7 +53,7 @@
                         <thead>
                             <tr class="bg-gray-100 text-gray-700 text-sm">
                                 <th class="p-3 border font-bold">फॉर्मचे नाव</th>
-                                <th class="p-3 border font-bold">प्रकार</th>
+                                <th class="p-3 border font-bold text-center">प्रकार</th>
                                 <th class="p-3 border text-center font-bold">ॲक्शन</th>
                             </tr>
                         </thead>
@@ -121,7 +121,6 @@
 
             const role = String(loggedInUserObj.role || '').toLowerCase().trim();
 
-            // 🟢 ३-स्तरीय (3-Tier) रोल मॅनेजमेंट
             if (role === 'taluka_admin' || role === 'admin') {
                 document.getElementById('userRole').innerText = "(तालुका ॲडमिन)";
                 document.getElementById('adminSection').classList.remove('hidden');
@@ -139,40 +138,39 @@
                 document.getElementById('masterDataDesc').innerText = "तुमच्या PHC मधील उपकेंद्रे, गावे आणि कर्मचारी तयार करा.";
 
             } else {
-                // कर्मचारी (MPW, ANM, CHO)
                 document.getElementById('userRole').innerText = `(${String(loggedInUserObj.role).toUpperCase()})`;
                 document.getElementById('userSection').classList.remove('hidden');
             }
         };
 
-        // फक्त तालुका ॲडमिनसाठी फॉर्म लिस्ट लोड करणे
         async function loadActiveForms() {
             const { data, error } = await supabaseClient.from('dynamic_forms').select('id, form_name, form_type').eq('is_active', true);
             const tbody = document.getElementById('formsTableBody');
-            if (error || !data || data.length === 0) { tbody.innerHTML = '<tr><td colspan="3" class="p-6 text-center text-red-500 font-bold bg-red-50">अद्याप कोणताही फॉर्म तयार केलेला नाही.</td></tr>'; return; }
+            
+            if (error || !data || data.length === 0) { 
+                tbody.innerHTML = '<tr><td colspan="3" class="p-6 text-center text-red-500 font-bold bg-red-50">अद्याप कोणताही फॉर्म तयार केलेला नाही.</td></tr>'; 
+                return; 
+            }
+            
             tbody.innerHTML = '';
             data.forEach(form => {
                 const tr = document.createElement('tr');
                 tr.className = "hover:bg-gray-50 transition border-b border-gray-200";
+                
+                // 🟢 येथे फक्त 'सुधारा (Edit)' बटण ठेवले आहे. 'काढा' बटण पूर्णपणे काढले आहे.
                 tr.innerHTML = `
                     <td class="p-3 border-x font-bold text-gray-800">${form.form_name}</td>
-                    <td class="p-3 border-x uppercase text-xs font-bold text-indigo-600"><span class="bg-indigo-100 px-2 py-1 rounded">${form.form_type}</span></td>
+                    <td class="p-3 border-x text-center uppercase text-xs font-bold text-indigo-600"><span class="bg-indigo-100 px-2 py-1 rounded">${form.form_type}</span></td>
                     <td class="p-3 border-x text-center">
-                        <button onclick="editForm('${form.id}')" class="bg-blue-100 text-blue-700 px-4 py-1.5 rounded text-xs font-bold hover:bg-blue-200 mr-2 shadow-sm transition">सुधारा (Edit)</button>
-                        <button onclick="deleteForm('${form.id}')" class="bg-red-100 text-red-600 px-3 py-1.5 rounded text-xs font-bold hover:bg-red-200 shadow-sm transition">✕ काढा</button>
+                        <button onclick="editForm('${form.id}')" class="bg-blue-100 text-blue-700 px-5 py-1.5 rounded text-sm font-extrabold hover:bg-blue-200 shadow-sm transition">✏️ सुधारा (Edit)</button>
                     </td>
                 `;
                 tbody.appendChild(tr);
             });
         }
 
-        function editForm(id) { window.location.href = `form-builder.html?edit=${id}`; }
-
-        async function deleteForm(id) {
-            if(confirm("तुम्हाला खात्री आहे की हा फॉर्म डिलीट करायचा आहे? एकदा डिलीट केल्यावर तो पुन्हा दिसणार नाही!")) {
-                const { error } = await supabaseClient.from('dynamic_forms').update({ is_active: false }).eq('id', id);
-                if(!error) loadActiveForms(); else alert("चूक झाली: " + error.message);
-            }
+        function editForm(id) { 
+            window.location.href = `form-builder.html?edit=${id}`; 
         }
 
         // ==========================================
