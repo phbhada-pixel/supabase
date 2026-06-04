@@ -9,7 +9,7 @@
 </head>
 <body class="bg-gray-100 p-2 md:p-6 min-h-screen">
 
-    <div class="max-w-5xl mx-auto bg-white p-4 rounded-lg shadow-md flex flex-col md:flex-row justify-between items-center mb-6 gap-4 border-t-8 border-blue-600">
+    <div class="max-w-6xl mx-auto bg-white p-4 rounded-lg shadow-md flex flex-col md:flex-row justify-between items-center mb-6 gap-4 border-t-8 border-blue-600">
         <div class="text-center md:text-left">
             <h1 class="text-2xl font-extrabold text-blue-700">🏥 तालुका आरोग्य प्रणाली</h1>
             <p class="text-sm text-gray-500 font-bold mt-1">स्वागत आहे, <span id="userName" class="font-extrabold text-black"></span> <span id="userRole" class="text-blue-700 font-extrabold px-2 py-0.5 bg-blue-100 rounded shadow-sm"></span></p>
@@ -24,11 +24,11 @@
         </div>
     </div>
 
-    <div class="max-w-5xl mx-auto">
+    <div class="max-w-6xl mx-auto">
 
         <div id="adminSection" class="hidden">
             <h2 class="text-lg font-extrabold mb-4 text-gray-800 border-b-2 border-gray-200 pb-2">⚙️ कंट्रोल पॅनेल (प्रशासन)</h2>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-5 mb-8">
 
                 <div onclick="window.location.href='master-data.html'" class="bg-white p-6 rounded-xl shadow-md border-t-4 border-blue-500 cursor-pointer hover:bg-blue-50 transition transform hover:-translate-y-1">
                     <h3 class="font-bold text-lg mb-2 text-blue-800">मास्टर डेटा मॅनेजमेंट</h3>
@@ -44,6 +44,12 @@
                     <h3 class="font-bold text-lg mb-2 text-purple-800">📊 अहवाल केंद्र</h3>
                     <p class="text-sm text-gray-600 font-medium">कर्मचाऱ्यांनी भरलेला डेटा तपासा व डाऊनलोड करा.</p>
                 </div>
+
+                <div id="migrationCard" onclick="window.location.href='migration.html'" class="hidden bg-white p-6 rounded-xl shadow-md border-t-4 border-yellow-500 cursor-pointer hover:bg-yellow-50 transition transform hover:-translate-y-1">
+                    <h3 class="font-bold text-lg mb-2 text-yellow-800">📂 जुना डेटा अपलोड करा</h3>
+                    <p class="text-sm text-gray-600 font-medium">जुने CSV अहवाल एका क्लिकमध्ये सिस्टीममध्ये आणा.</p>
+                </div>
+
             </div>
 
             <div id="activeFormsListContainer" class="hidden bg-white p-6 rounded-xl shadow-md border-t-4 border-yellow-500 mb-8">
@@ -126,6 +132,7 @@
                 document.getElementById('adminSection').classList.remove('hidden');
 
                 document.getElementById('formBuilderCard').classList.remove('hidden');
+                document.getElementById('migrationCard').classList.remove('hidden'); // 🟢 नवीन बटण येथे चालू केले
                 document.getElementById('activeFormsListContainer').classList.remove('hidden');
                 document.getElementById('masterDataDesc').innerText = "नवीन PHC, उपकेंद्रे आणि PHC ॲडमिन तयार करा.";
 
@@ -134,7 +141,6 @@
             } else if (role === 'phc_admin') {
                 document.getElementById('userRole').innerText = "(PHC ॲडमिन)";
                 document.getElementById('adminSection').classList.remove('hidden');
-
                 document.getElementById('masterDataDesc').innerText = "तुमच्या PHC मधील उपकेंद्रे, गावे आणि कर्मचारी तयार करा.";
 
             } else {
@@ -157,7 +163,6 @@
                 const tr = document.createElement('tr');
                 tr.className = "hover:bg-gray-50 transition border-b border-gray-200";
                 
-                // 🟢 येथे फक्त 'सुधारा (Edit)' बटण ठेवले आहे. 'काढा' बटण पूर्णपणे काढले आहे.
                 tr.innerHTML = `
                     <td class="p-3 border-x font-bold text-gray-800">${form.form_name}</td>
                     <td class="p-3 border-x text-center uppercase text-xs font-bold text-indigo-600"><span class="bg-indigo-100 px-2 py-1 rounded">${form.form_type}</span></td>
@@ -173,17 +178,12 @@
             window.location.href = `form-builder.html?edit=${id}`; 
         }
 
-        // ==========================================
-        // पासवर्ड बदलण्याची प्रणाली
-        // ==========================================
         function openPasswordModal() {
             document.getElementById('oldPassword').value = ""; document.getElementById('newPassword').value = ""; document.getElementById('confirmPassword').value = "";
             document.getElementById('passwordModal').classList.remove('hidden');
         }
         
-        function closePasswordModal() { 
-            document.getElementById('passwordModal').classList.add('hidden'); 
-        }
+        function closePasswordModal() { document.getElementById('passwordModal').classList.add('hidden'); }
 
         async function changePassword() {
             const oldP = document.getElementById('oldPassword').value.trim(); 
@@ -194,34 +194,22 @@
             if (newP.length < 4) return alert('नवीन पासवर्ड किमान ४ अक्षरांचा/अंकांचा असावा!');
             if (newP !== confP) return alert('नवीन पासवर्ड आणि खात्री पासवर्ड जुळत नाही!');
 
-            document.getElementById('btnChangePwd').innerText = "सेव्ह होत आहे..."; 
-            document.getElementById('btnChangePwd').disabled = true;
+            document.getElementById('btnChangePwd').innerText = "सेव्ह होत... "; document.getElementById('btnChangePwd').disabled = true;
 
             try {
                 const { data, error } = await supabaseClient.from('employees').select('password, possword').eq('id', loggedInUserObj.id).single();
                 let dbPwd = data.password || data.possword;
-
-                if (error || !data || String(dbPwd).trim() !== oldP) { 
-                    alert('तुमचा जुना पासवर्ड चुकीचा आहे!'); 
-                } else {
+                if (error || !data || String(dbPwd).trim() !== oldP) { alert('तुमचा जुना पासवर्ड चुकीचा आहे!'); } 
+                else {
                     const { error: updateErr } = await supabaseClient.from('employees').update({ password: newP }).eq('id', loggedInUserObj.id);
                     if (updateErr) throw updateErr;
-                    alert('✅ पासवर्ड यशस्वीरीत्या बदलला आहे! सुरक्षिततेसाठी कृपया नवीन पासवर्डने पुन्हा लॉगिन करा.'); 
-                    logout(); 
+                    alert('✅ पासवर्ड यशस्वीरीत्या बदलला आहे! सुरक्षिततेसाठी कृपया नवीन पासवर्डने पुन्हा लॉगिन करा.'); logout(); 
                 }
-            } catch(e) { 
-                alert("तांत्रिक एरर: " + e.message); 
-            }
-            
-            document.getElementById('btnChangePwd').innerText = "सेव्ह करा"; 
-            document.getElementById('btnChangePwd').disabled = false;
+            } catch(e) { alert("तांत्रिक एरर: " + e.message); }
+            document.getElementById('btnChangePwd').innerText = "सेव्ह करा"; document.getElementById('btnChangePwd').disabled = false;
         }
 
-        function logout() { 
-            localStorage.removeItem('loggedInUser'); 
-            sessionStorage.clear(); 
-            window.location.href = "index.html"; 
-        }
+        function logout() { localStorage.removeItem('loggedInUser'); sessionStorage.clear(); window.location.href = "index.html"; }
     </script>
 </body>
 </html>
