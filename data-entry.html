@@ -3,83 +3,70 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>माहिती भरा - आरोग्य उपकेंद्र</title>
+    <title>माहिती भरा (Data Entry) - आरोग्य प्रणाली</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <style>
-        .table-responsive { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-    </style>
 </head>
 <body class="bg-gray-100 p-2 md:p-6 min-h-screen">
 
-    <!-- Header -->
-    <div class="max-w-7xl mx-auto bg-white p-4 rounded-lg shadow-md flex justify-between items-center mb-6 no-print">
+    <div class="max-w-4xl mx-auto bg-white p-4 rounded-lg shadow-md flex justify-between items-center mb-6 border-t-8 border-indigo-600">
         <div>
-            <h1 class="text-xl md:text-2xl font-bold text-indigo-700">📝 नवीन माहिती भरा (Data Entry)</h1>
-            <p class="text-xs md:text-sm text-gray-500">तुमच्या सोयीनुसार एक गाव किंवा सर्व गावे निवडा</p>
+            <h1 class="text-xl font-bold text-indigo-800">✍️ माहिती भरा (Data Entry)</h1>
+            <p class="text-sm font-bold text-gray-500 mt-1" id="userNameDisplay">...</p>
         </div>
-        <button onclick="window.location.href='dashboard.html'" class="bg-gray-500 text-white px-3 py-2 rounded hover:bg-gray-600 transition text-sm font-bold shadow">डॅशबोर्ड</button>
+        <button onclick="window.location.href='dashboard.html'" class="bg-gray-600 text-white px-4 py-2 rounded font-bold shadow hover:bg-gray-700 transition text-sm">डॅशबोर्डवर परत जा</button>
     </div>
 
-    <div class="max-w-7xl mx-auto bg-white p-3 md:p-6 rounded-lg shadow-md border-t-4 border-indigo-600">
+    <div class="max-w-4xl mx-auto bg-white p-6 rounded-lg shadow-md mb-8">
         
-        <!-- फॉर्म, महिना आणि गाव निवडण्याचे रकाने -->
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 md:gap-6 mb-6 pb-6 border-b">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 pb-6 border-b border-gray-200">
             <div>
-                <label class="block text-gray-700 font-bold mb-2 text-sm">अहवाल महिना <span class="text-red-500">*</span></label>
-                <select id="reportMonth" onchange="handleMonthYearChange()" class="w-full p-2.5 border-2 border-gray-300 rounded font-bold text-gray-800 text-base">
-                    <option value="1">जानेवारी</option><option value="2">फेब्रुवारी</option>
-                    <option value="3">मार्च</option><option value="4">एप्रिल</option>
-                    <option value="5">मे</option><option value="6">जून</option>
-                    <option value="7">जुलै</option><option value="8">ऑगस्ट</option>
-                    <option value="9">सप्टेंबर</option><option value="10">ऑक्टोबर</option>
-                    <option value="11">नोव्हेंबर</option><option value="12">डिसेंबर</option>
+                <label class="block text-sm font-bold text-gray-700 mb-2">कोणता अहवाल भरायचा आहे? <span class="text-red-500">*</span></label>
+                <select id="formSelect" onchange="onFormChange()" class="w-full p-3 border-2 border-indigo-300 rounded-lg focus:ring-2 focus:ring-indigo-500 font-bold bg-indigo-50 text-indigo-900 shadow-sm transition">
+                    <option value="">-- फॉर्म निवडा --</option>
                 </select>
-            </div>
-            <div>
-                <label class="block text-gray-700 font-bold mb-2 text-sm">अहवाल वर्ष <span class="text-red-500">*</span></label>
-                <input type="number" id="reportYear" onchange="handleMonthYearChange()" class="w-full p-2.5 border-2 border-gray-300 rounded text-base font-mono font-bold" value="2026">
+                <p id="formTypeHint" class="text-xs font-bold text-gray-500 mt-2 hidden"></p>
             </div>
             
             <div>
-                <label class="block text-gray-700 font-bold mb-2 text-sm">अहवाल / फॉर्म निवडा <span class="text-red-500">*</span></label>
-                <select id="formSelect" onchange="loadFormSchema()" class="w-full p-2.5 border-2 border-indigo-400 rounded bg-indigo-50 font-extrabold text-indigo-900 shadow-sm text-base">
-                    <option value="">-- फॉर्म लोड होत आहेत --</option>
-                </select>
-            </div>
-
-            <!-- 🟢 नवीन: गाव निवडण्याचा ड्रॉपडाऊन (एकल किंवा सर्व) -->
-            <div>
-                <label class="block text-gray-700 font-bold mb-2 text-sm">गाव / कार्यक्षेत्र निवडा <span class="text-red-500">*</span></label>
-                <select id="villageSelect" onchange="renderFormFields()" class="w-full p-2.5 border-2 border-green-400 rounded bg-green-50 font-extrabold text-green-900 shadow-sm text-base disabled:opacity-50">
+                <label class="block text-sm font-bold text-gray-700 mb-2">कोणत्या गावाचा अहवाल? <span class="text-red-500">*</span></label>
+                <select id="villageSelect" class="w-full p-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 font-bold shadow-sm transition">
                     <option value="">-- आधी फॉर्म निवडा --</option>
                 </select>
-                <p id="villageHint" class="text-[10px] text-green-600 mt-1 hidden font-bold">✓ फक्त राहिलेली गावे दाखवली आहेत.</p>
             </div>
         </div>
 
-        <!-- प्रत्यक्ष माहिती भरण्याचा फॉर्म -->
-        <form id="dynamicDataForm" onsubmit="submitDataEntry(event)">
+        <div id="dynamicFormArea" class="hidden">
+            <h2 class="text-lg font-extrabold text-gray-800 mb-4 bg-gray-100 p-3 rounded-lg border border-gray-200" id="formTitleDisplay">फॉर्म भरणे सुरू करा</h2>
             
-            <div id="dynamicFieldsContainer" class="mb-8">
-                <p class="text-center text-gray-400 font-bold py-10 text-lg">कृपया वरून फॉर्म आणि गाव निवडा. प्रश्नांची यादी येथे दिसेल.</p>
-            </div>
+            <form id="dataEntryForm" onsubmit="event.preventDefault();" class="space-y-4">
+                <div id="fieldsContainer" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    </div>
 
-            <div class="flex justify-center md:justify-end border-t pt-4">
-                <button type="submit" id="submitBtn" class="w-full md:w-auto bg-green-600 text-white px-10 py-4 md:py-3 rounded-lg font-extrabold text-xl md:text-lg shadow-xl hover:bg-green-700 transition transform hover:scale-105 hidden">
-                    💾 माहिती सेव्ह करा
-                </button>
-            </div>
-        </form>
+                <div class="flex flex-wrap gap-3 mt-8 pt-6 border-t border-gray-200 justify-end" id="actionButtons">
+                    
+                    <button type="button" id="btnNilReport" onclick="submitData(true, false)" class="hidden bg-gray-500 text-white px-6 py-3 rounded-lg font-extrabold shadow-lg hover:bg-gray-600 transition w-full md:w-auto">
+                        🚫 निरंक (NIL) अहवाल सबमिट करा
+                    </button>
+
+                    <button type="button" id="btnSaveAndAddMore" onclick="submitData(false, true)" class="hidden bg-indigo-600 text-white px-6 py-3 rounded-lg font-extrabold shadow-lg hover:bg-indigo-700 transition w-full md:w-auto">
+                        ➕ सेव्ह करा आणि आणखी जोडा
+                    </button>
+
+                    <button type="button" id="btnSaveAndFinish" onclick="submitData(false, false)" class="bg-green-600 text-white px-8 py-3 rounded-lg font-extrabold shadow-lg hover:bg-green-700 transition w-full md:w-auto">
+                        ✅ सेव्ह करा
+                    </button>
+
+                </div>
+            </form>
+        </div>
 
     </div>
 
-    <!-- लोडर -->
     <div id="loader" class="hidden fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
-        <div class="bg-white p-8 rounded-xl shadow-2xl text-center border-4 border-green-500">
-            <div class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-green-600 border-t-transparent mb-4"></div>
-            <p class="text-xl font-extrabold text-gray-800">डेटा सुरक्षित सेव्ह होत आहे...</p>
-            <p class="text-sm font-bold text-gray-500 mt-2">कृपया ब्राउझर बंद करू नका</p>
+        <div class="bg-white p-6 rounded-xl shadow-2xl text-center border-t-8 border-indigo-600">
+            <div class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-indigo-600 border-t-transparent mb-3"></div>
+            <p class="text-lg font-bold text-gray-800" id="loaderText">माहिती लोड होत आहे...</p>
         </div>
     </div>
 
@@ -88,295 +75,225 @@
         const SUPABASE_KEY = 'sb_publishable_sdgZ9G8ko4H_3Mh9RouYFg_JOQ-4Mdx'; 
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        let loggedInUser = null;
-        let allFormsMap = {};
-        let userVillages = [];
-        let allowedForms = [];
-        let currentMonthResponses = [];
-        
-        let globalPendingVillages = []; // सध्याच्या फॉर्मसाठी राहिलेली सर्व गावे
-        let currentPendingVillages = []; // युझरने निवडलेली गावे (१ किंवा सर्व)
-        let currentDataFields = []; // फॉर्मचे प्रश्न
+        let currentUser = null;
+        let globalForms = [];
+        let globalVillages = [];
+        let pastResponses = [];
+        let currentFormObj = null;
+
+        const CURRENT_MONTH = new Date().getMonth() + 1;
+        const CURRENT_YEAR = new Date().getFullYear();
 
         window.onload = async function() {
-            const userDataString = localStorage.getItem('loggedInUser');
-            if (!userDataString) { window.location.href = "index.html"; return; }
-            loggedInUser = JSON.parse(userDataString);
+            const userStr = localStorage.getItem('loggedInUser');
+            if (!userStr) { window.location.href = "index.html"; return; }
+            currentUser = JSON.parse(userStr);
+            document.getElementById('userNameDisplay').innerText = `🧑‍⚕️ ${currentUser.full_name} (${String(currentUser.role).toUpperCase()})`;
 
-            const currentMonth = new Date().getMonth() + 1;
-            document.getElementById('reportMonth').value = currentMonth;
-            document.getElementById('reportYear').value = new Date().getFullYear();
-
-            await fetchVillages();
-            await fetchAvailableForms();
-            await fetchMonthResponses(); 
-            
-            updateFormDropdown(); 
+            await fetchData();
         };
 
-        function getFullFieldLabel(fields, fieldObj) {
-            let fullLabel = fieldObj.label;
-            let currentField = fieldObj;
-            while (currentField && currentField.parent_id) {
-                let parentField = fields.find(f => f.id === currentField.parent_id);
-                if (parentField) {
-                    if (parentField.type === 'group_header') fullLabel = parentField.label + " - " + fullLabel;
-                    currentField = parentField;
-                } else { break; }
-            }
-            return fullLabel;
-        }
+        function showLoader(text="प्रक्रिया सुरू आहे...") { document.getElementById('loaderText').innerText = text; document.getElementById('loader').classList.remove('hidden'); }
+        function hideLoader() { document.getElementById('loader').classList.add('hidden'); }
 
-        async function fetchVillages() {
-            const { data, error } = await supabaseClient.from('villages').select('*').eq('sub_center_id', loggedInUser.sub_center_id).order('name');
-            userVillages = data || [];
-        }
-
-        async function fetchAvailableForms() {
-            const { data, error } = await supabaseClient.from('dynamic_forms').select('*').eq('is_active', true);
-            if (!error && data) {
-                let userRole = loggedInUser.role ? String(loggedInUser.role).trim().toUpperCase() : "ALL";
-                allowedForms = data.filter(form => {
-                    let rolesStr = form.allowed_roles ? String(form.allowed_roles).trim().toUpperCase() : "ALL";
-                    if (rolesStr === "ALL" || loggedInUser.role === "admin") return true;
-                    return rolesStr.split(',').includes(userRole);
-                });
-            }
-        }
-
-        async function fetchMonthResponses() {
-            const m = document.getElementById('reportMonth').value;
-            const y = document.getElementById('reportYear').value;
-            if (userVillages.length === 0) return;
-            const villageIds = userVillages.map(v => v.id);
-
-            const { data, error } = await supabaseClient
-                .from('form_responses')
-                .select('form_id, village_id, employee_id')
-                .eq('report_month', parseInt(m))
-                .eq('report_year', parseInt(y))
-                .in('village_id', villageIds);
-                
-            currentMonthResponses = data || [];
-        }
-
-        async function handleMonthYearChange() {
-            document.getElementById('dynamicFieldsContainer').innerHTML = '<p class="text-center text-blue-500 font-bold py-10 text-lg">महिना बदलला आहे, डेटा तपासला जात आहे...</p>';
-            document.getElementById('submitBtn').classList.add('hidden');
-            document.getElementById('villageSelect').innerHTML = '<option value="">-- आधी फॉर्म निवडा --</option>';
-            document.getElementById('villageHint').classList.add('hidden');
-            
-            await fetchMonthResponses();
-            updateFormDropdown();
-        }
-
-        function updateFormDropdown() {
-            const fSelect = document.getElementById('formSelect');
-            const currentSelection = fSelect.value;
-            fSelect.innerHTML = '<option value="">-- फॉर्म निवडा --</option>';
-            allFormsMap = {};
-
-            allowedForms.forEach(form => {
-                let showForm = true;
-                if (form.form_type !== 'list' && userVillages.length > 0) {
-                    let filledCount = 0;
-                    userVillages.forEach(v => {
-                        let isFilled = currentMonthResponses.some(r => r.form_id === form.id && r.village_id === v.id && (form.data_entry_mode === 'shared' ? true : r.employee_id === loggedInUser.id));
-                        if (isFilled) filledCount++;
-                    });
-                    if (filledCount >= userVillages.length) showForm = false; 
-                }
-
-                if (showForm) {
-                    allFormsMap[form.id] = form;
-                    const opt = document.createElement('option');
-                    opt.value = form.id; opt.text = form.form_name;
-                    fSelect.appendChild(opt);
-                }
-            });
-
-            if (allFormsMap[currentSelection]) {
-                fSelect.value = currentSelection;
-                loadFormSchema();
-            } else {
-                fSelect.value = "";
-                document.getElementById('villageSelect').innerHTML = '<option value="">-- आधी फॉर्म निवडा --</option>';
-                document.getElementById('villageHint').classList.add('hidden');
-                document.getElementById('dynamicFieldsContainer').innerHTML = '<p class="text-center text-gray-400 font-bold py-10 text-lg">कृपया वरून फॉर्म आणि गाव निवडा.</p>';
-            }
-        }
-
-        // 🟢 फॉर्म निवडल्यावर गावे शोधणे आणि ड्रॉपडाऊनमध्ये टाकणे
-        function loadFormSchema() {
-            const formId = document.getElementById('formSelect').value;
-            const container = document.getElementById('dynamicFieldsContainer');
-            const vSelect = document.getElementById('villageSelect');
-            const vHint = document.getElementById('villageHint');
-            
-            document.getElementById('submitBtn').classList.add('hidden');
-            container.innerHTML = '<p class="text-center text-gray-400 font-bold py-10 text-lg">कृपया गाव / कार्यक्षेत्र निवडा.</p>';
-
-            if (!formId) {
-                vSelect.innerHTML = '<option value="">-- आधी फॉर्म निवडा --</option>';
-                vHint.classList.add('hidden');
-                return;
-            }
-
-            const selectedForm = allFormsMap[formId];
-            globalPendingVillages = [];
-            let hiddenCount = 0;
-
-            userVillages.forEach(v => {
-                if (selectedForm.form_type === 'list') {
-                    globalPendingVillages.push(v);
-                } else {
-                    let isFilled = currentMonthResponses.some(r => r.form_id === formId && r.village_id === v.id && (selectedForm.data_entry_mode === 'shared' ? true : r.employee_id === loggedInUser.id));
-                    if (!isFilled) globalPendingVillages.push(v);
-                    else hiddenCount++;
-                }
-            });
-
-            vSelect.innerHTML = '<option value="">-- गाव निवडा --</option>';
-            
-            if (globalPendingVillages.length > 0) {
-                // जर एकापेक्षा जास्त गावे शिल्लक असतील, तर 'ALL' चा ऑप्शन देणे
-                if (globalPendingVillages.length > 1) {
-                    vSelect.innerHTML += `<option value="ALL" class="bg-yellow-100 text-yellow-900 font-extrabold">🚀 सर्व गावे (एकत्रित भरा)</option>`;
-                }
-                globalPendingVillages.forEach(v => {
-                    vSelect.innerHTML += `<option value="${v.id}">${v.name}</option>`;
-                });
-            }
-
-            if (hiddenCount > 0 && selectedForm.form_type !== 'list') {
-                vHint.innerText = `✓ ${hiddenCount} गावे भरून झाली आहेत (ती लपवली आहेत).`;
-                vHint.classList.remove('hidden');
-            } else {
-                vHint.classList.add('hidden');
-            }
-        }
-
-        // 🟢 गाव निवडल्यावर फॉर्मचे रकाने जनरेट करणे
-        function renderFormFields() {
-            const formId = document.getElementById('formSelect').value;
-            const vid = document.getElementById('villageSelect').value;
-            const container = document.getElementById('dynamicFieldsContainer');
-            const submitBtn = document.getElementById('submitBtn');
-
-            if (!vid) {
-                container.innerHTML = '<p class="text-center text-gray-400 font-bold py-10 text-lg">कृपया गाव / कार्यक्षेत्र निवडा.</p>';
-                submitBtn.classList.add('hidden');
-                return;
-            }
-
-            const selectedForm = allFormsMap[formId];
-            const allFields = selectedForm.schema_json.fields;
-            currentDataFields = allFields.filter(f => f.type !== 'group_header');
-
-            if (vid === 'ALL') {
-                currentPendingVillages = globalPendingVillages;
-            } else {
-                currentPendingVillages = globalPendingVillages.filter(v => v.id === parseInt(vid) || v.id === vid);
-            }
-
-            // HTML जनरेशन (टेबल आणि कार्ड्स)
-            let html = '<div class="table-responsive"><table class="w-full border-collapse block md:table">';
-            
-            // डेस्कटॉप हेडर
-            html += '<thead class="hidden md:table-header-group bg-gray-200 border-b-4 border-gray-400"><tr>';
-            html += '<th class="p-3 border text-center font-extrabold text-gray-800 min-w-[150px]">गाव / कार्यक्षेत्र</th>';
-            currentDataFields.forEach(f => {
-                html += `<th class="p-2 border text-xs font-bold text-gray-700 text-center min-w-[130px] leading-tight">${getFullFieldLabel(allFields, f)}</th>`;
-            });
-            html += '</tr></thead>';
-            
-            html += '<tbody class="block md:table-row-group">';
-            
-            currentPendingVillages.forEach((v, index) => {
-                html += `<tr class="block md:table-row mb-8 md:mb-0 bg-white border-2 border-indigo-400 md:border-0 rounded-xl md:rounded-none shadow-xl md:shadow-none p-4 md:p-0">`;
-                
-                html += `<td class="block md:table-cell p-4 md:p-2 border-b-2 border-indigo-200 md:border md:border-gray-300 text-center md:text-left bg-indigo-100 md:bg-white rounded-t-lg md:rounded-none mb-4 md:mb-0">
-                            <span class="text-2xl md:text-sm font-extrabold text-indigo-900 md:text-gray-900">${index+1}. ${v.name}</span>
-                         </td>`;
-                
-                currentDataFields.forEach(f => {
-                    let reqAttr = f.required ? 'required' : '';
-                    let inputId = `${f.id}_v${v.id}`;
-                    let inputHtml = '';
-                    
-                    if (f.type === 'number') {
-                        inputHtml = `<input type="number" id="${inputId}" class="w-full md:w-20 p-4 md:p-2 text-2xl md:text-base font-extrabold md:font-bold text-center text-blue-900 bg-blue-50 border-2 border-blue-400 md:border-gray-400 rounded-lg md:rounded outline-none focus:ring-4 focus:ring-blue-600 transition" ${reqAttr} placeholder="0">`;
-                    } else if (f.type === 'yes_no') {
-                        inputHtml = `<select id="${inputId}" class="w-full md:w-24 p-4 md:p-2 text-xl md:text-sm font-extrabold md:font-bold text-center text-purple-900 bg-purple-50 border-2 border-purple-400 md:border-gray-400 rounded-lg md:rounded outline-none focus:ring-4 focus:ring-purple-600" ${reqAttr}><option value="">- निवडा -</option><option value="होय">होय</option><option value="नाही">नाही</option></select>`;
-                    } else {
-                        inputHtml = `<input type="${f.type==='date'?'date':'text'}" id="${inputId}" class="w-full md:w-32 p-4 md:p-2 text-xl md:text-sm font-bold md:font-semibold text-center text-gray-900 bg-gray-50 border-2 border-gray-400 rounded-lg md:rounded outline-none focus:ring-4 focus:ring-gray-600" ${reqAttr}>`;
-                    }
-
-                    html += `<td class="flex md:table-cell flex-col md:flex-row items-center md:justify-center p-3 md:p-2 border-b-2 border-dashed border-gray-200 md:border-solid md:border-b-0 md:border md:border-gray-300 gap-3 md:gap-0">
-                                <label class="md:hidden text-lg font-extrabold text-gray-800 text-center w-full bg-yellow-50 p-2 rounded">${getFullFieldLabel(allFields, f)}</label>
-                                ${inputHtml}
-                             </td>`;
-                });
-                
-                html += `</tr>`;
-            });
-            
-            html += '</tbody></table></div>';
-            
-            container.innerHTML = html;
-            submitBtn.classList.remove('hidden');
-        }
-
-        async function submitDataEntry(event) {
-            event.preventDefault(); 
-
-            const formId = document.getElementById('formSelect').value;
-            const repMonth = document.getElementById('reportMonth').value;
-            const repYear = document.getElementById('reportYear').value;
-
-            if (!formId || currentPendingVillages.length === 0) return;
-
-            document.getElementById('loader').classList.remove('hidden');
-
-            let payloads = [];
-
-            currentPendingVillages.forEach(v => {
-                let responseDataObj = {};
-                currentDataFields.forEach(f => {
-                    let el = document.getElementById(`${f.id}_v${v.id}`);
-                    responseDataObj[f.id] = { value: el ? el.value : "" };
-                });
-                
-                payloads.push({
-                    form_id: formId,
-                    village_id: v.id,
-                    employee_id: loggedInUser.id,
-                    report_month: parseInt(repMonth),
-                    report_year: parseInt(repYear),
-                    response_data: responseDataObj
-                });
-            });
-
+        async function fetchData() {
+            showLoader("फॉर्म आणि गावे लोड करत आहे...");
             try {
-                const { error } = await supabaseClient.from('form_responses').insert(payloads);
-                
-                document.getElementById('loader').classList.add('hidden');
+                // फॉर्म्स आणणे
+                const { data: fData } = await supabaseClient.from('dynamic_forms').select('*').eq('is_active', true);
+                globalForms = fData || [];
 
-                if (error) {
-                    alert("माहिती सेव्ह करताना त्रुटी आली: " + error.message);
-                } else {
-                    alert(`✅ उत्कृष्ट! ${currentPendingVillages.length === 1 ? 'गावाची' : 'सर्व गावांची'} माहिती यशस्वीरीत्या सेव्ह झाली आहे.`);
-                    
-                    document.getElementById('dynamicDataForm').reset();
-                    await fetchMonthResponses();
-                    
-                    // फॉर्म आणि गावाचा ड्रॉपडाऊन अपडेट करणे
-                    updateFormDropdown();
-                }
-            } catch (err) {
-                document.getElementById('loader').classList.add('hidden');
-                alert("नेटवर्क किंवा सिस्टीम एरर: " + err.message);
+                // कर्मचाऱ्यांची गावे आणणे
+                const { data: vData } = await supabaseClient.from('villages').select('*').eq('sub_center_id', currentUser.sub_center_id);
+                globalVillages = vData || [];
+
+                // या महिन्याचे भरलेले अहवाल आणणे
+                const { data: rData } = await supabaseClient.from('form_responses')
+                    .select('form_id, village_id, response_data')
+                    .eq('employee_id', currentUser.id)
+                    .eq('report_month', CURRENT_MONTH)
+                    .eq('report_year', CURRENT_YEAR);
+                pastResponses = rData || [];
+
+                populateFormsDropdown();
+            } catch (error) { alert("एरर: " + error.message); }
+            hideLoader();
+        }
+
+        function populateFormsDropdown() {
+            const sel = document.getElementById('formSelect');
+            sel.innerHTML = '<option value="">-- फॉर्म निवडा --</option>';
+            globalForms.forEach(f => { sel.innerHTML += `<option value="${f.id}">${f.form_name}</option>`; });
+        }
+
+        // ==========================================
+        // 🟢 फॉर्म निवडल्यावरची प्रगत प्रक्रिया
+        // ==========================================
+        function onFormChange() {
+            const formId = document.getElementById('formSelect').value;
+            const area = document.getElementById('dynamicFormArea');
+            const vSel = document.getElementById('villageSelect');
+            
+            if (!formId) { area.classList.add('hidden'); vSel.innerHTML = '<option value="">-- आधी फॉर्म निवडा --</option>'; return; }
+
+            currentFormObj = globalForms.find(f => f.id === formId);
+            const isListForm = (currentFormObj.form_type === 'list');
+
+            // 🟢 १. फॉर्मचा प्रकार दाखवणे
+            const hint = document.getElementById('formTypeHint');
+            hint.classList.remove('hidden');
+            if (isListForm) {
+                hint.innerHTML = "📝 हा <b>'यादी (List)'</b> प्रकारचा फॉर्म आहे. यात तुम्ही एकाच गावासाठी अनेक नोंदी करू शकता. माहिती नसल्यास 'निरंक' सबमिट करू शकता.";
+                hint.className = "text-xs font-bold text-indigo-600 mt-2 bg-indigo-50 p-2 rounded";
+            } else {
+                hint.innerHTML = "📊 हा <b>'मासिक (Monthly)'</b> प्रकारचा फॉर्म आहे. एका गावासाठी महिन्यातून एकदाच भरता येईल.";
+                hint.className = "text-xs font-bold text-teal-600 mt-2 bg-teal-50 p-2 rounded";
             }
+
+            // 🟢 २. बटणे ॲडजस्ट करणे
+            if (isListForm) {
+                document.getElementById('btnNilReport').classList.remove('hidden');
+                document.getElementById('btnSaveAndAddMore').classList.remove('hidden');
+                document.getElementById('btnSaveAndFinish').innerHTML = "✅ सेव्ह करा आणि डॅशबोर्डवर जा";
+            } else {
+                document.getElementById('btnNilReport').classList.add('hidden');
+                document.getElementById('btnSaveAndAddMore').classList.add('hidden');
+                document.getElementById('btnSaveAndFinish').innerHTML = "✅ सेव्ह करा";
+            }
+
+            // 🟢 ३. गावे फिल्टर करणे (सर्वात महत्त्वाची पायरी)
+            vSel.innerHTML = '<option value="">-- गाव निवडा --</option>';
+            let availableVillages = 0;
+
+            globalVillages.forEach(v => {
+                let hasEntry = pastResponses.some(r => r.form_id === formId && r.village_id === v.id);
+                let hasNilEntry = pastResponses.some(r => r.form_id === formId && r.village_id === v.id && r.response_data && r.response_data.is_nil === true);
+
+                let shouldShow = true;
+                if (isListForm) {
+                    // यादी फॉर्म: जर निरंक (NIL) भरले असेल, तरच गाव गायब होईल. एरवी दिसेल.
+                    if (hasNilEntry) shouldShow = false;
+                } else {
+                    // मासिक फॉर्म: कोणतीही एन्ट्री असली तरी गाव गायब होईल.
+                    if (hasEntry) shouldShow = false;
+                }
+
+                if (shouldShow) {
+                    vSel.innerHTML += `<option value="${v.id}">${v.name}</option>`;
+                    availableVillages++;
+                }
+            });
+
+            if (availableVillages === 0) {
+                vSel.innerHTML = '<option value="">🎉 या महिन्याचे सर्व अहवाल पूर्ण झाले आहेत!</option>';
+                area.classList.add('hidden');
+            } else {
+                renderFields(currentFormObj.schema_json.fields);
+                document.getElementById('formTitleDisplay').innerText = `📋 ${currentFormObj.form_name}`;
+                area.classList.remove('hidden');
+            }
+        }
+
+        // ==========================================
+        // 🟢 फॉर्म फील्ड्स रेंडर करणे
+        // ==========================================
+        function renderFields(fields) {
+            const container = document.getElementById('fieldsContainer');
+            container.innerHTML = '';
+            
+            fields.forEach(f => {
+                if (f.type === 'group_header') {
+                    const div = document.createElement('div');
+                    div.className = "col-span-1 md:col-span-2 bg-indigo-100 p-2 mt-4 rounded border border-indigo-200";
+                    div.innerHTML = `<h3 class="font-extrabold text-indigo-900 text-sm">${f.label}</h3>`;
+                    container.appendChild(div);
+                    return;
+                }
+                if (f.formula && f.formula.trim() !== "") return; // फॉर्म्युला फील्ड लपवा
+
+                const div = document.createElement('div');
+                let requiredHtml = f.required ? '<span class="text-red-500">*</span>' : '';
+                let html = `<label class="block text-sm font-bold text-gray-700 mb-1">${f.label} ${requiredHtml}</label>`;
+                
+                if (f.type === 'text' || f.type === 'mobile') {
+                    let tType = f.type === 'mobile' ? 'tel' : 'text';
+                    let patt = f.type === 'mobile' ? 'pattern="[0-9]{10}" placeholder="10 अंकी नंबर"' : '';
+                    html += `<input type="${tType}" id="${f.id}" ${f.required ? 'required' : ''} ${patt} class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 font-medium">`;
+                } else if (f.type === 'number') {
+                    html += `<input type="number" id="${f.id}" step="0.01" ${f.required ? 'required' : ''} class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 font-bold text-blue-700">`;
+                } else if (f.type === 'date') {
+                    html += `<input type="date" id="${f.id}" ${f.required ? 'required' : ''} class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 font-medium">`;
+                } else if (f.type === 'dropdown') {
+                    html += `<select id="${f.id}" ${f.required ? 'required' : ''} class="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 font-medium"><option value="">-- निवडा --</option>`;
+                    if(f.options) { f.options.forEach(opt => html += `<option value="${opt}">${opt}</option>`); }
+                    html += `</select>`;
+                }
+                
+                div.innerHTML = html;
+                container.appendChild(div);
+            });
+        }
+
+        // ==========================================
+        // 🟢 डेटा सबमिट करणे (NIL आणि Add More लॉजिक)
+        // ==========================================
+        async function submitData(isNilReport, addMoreRecord) {
+            const formId = document.getElementById('formSelect').value;
+            const villageId = document.getElementById('villageSelect').value;
+
+            if (!villageId) { alert("कृपया अहवाल भरण्यासाठी गाव निवडा!"); return; }
+
+            let responseData = {};
+
+            if (isNilReport) {
+                // निरंक (NIL) रिपोर्ट असल्यास
+                if(!confirm("तुम्हाला खात्री आहे की या गावासाठी या महिन्याची माहिती 'निरंक (NIL)' आहे? (यानंतर या महिन्यात या गावाची नोंद करता येणार नाही)")) return;
+                responseData = { is_nil: true };
+            } else {
+                // नेहमीची माहिती असल्यास व्हॅलिडेशन करा
+                const fields = currentFormObj.schema_json.fields.filter(f => f.type !== 'group_header' && (!f.formula || f.formula.trim() === ""));
+                
+                // HTML5 Form Validation Check
+                const formEl = document.getElementById('dataEntryForm');
+                if (!formEl.checkValidity()) { formEl.reportValidity(); return; }
+
+                fields.forEach(f => {
+                    let el = document.getElementById(f.id);
+                    if (el) responseData[f.id] = { value: el.value.trim() };
+                });
+            }
+
+            showLoader("डेटा सेव्ह होत आहे...");
+            try {
+                const payload = {
+                    form_id: formId,
+                    village_id: villageId,
+                    employee_id: currentUser.id,
+                    report_month: CURRENT_MONTH,
+                    report_year: CURRENT_YEAR,
+                    response_data: responseData
+                };
+
+                const { error } = await supabaseClient.from('form_responses').insert([payload]);
+                if (error) throw error;
+
+                // रेकॉर्ड सक्सेस
+                pastResponses.push(payload); // लोकल ॲरे अपडेट करा
+
+                if (isNilReport) {
+                    alert("✅ निरंक (NIL) अहवाल यशस्वीरीत्या सबमिट झाला!");
+                    onFormChange(); // गाव यादीतून हटवण्यासाठी ड्रॉपडाऊन रिफ्रेश करा
+                } else if (addMoreRecord) {
+                    alert("✅ माहिती सेव्ह झाली! तुम्ही या गावासाठी पुढची नोंद करू शकता.");
+                    document.getElementById('dataEntryForm').reset(); // फॉर्म रिकामा करा पण गाव तेच ठेवा
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                } else {
+                    alert("✅ माहिती यशस्वीरीत्या सेव्ह झाली!");
+                    window.location.href = "dashboard.html"; // काम संपले, डॅशबोर्डवर जा
+                }
+
+            } catch (err) { alert("माहिती सेव्ह करताना एरर: " + err.message); }
+            hideLoader();
         }
     </script>
 </body>
