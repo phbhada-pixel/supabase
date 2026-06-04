@@ -23,7 +23,7 @@
             
             <div>
                 <label class="block text-sm font-bold text-gray-700 mb-2">कोणत्या फॉर्मचा डेटा आहे? <span class="text-red-500">*</span></label>
-                <select id="formSelect" class="w-full p-3 border-2 border-yellow-300 rounded-lg focus:ring-2 focus:ring-yellow-500 font-bold bg-yellow-50 text-yellow-900 shadow-sm">
+                <select id="formSelect" onchange="toggleSampleButton()" class="w-full p-3 border-2 border-yellow-300 rounded-lg focus:ring-2 focus:ring-yellow-500 font-bold bg-yellow-50 text-yellow-900 shadow-sm">
                     <option value="">-- प्रथम फॉर्म निवडा --</option>
                 </select>
             </div>
@@ -35,7 +35,11 @@
 
         </div>
 
-        <div class="flex justify-center border-t border-gray-200 pt-6">
+        <div class="flex flex-col md:flex-row justify-center gap-4 border-t border-gray-200 pt-6">
+            <button id="downloadSampleBtn" onclick="downloadSampleCSV()" class="hidden bg-green-600 text-white px-6 py-3 rounded-xl font-extrabold text-lg shadow-xl hover:bg-green-700 transition w-full md:w-auto">
+                📥 नमुना (Sample CSV) डाऊनलोड करा
+            </button>
+
             <button onclick="startMigration()" class="bg-blue-600 text-white px-10 py-3 rounded-xl font-extrabold text-lg shadow-xl hover:bg-blue-700 transition transform hover:-translate-y-1 w-full md:w-auto">
                 🚀 डेटा ट्रान्सफर सुरू करा
             </button>
@@ -93,6 +97,7 @@
             hideLoader();
         }
 
+        // ग्रुप लेबल मिळवण्यासाठी फंक्शन
         function getFieldLabelChain(fields, fieldObj) {
             let label = fieldObj.label; let current = fieldObj;
             while(current && current.parent_id) {
@@ -100,6 +105,52 @@
                 if(parent && parent.type === 'group_header') { label = parent.label + " - " + label; current = parent; } else break;
             }
             return label.replace(/\s+/g, ' ').trim();
+        }
+
+        function toggleSampleButton() {
+            const formId = document.getElementById('formSelect').value;
+            const btn = document.getElementById('downloadSampleBtn');
+            if (formId) btn.classList.remove('hidden');
+            else btn.classList.add('hidden');
+        }
+
+        // 🟢 नमुना CSV डाऊनलोड करण्यासाठी फंक्शन
+        function downloadSampleCSV() {
+            const formId = document.getElementById('formSelect').value;
+            if (!formId) return alert("कृपया प्रथम फॉर्म निवडा!");
+
+            const selectedForm = globalForms.find(f => f.id === formId);
+            const fields = selectedForm.schema_json.fields.filter(f => f.type !== 'group_header' && (!f.formula || f.formula.trim() === ""));
+
+            // बेसिक अनिवार्य कॉलम्स
+            let headers = ['तारीख', 'मोबाईल क्र.', 'गाव', 'महिना', 'वर्ष', 'माहिती'];
+
+            // फॉर्मचे डायनॅमिक कॉलम्स
+            fields.forEach(f => {
+                let fullLabel = getFieldLabelChain(selectedForm.schema_json.fields, f);
+                headers.push(fullLabel);
+            });
+
+            let csvContent = "\uFEFF"; // मराठी फॉन्टसाठी
+            csvContent += headers.join(",") + "\n";
+
+            // एक डमी (Sample) ओळ
+            let dummyRow = ['2026-05-30', '9730266586', 'भादा', 'मे', '2026', ''];
+            fields.forEach(f => {
+                if (f.type === 'number') dummyRow.push('0');
+                else dummyRow.push('test');
+            });
+            csvContent += dummyRow.join(",") + "\n";
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            link.setAttribute("download", `Sample_${selectedForm.form_name}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
         }
 
         function startMigration() {
@@ -112,12 +163,10 @@
             const selectedForm = globalForms.find(f => f.id === formId);
             const fields = selectedForm.schema_json.fields.filter(f => f.type !== 'group_header' && (!f.formula || f.formula.trim()===""));
 
-            // मॅपिंग तयार करणे (CSV Headers -> Form f_id)
             let fieldLabelMap = {};
             fields.forEach(f => {
                 let fullL = getFieldLabelChain(selectedForm.schema_json.fields, f);
                 fieldLabelMap[fullL.toLowerCase()] = f.id;
-                // शोर्ट लेबल मॅपिंग
                 fieldLabelMap[f.label.toLowerCase()] = f.id;
             });
 
@@ -136,7 +185,6 @@
                     for(let i=0; i<csvData.length; i++) {
                         let row = csvData[i];
                         
-                        // बेसिक माहिती शोधणे
                         let vName = String(row['गाव'] || '').trim().toLowerCase();
                         let mob = String(row['मोबाईल क्र.'] || '').trim();
                         let monthStr = String(row['महिना'] || '').trim();
@@ -144,7 +192,6 @@
                         let yearNum = parseInt(row['वर्ष'] || 2026);
                         let dateStr = row['तारीख'] || new Date().toISOString();
 
-                        // निरंक रिपोर्ट चेक
                         let isNil = false;
                         if(row['माहिती'] && row['माहिती'].includes('निरंक')) isNil = true;
 
@@ -158,12 +205,10 @@
                         if(isNil) {
                             respData = { is_nil: true };
                         } else {
-                            // कॉलम मॅच करणे
                             Object.keys(row).forEach(csvHeader => {
                                 let cHeaderClean = csvHeader.replace(/\s+/g, ' ').trim().toLowerCase();
                                 let matchedFid = fieldLabelMap[cHeaderClean];
 
-                                // Partial match try
                                 if(!matchedFid) {
                                     for(let key in fieldLabelMap) {
                                         if(cHeaderClean.includes(key) || key.includes(cHeaderClean)) { matchedFid = fieldLabelMap[key]; break; }
@@ -189,7 +234,6 @@
 
                     document.getElementById('loaderText').innerText = "डेटाबेसमध्ये सेव्ह करत आहे...";
                     
-                    // Bulk Insert
                     if(payloads.length > 0) {
                         try {
                             const chunkSize = 100;
