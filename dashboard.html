@@ -26,6 +26,7 @@
 
     <div class="max-w-6xl mx-auto">
 
+        <!-- 👑 ॲडमिन सेक्शन (Taluka & PHC Admin) -->
         <div id="adminSection" class="hidden">
             <h2 class="text-lg font-extrabold mb-4 text-gray-800 border-b-2 border-gray-200 pb-2">⚙️ कंट्रोल पॅनेल (प्रशासन)</h2>
             <div class="grid grid-cols-1 md:grid-cols-4 gap-5 mb-8">
@@ -52,6 +53,7 @@
 
             </div>
 
+            <!-- इतर कार्यक्रम (Special Programs) -->
             <h2 class="text-lg font-extrabold mb-4 text-gray-800 border-b-2 border-gray-200 pb-2">🎯 इतर आरोग्य कार्यक्रम (Special Programs)</h2>
             <div class="grid grid-cols-1 md:grid-cols-4 gap-5 mb-8">
                 <div onclick="window.location.href='tb-program.html'" class="bg-white p-6 rounded-xl shadow-md border-t-4 border-red-500 cursor-pointer hover:bg-red-50 transition transform hover:-translate-y-1">
@@ -79,21 +81,25 @@
             </div>
         </div>
 
+        <!-- 🧑‍⚕️ युझर / कर्मचारी सेक्शन -->
         <div id="userSection" class="hidden">
-            <h2 class="text-lg font-extrabold mb-4 text-gray-800 border-b-2 border-gray-200 pb-2">📋 माझे कामकाज (Data Entry & Reports)</h2>
+            <h2 id="userSectionTitle" class="text-lg font-extrabold mb-4 text-gray-800 border-b-2 border-gray-200 pb-2">📋 माझे कामकाज (Data Entry & Reports)</h2>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
                 
-                <div onclick="window.location.href='data-entry.html'" class="bg-white p-6 rounded-xl shadow-md border-t-4 border-indigo-500 cursor-pointer hover:bg-indigo-50 transition transform hover:-translate-y-1">
+                <!-- जनरल डेटा एंट्री (OPD सेविकेला दिसणार नाही) -->
+                <div id="cardDataEntry" onclick="window.location.href='data-entry.html'" class="bg-white p-6 rounded-xl shadow-md border-t-4 border-indigo-500 cursor-pointer hover:bg-indigo-50 transition transform hover:-translate-y-1">
                     <h3 class="font-bold text-xl mb-2 text-indigo-800">✍️ नवीन माहिती भरा</h3>
                     <p class="text-sm text-gray-600 font-medium">मासिक आणि इतर अहवाल भरण्यासाठी येथे जा.</p>
                 </div>
 
-                <div onclick="window.location.href='reports.html'" class="bg-white p-6 rounded-xl shadow-md border-t-4 border-purple-500 cursor-pointer hover:bg-purple-50 transition transform hover:-translate-y-1">
+                <!-- जनरल रिपोर्ट (OPD सेविकेला दिसणार नाही) -->
+                <div id="cardReports" onclick="window.location.href='reports.html'" class="bg-white p-6 rounded-xl shadow-md border-t-4 border-purple-500 cursor-pointer hover:bg-purple-50 transition transform hover:-translate-y-1">
                     <h3 class="font-bold text-xl mb-2 text-purple-800">📥 अहवाल केंद्र</h3>
                     <p class="text-sm text-gray-600 font-medium">तुम्ही भरलेला जुना डेटा तपासा आणि डाऊनलोड करा.</p>
                 </div>
 
-                <div onclick="window.location.href='tb-program.html'" class="bg-white p-6 rounded-xl shadow-md border-t-4 border-red-500 cursor-pointer hover:bg-red-50 transition transform hover:-translate-y-1">
+                <!-- TB प्रोग्राम (सर्वांना व OPD सेविकेला दिसेल) -->
+                <div id="cardTBProgram" onclick="window.location.href='tb-program.html'" class="bg-white p-6 rounded-xl shadow-md border-t-4 border-red-500 cursor-pointer hover:bg-red-50 transition transform hover:-translate-y-1">
                     <h3 class="font-bold text-xl mb-2 text-red-800">🩺 क्षयरोग (TB) नोंदणी</h3>
                     <p class="text-sm text-gray-600 font-medium">बेडका नमुना व क्षयरोग विषयक माहिती भरा.</p>
                 </div>
@@ -103,6 +109,7 @@
 
     </div>
 
+    <!-- 🔒 पासवर्ड बदलण्यासाठी पॉपअप (Modal) -->
     <div id="passwordModal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-70 flex items-center justify-center z-50 p-4">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm border-t-8 border-yellow-500 transform transition-all">
             <div class="p-6">
@@ -125,6 +132,7 @@
         </div>
     </div>
 
+    <!-- 🟢 JavaScript Logic -->
     <script>
         const SUPABASE_URL = 'https://qbmjsfiievcautxybaai.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_sdgZ9G8ko4H_3Mh9RouYFg_JOQ-4Mdx'; 
@@ -138,7 +146,8 @@
             loggedInUserObj = JSON.parse(userDataString);
             document.getElementById('userName').innerText = loggedInUserObj.full_name;
 
-            const role = String(loggedInUserObj.role || '').toLowerCase().trim();
+            const exactRole = String(loggedInUserObj.role || '').trim();
+            const role = exactRole.toLowerCase();
 
             if (role === 'taluka_admin' || role === 'admin') {
                 document.getElementById('userRole').innerText = "(तालुका ॲडमिन)";
@@ -157,8 +166,20 @@
                 document.getElementById('masterDataDesc').innerText = "तुमच्या PHC मधील उपकेंद्रे, गावे आणि कर्मचारी तयार करा.";
 
             } else {
-                document.getElementById('userRole').innerText = `(${String(loggedInUserObj.role).toUpperCase()})`;
+                // 🟢 सामान्य कर्मचारी / आशा / OPD सेविका
+                document.getElementById('userRole').innerText = `(${exactRole})`;
                 document.getElementById('userSection').classList.remove('hidden');
+
+                // 🟢 OPD सेविकेसाठी निर्बंध (Restriction Logic)
+                if (exactRole === 'बाह्य रुग्ण विभाग सेविका') {
+                    document.getElementById('userSectionTitle').innerText = "🩺 क्षयरोग (TB) नियंत्रण विभाग";
+                    document.getElementById('cardDataEntry').classList.add('hidden'); // जनरल फॉर्म्स लपवा
+                    document.getElementById('cardReports').classList.add('hidden'); // जनरल रिपोर्ट लपवा
+                    
+                    // कार्ड मध्यभागी दिसण्यासाठी CSS ॲडजस्टमेंट
+                    document.getElementById('cardTBProgram').parentElement.classList.remove('md:grid-cols-3');
+                    document.getElementById('cardTBProgram').parentElement.classList.add('md:grid-cols-1', 'max-w-md');
+                }
             }
         };
 
