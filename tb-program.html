@@ -51,6 +51,7 @@
 </nav>
 
 <div class="container" style="max-width: 850px;"> 
+    <!-- ENTRY FORM -->
     <div id="view-entry" style="margin: auto; display: none;">
         <h5 class="text-center text-primary mb-4 font-weight-bold p-3 bg-white rounded shadow-sm border" style="line-height: 1.5;">
             बेडका नमुना, CbNAAT, TruaNAAT, LPA, <br class="d-md-none"> Food Basket, Follow up नोंदणी
@@ -96,6 +97,7 @@
         </form>
     </div>
 
+    <!-- REPORTS -->
     <div id="view-reports" style="display:none;">
         <div class="section-title">३. अहवाल तयार करा (Generate Reports)</div>
         <p class="text-muted mb-4 font-weight-bold">डाऊनलोड करण्यासाठी तारीख निवडा.</p>
@@ -140,6 +142,7 @@
     </div>
 </div>
 
+<!-- PREVIEW MODAL -->
 <div class="modal fade" id="previewModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content" style="border-radius: 12px;">
@@ -190,9 +193,10 @@
             let roleName = "कर्मचारी";
             if(role === 'admin' || role === 'taluka_admin') roleName = "तालुका ॲडमिन";
             if(role === 'phc_admin') roleName = "PHC ॲडमिन";
+            if(role === 'बाह्य रुग्ण विभाग सेविका') roleName = "OPD सेविका";
+            
             document.getElementById('headerUserRole').innerText = `(${loggedInUser.full_name} - ${roleName})`;
 
-            // 🟢 ॲडमिनसाठी डेटा एंट्री टॅब लपवणे
             let isAdmin = (role === 'admin' || role === 'taluka_admin' || role === 'phc_admin');
             if (isAdmin) {
                 document.getElementById('nav-entry-li').style.display = 'none';
@@ -212,14 +216,17 @@
         showLoading(true, "माहिती लोड होत आहे...");
         try {
             const role = String(loggedInUser.role || '').toLowerCase().trim();
+            const isAdmin = (role === 'admin' || role === 'taluka_admin' || role === 'phc_admin');
+            const isOPD = (role === 'बाह्य रुग्ण विभाग सेविका');
             
             const pRes = await supabaseClient.from('phcs').select('*');
             dbPhcs = pRes.data || [];
 
+            // 🟢 OPD सेविका किंवा PHC ॲडमिन असल्यास, PHC चे सर्व उपकेंद्रे लोड करा
             let scQuery = supabaseClient.from('sub_centers').select('*');
-            if (role === 'phc_admin') {
+            if (role === 'phc_admin' || isOPD) {
                 scQuery = loggedInUser.phc_id ? scQuery.eq('phc_id', loggedInUser.phc_id) : scQuery;
-            } else if (role !== 'admin' && role !== 'taluka_admin' && role !== 'phc_admin') {
+            } else if (!isAdmin && !isOPD) {
                 scQuery = loggedInUser.sub_center_id ? scQuery.eq('id', loggedInUser.sub_center_id) : scQuery.eq('id', '00000000-0000-0000-0000-000000000000');
             }
             const scRes = await scQuery;
@@ -231,7 +238,7 @@
             let eQuery = supabaseClient.from('employees').select('*');
             if (role === 'phc_admin') {
                 eQuery = loggedInUser.phc_id ? eQuery.eq('phc_id', loggedInUser.phc_id) : eQuery;
-            } else if (role !== 'admin' && role !== 'taluka_admin' && role !== 'phc_admin') {
+            } else if (!isAdmin) {
                 eQuery = eQuery.eq('id', loggedInUser.id);
             }
             const eRes = await eQuery;
@@ -244,7 +251,7 @@
                 if (role === 'phc_admin') {
                     let validScNames = dbSubcenters.map(s => s.name);
                     if(validScNames.length > 0) tbQuery = tbQuery.in('sub_center', validScNames);
-                } else if (role !== 'admin' && role !== 'taluka_admin' && role !== 'phc_admin') {
+                } else if (!isAdmin) {
                     tbQuery = tbQuery.eq('staff_name', loggedInUser.full_name);
                 }
                 const statRes = await tbQuery;
@@ -255,7 +262,7 @@
             scSelect.innerHTML = '<option value="">Select Subcenter...</option>';
             dbSubcenters.forEach(sc => { scSelect.innerHTML += `<option value="${sc.id}">${sc.name}</option>`; });
 
-            if (role !== 'admin' && role !== 'taluka_admin' && role !== 'phc_admin') {
+            if (!isAdmin && !isOPD) {
                 if (dbSubcenters.length > 0) {
                     scSelect.value = dbSubcenters[0].id;
                     scSelect.style.pointerEvents = "none"; 
@@ -264,6 +271,9 @@
                 } else {
                     alert("⚠️ तुमच्या खात्याला कोणतेही उपकेंद्र जोडलेले नाही. कृपया ॲडमिनशी संपर्क साधा.");
                 }
+            } else if (isOPD) {
+                // 🟢 OPD नर्सला ड्रॉपडाऊन ओपन राहील
+                updateVillagesAndStaff();
             }
 
             addRow();
@@ -278,6 +288,8 @@
     function updateVillagesAndStaff() {
         let scId = document.getElementById('subcenter').value;
         const role = String(loggedInUser.role || '').toLowerCase().trim();
+        const isAdmin = (role === 'admin' || role === 'taluka_admin' || role === 'phc_admin');
+        const isOPD = (role === 'बाह्य रुग्ण विभाग सेविका');
         
         let vSelect = document.getElementById('village');
         vSelect.innerHTML = '<option value="">Select Village...</option>';
@@ -288,12 +300,21 @@
 
         let eSelect = document.getElementById('staffName');
         eSelect.innerHTML = '<option value="">Select Staff...</option>';
-        dbEmployees.filter(e => e.sub_center_id === scId).forEach(e => {
-            eSelect.innerHTML += `<option value="${e.full_name}">${e.full_name} (${e.role})</option>`;
-        });
+        
+        if (isOPD) {
+            // 🟢 OPD नर्स साठी तिचे नाव नेहमी फिक्स राहील
+            eSelect.innerHTML += `<option value="${loggedInUser.full_name}">${loggedInUser.full_name} (OPD सेविका)</option>`;
+            eSelect.value = loggedInUser.full_name;
+            eSelect.style.pointerEvents = "none";
+            eSelect.style.backgroundColor = "#e9ecef";
+        } else {
+            dbEmployees.filter(e => e.sub_center_id === scId).forEach(e => {
+                eSelect.innerHTML += `<option value="${e.full_name}">${e.full_name} (${e.role})</option>`;
+            });
 
-        if (role !== 'admin' && role !== 'taluka_admin' && role !== 'phc_admin') {
-             eSelect.value = loggedInUser.full_name;
+            if (!isAdmin) {
+                 eSelect.value = loggedInUser.full_name;
+            }
         }
     }
 
@@ -450,7 +471,6 @@
         }
     }
 
-    // --- 🟢 PDF PRINT REPORT ---
     async function downloadSummaryReport() {
         let sDateStr = document.getElementById('summaryDate').value;
         if(!sDateStr) { alert("कृपया तारीख निवडा!"); return; }
@@ -474,7 +494,8 @@
                 if(validScNames.length > 0) tbQuery = tbQuery.in('sub_center', validScNames);
             } else if (!isAdmin) {
                 let mySc = dbSubcenters.find(s => s.id === loggedInUser.sub_center_id);
-                if (mySc) tbQuery = tbQuery.eq('sub_center', mySc.name);
+                // OPD Nurse Queries all her own data
+                if (role !== 'बाह्य रुग्ण विभाग सेविका' && mySc) tbQuery = tbQuery.eq('sub_center', mySc.name);
                 tbQuery = tbQuery.eq('staff_name', loggedInUser.full_name);
             }
 
@@ -554,9 +575,12 @@
                 let ashaStats = { dS:0, mS:0, yS:0, dX:0, mX:0, yX:0 };
 
                 dbEmployees.forEach(e => {
-                    if (role === 'employee' && e.full_name !== loggedInUser.full_name) return;
+                    if (role !== 'phc_admin' && e.full_name !== loggedInUser.full_name) return;
+                    
                     let sc = dbSubcenters.find(s => s.id === e.sub_center_id);
-                    let scName = sc ? sc.name : '-';
+                    // 🟢 OPD नर्स साठी अहवालात SC चे नाव PHC (OPD) असे दाखवा
+                    let isOPD = String(e.role) === 'बाह्य रुग्ण विभाग सेविका';
+                    let scName = isOPD ? 'PHC (OPD)' : (sc ? sc.name : '-');
                     let isAsha = (String(e.role).toLowerCase().includes('asha') || String(e.role).includes('आशा'));
                     
                     if(!isAsha) empStats[e.full_name] = { sc: scName, dS:0, mS:0, yS:0, dX:0, mX:0, yX:0 };
@@ -572,9 +596,11 @@
                     
                     if(cat) {
                         let empName = row.staff_name || 'अज्ञात';
-                        let scName = row.sub_center || '-';
                         let empObj = dbEmployees.find(e => e.full_name === empName);
+                        
                         let isAsha = empObj && (String(empObj.role).toLowerCase().includes('asha') || String(empObj.role).includes('आशा'));
+                        let isOPD = empObj && String(empObj.role) === 'बाह्य रुग्ण विभाग सेविका';
+                        let scName = isOPD ? 'PHC (OPD)' : (row.sub_center || '-');
 
                         let targetStat = isAsha ? ashaStats : empStats[empName];
                         if(!isAsha && !empStats[empName]) {
@@ -635,7 +661,7 @@
                     grandTotal.dX += s.dX; grandTotal.mX += s.mX; grandTotal.yX += s.yX;
                 });
 
-                if(role !== 'employee') {
+                if(role !== 'employee' && role !== 'बाह्य रुग्ण विभाग सेविका') {
                     html += `<tr style='font-weight:bold; background-color: #ecf0f1;'>
                         <td>-</td><td>-</td>
                         <td style='text-align:left; padding-left:10px;'>इतर (सर्व आशा कर्मचारी एकत्रित)</td>
@@ -672,7 +698,6 @@
         }
     }
 
-    // --- LIST REPORTS ---
     async function downloadReport(type) {
         let sDate, eDate;
         if(type === 'today') {
