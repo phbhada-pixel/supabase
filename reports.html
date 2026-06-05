@@ -299,7 +299,6 @@
                     let currentMonthResp = formResp.filter(r => r.report_month === parseInt(selMonthNum) && r.report_year === parseInt(selYear));
 
                     currentMonthResp.forEach(res => {
-                        // 🟢 सर्वात महत्त्वाचे: निरंक (NIL) रिपोर्ट अहवालातून (टेबलमधून) वगळणे
                         if (res.response_data && res.response_data.is_nil === true) return;
 
                         if (user.role !== 'admin' && user.role !== 'taluka_admin' && user.role !== 'phc_admin') {
@@ -321,6 +320,16 @@
                         
                         validDataFields.forEach(f => {
                             let monthlyVal = res.response_data[f.id] ? res.response_data[f.id].value : '';
+                            
+                            // 🟢 Date Formatting (YYYY-MM-DD to DD-MM-YYYY)
+                            if (f.type === 'date' && monthlyVal && String(monthlyVal).trim() !== '') {
+                                let dStr = String(monthlyVal).split('T')[0];
+                                let parts = dStr.split('-');
+                                if(parts.length === 3 && parts[0].length === 4) {
+                                    monthlyVal = `${parts[2]}-${parts[1]}-${parts[0]}`;
+                                }
+                            }
+
                             if (isProgressive && f.type === 'number') {
                                 let sumProg = 0;
                                 getProgressiveMonthsList(selMonthNum, selYear).forEach(p => {
@@ -722,7 +731,7 @@
                         dataRowsToRender = rows.sort((a,b) => a.subcenter.localeCompare(b.subcenter) || a.village.localeCompare(b.village));
                     }
 
-                    sheetData.push(["ताल तालुका आरोग्य प्रणाली अहवाल"]);
+                    sheetData.push(["तालुका आरोग्य प्रणाली अहवाल"]);
                     sheetData.push([`सलग अहवाल: ${rep.formName} | कालावधी: ${monthStr} ${yearStr}`]);
                     sheetData.push([]); 
 
@@ -1066,4 +1075,3 @@
     </script>
 </body>
 </html>
-}}
