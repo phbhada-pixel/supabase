@@ -14,7 +14,7 @@
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #f0f2f5; padding-bottom: 50px; }
         .navbar-custom { background-color: #ffffff; box-shadow: 0 2px 4px rgba(0,0,0,0.08); margin-bottom: 20px; border-bottom: 4px solid #007bff; }
-        .navbar-brand { font-weight: 700; color: #007bff !important; font-size: 1.1rem; line-height: 1.3;}
+        .navbar-brand { font-weight: 700; color: #007bff !important; font-size: 1.2rem; line-height: 1.4;}
         .nav-pills .nav-link { cursor: pointer; font-weight: bold;}
         .nav-pills .nav-link.active { background-color: #007bff; border-radius: 8px; color: white !important; }
         .card-custom { background: #ffffff; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 20px; border: none; }
@@ -34,24 +34,33 @@
     <h5 class="mt-3 text-primary font-weight-bold" id="loadingText">डेटा लोड होत आहे...</h5>
 </div>
 
-<nav class="navbar navbar-expand bg-white navbar-custom sticky-top py-3">
-    <div class="container d-flex justify-content-between align-items-center">
-        <span class="navbar-brand mb-0">
-            राष्ट्रीय क्षयरोग नियंत्रण कार्यक्रम <br><span class="text-dark" style="font-size: 0.9rem;" id="headerUserRole">(प्राथमिक आरोग्य केंद्र)</span>
+<!-- 🟢 मोबाईल फ्रेंडली नेव्हिगेशन बार -->
+<nav class="navbar bg-white navbar-custom sticky-top py-3">
+    <div class="container d-flex flex-column flex-lg-row justify-content-between align-items-center text-center text-lg-left">
+        
+        <span class="navbar-brand mb-3 mb-lg-0 w-100 w-lg-auto">
+            राष्ट्रीय क्षयरोग नियंत्रण कार्यक्रम <br>
+            <span class="text-dark" style="font-size: 0.9rem;" id="headerUserRole">(लोड होत आहे...)</span>
         </span>
-        <div class="d-flex align-items-center gap-3">
-            <ul class="nav nav-pills align-self-center mr-3">
+        
+        <div class="d-flex flex-column flex-sm-row align-items-center w-100 w-lg-auto justify-content-center justify-content-lg-end">
+            <ul class="nav nav-pills mb-3 mb-sm-0 justify-content-center w-100 w-sm-auto">
                 <li class="nav-item">
-                    <a class="nav-link active px-3 py-2" id="tab-entry" onclick="switchTab('entry')"><i class="fas fa-edit"></i> माहिती भरा</a>
+                    <a class="nav-link active px-4 py-2" id="tab-entry" onclick="switchTab('entry')">
+                        <i class="fas fa-edit"></i> माहिती भरा
+                    </a>
                 </li>
                 <li class="nav-item ml-2">
-                    <a class="nav-link px-3 py-2" id="tab-reports" onclick="switchTab('reports')"><i class="fas fa-file-alt"></i> अहवाल</a>
+                    <a class="nav-link px-4 py-2" id="tab-reports" onclick="switchTab('reports')">
+                        <i class="fas fa-file-alt"></i> अहवाल
+                    </a>
                 </li>
             </ul>
-            <button onclick="window.location.href='dashboard.html'" class="btn btn-secondary font-weight-bold shadow-sm">
+            <button onclick="window.location.href='dashboard.html'" class="btn btn-secondary font-weight-bold shadow-sm ml-sm-3 w-100 w-sm-auto mt-2 mt-sm-0">
                 <i class="fas fa-arrow-left"></i> डॅशबोर्ड
             </button>
         </div>
+        
     </div>
 </nav>
 
@@ -60,17 +69,17 @@
     <!-- ENTRY FORM -->
     <div id="view-entry" style="margin: auto;">
         
-        <h5 class="text-center text-primary mb-4 font-weight-bold p-3 bg-white rounded shadow-sm border">
-            बेडका नमुना, CbNAAT, TruaNAAT, LPA, Food Basket, Follow up नोंदणी
+        <h5 class="text-center text-primary mb-4 font-weight-bold p-3 bg-white rounded shadow-sm border" style="line-height: 1.5;">
+            बेडका नमुना, CbNAAT, TruaNAAT, LPA, <br class="d-md-none"> Food Basket, Follow up नोंदणी
         </h5>
 
-        <div class="alert alert-info d-flex justify-content-between align-items-center shadow-sm font-weight-bold">
-            <span><i class="fas fa-calendar-day"></i> आजच्या एकूण नोंदी (Today's Entries):</span>
+        <div class="alert alert-info d-flex flex-column flex-md-row justify-content-between align-items-center shadow-sm font-weight-bold text-center text-md-left">
+            <span class="mb-2 mb-md-0"><i class="fas fa-calendar-day"></i> आजच्या एकूण नोंदी (Today's Entries):</span>
             <span class="badge badge-primary p-2" id="todayCountBadge" style="font-size: 1rem;">0</span>
         </div>
 
         <form id="entryForm" onsubmit="event.preventDefault(); showPreview();">
-            <div class="card-custom p-4">
+            <div class="card-custom p-3 p-md-4">
                 <div class="section-title">१. ठिकाण व कर्मचारी (Location & Staff)</div>
                 <div class="form-row">
                     <div class="form-group col-md-6">
@@ -116,7 +125,7 @@
                     <div class="report-icon"><i class="fas fa-clipboard-list"></i></div>
                     <h5 class="font-weight-bold text-dark">आजची यादी (Today's Data)</h5>
                     <p class="text-muted small font-weight-bold">आजच्या सर्व रुग्णांची यादी Excel मध्ये डाऊनलोड करा.</p>
-                    <button class="btn btn-sm btn-success mt-3 font-weight-bold">📥 Excel डाऊनलोड</button>
+                    <button class="btn btn-sm btn-success mt-3 font-weight-bold w-100">📥 Excel डाऊनलोड</button>
                 </div>
             </div>
 
@@ -147,9 +156,9 @@
                 <button type="button" class="close" data-dismiss="modal">&times;</button>
             </div>
             <div class="modal-body bg-light" id="previewContent" style="max-height: 500px; overflow-y: auto;"></div>
-            <div class="modal-footer bg-white">
-                <button type="button" class="btn btn-secondary font-weight-bold px-4" data-dismiss="modal">मागे जा (Edit)</button>
-                <button type="button" class="btn btn-success font-weight-bold px-4 shadow" onclick="finalSubmit()">अंतिम सेव्ह करा (Submit)</button>
+            <div class="modal-footer bg-white flex-column flex-sm-row">
+                <button type="button" class="btn btn-secondary font-weight-bold px-4 w-100 w-sm-auto mb-2 mb-sm-0" data-dismiss="modal">मागे जा (Edit)</button>
+                <button type="button" class="btn btn-success font-weight-bold px-4 shadow w-100 w-sm-auto" onclick="finalSubmit()">अंतिम सेव्ह करा (Submit)</button>
             </div>
         </div>
     </div>
@@ -194,7 +203,6 @@
         try {
             const role = String(loggedInUser.role || '').toLowerCase().trim();
             
-            // 🟢 Role नुसार उपकेंद्र शोधणे
             let scQuery = supabaseClient.from('sub_centers').select('*');
             if (role === 'phc_admin' && loggedInUser.phc_id) {
                 scQuery = scQuery.eq('phc_id', loggedInUser.phc_id);
@@ -219,11 +227,10 @@
             scSelect.innerHTML = '<option value="">Select Subcenter...</option>';
             dbSubcenters.forEach(sc => { scSelect.innerHTML += `<option value="${sc.id}">${sc.name}</option>`; });
 
-            // 🟢 जर सामान्य कर्मचारी असेल तर उपकेंद्र लॉक करा
             if (role !== 'admin' && role !== 'taluka_admin' && role !== 'phc_admin') {
                 if (dbSubcenters.length > 0) {
                     scSelect.value = dbSubcenters[0].id;
-                    scSelect.style.pointerEvents = "none"; // Dropdown Lock
+                    scSelect.style.pointerEvents = "none"; 
                     scSelect.style.backgroundColor = "#e9ecef";
                     updateVillagesAndStaff();
                 } else {
@@ -255,10 +262,8 @@
             eSelect.innerHTML += `<option value="${e.full_name}">${e.full_name} (${e.role})</option>`;
         });
 
-        // 🟢 जर कर्मचारी असेल तर त्याचे नाव आपोआप निवडा
         if (role !== 'admin' && role !== 'taluka_admin' && role !== 'phc_admin') {
              eSelect.value = loggedInUser.full_name;
-             // eSelect.style.pointerEvents = "none";
         }
     }
 
@@ -287,7 +292,7 @@
         patientCount++;
         let container = document.getElementById('patientCardsContainer');
         let card = document.createElement('div');
-        card.className = 'card-custom p-4 border bg-white shadow-sm';
+        card.className = 'card-custom p-3 p-md-4 border bg-white shadow-sm';
         card.id = 'patientCard_' + patientCount;
         
         let criteriaHtml = riskCriteriaOptions.map(opt => `<option value="${opt}">${opt}</option>`).join('');
@@ -302,29 +307,29 @@
                 <input type="text" name="patientName" class="form-control font-weight-bold" required>
             </div>
             <div class="form-row">
-                <div class="form-group col-md-4">
+                <div class="form-group col-md-4 col-6">
                     <label class="font-weight-bold text-secondary">वय (Age) <span class="text-danger">*</span></label>
                     <input type="number" name="age" class="form-control font-weight-bold" required>
                 </div>
-                <div class="form-group col-md-4">
+                <div class="form-group col-md-4 col-6">
                     <label class="font-weight-bold text-secondary">लिंग (Sex)</label>
                     <select name="sex" class="form-control font-weight-bold text-primary"><option>Male</option><option>Female</option><option>Other</option></select>
                 </div>
-                <div class="form-group col-md-4">
+                <div class="form-group col-md-4 col-12">
                     <label class="font-weight-bold text-secondary">मोबाईल (Mobile)</label>
                     <input type="tel" name="mobile" class="form-control font-weight-bold" pattern="[0-9]{10}" placeholder="10 अंकी नंबर">
                 </div>
             </div>
             <div class="form-row">
-                <div class="form-group col-md-4">
+                <div class="form-group col-md-4 col-12">
                     <label class="font-weight-bold text-secondary">निक्षय आयडी (Nikshay ID)</label>
                     <input type="text" name="nikshayId" class="form-control font-weight-bold text-success">
                 </div>
-                <div class="form-group col-md-4">
+                <div class="form-group col-md-4 col-6">
                     <label class="font-weight-bold text-secondary">प्रकार (Type)</label>
                     <select name="type" class="form-control font-weight-bold text-info"><option selected>Sputum</option><option>FollowUp Sputum</option><option>Food Basket</option><option>LPA</option><option>TruaNaaT</option><option>X-Ray</option></select>
                 </div>
-                <div class="form-group col-md-4">
+                <div class="form-group col-md-4 col-6">
                     <label class="font-weight-bold text-secondary">टेस्ट लोकेशन</label>
                     <select name="testLocation" class="form-control font-weight-bold"><option>PHC</option><option>RH</option><option>DH</option></select>
                 </div>
@@ -427,7 +432,6 @@
 
         showLoading(true, "अहवाल डाउनलोड होत आहे...");
         try {
-            // 🟢 Role नुसार अहवाल डाऊनलोड फिल्टर
             let tbQuery = supabaseClient.from('tb_entries')
                 .select('*')
                 .gte('sample_date', sDate)
