@@ -1069,6 +1069,13 @@
             formsToCheck.forEach(f => {
                 groupedData[f.form_name] = [];
                 masterData.employees.forEach(u => {
+                    // 🟢 Role Filter - कर्मचाऱ्याच्या पदानुसार फॉर्म तपासा
+                    if (f.allowed_roles && f.allowed_roles !== 'ALL') {
+                        let allowedArray = f.allowed_roles.toUpperCase().split(',').map(r => r.trim());
+                        let empRole = String(u.role).toUpperCase().trim();
+                        if (!allowedArray.includes(empRole)) return; // जर फॉर्म या पदासाठी नसेल तर सोडून द्या
+                    }
+
                     if (user.role === 'phc_admin' && u.phc_id !== user.phc_id) return;
                     if (user.role !== "admin" && user.role !== "taluka_admin" && user.role !== "phc_admin" && String(u.mobile_number).trim() !== String(user.mobile).trim()) return;
                     
