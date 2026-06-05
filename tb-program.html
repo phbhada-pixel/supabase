@@ -7,11 +7,14 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #f0f2f5; padding-bottom: 50px; }
         .navbar-custom { background-color: #ffffff; box-shadow: 0 2px 4px rgba(0,0,0,0.08); margin-bottom: 20px; border-bottom: 4px solid #007bff; }
-        .navbar-brand { font-weight: 700; color: #007bff !important; font-size: 1.1rem; white-space: normal; line-height: 1.3;}
+        .navbar-brand { font-weight: 700; color: #007bff !important; font-size: 1.1rem; line-height: 1.3;}
         .nav-pills .nav-link { cursor: pointer; font-weight: bold;}
         .nav-pills .nav-link.active { background-color: #007bff; border-radius: 8px; color: white !important; }
         .card-custom { background: #ffffff; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 20px; border: none; }
@@ -34,19 +37,15 @@
 <nav class="navbar navbar-expand bg-white navbar-custom sticky-top py-3">
     <div class="container d-flex justify-content-between align-items-center">
         <span class="navbar-brand mb-0">
-            राष्ट्रीय क्षयरोग नियंत्रण कार्यक्रम <br><span class="text-dark" style="font-size: 0.9rem;">(प्राथमिक आरोग्य केंद्र भादा)</span>
+            राष्ट्रीय क्षयरोग नियंत्रण कार्यक्रम <br><span class="text-dark" style="font-size: 0.9rem;">(प्राथमिक आरोग्य केंद्र)</span>
         </span>
         <div class="d-flex align-items-center gap-3">
             <ul class="nav nav-pills align-self-center mr-3">
                 <li class="nav-item">
-                    <a class="nav-link active px-3 py-2" id="tab-entry" onclick="switchTab('entry')">
-                        <i class="fas fa-edit"></i> माहिती भरा
-                    </a>
+                    <a class="nav-link active px-3 py-2" id="tab-entry" onclick="switchTab('entry')"><i class="fas fa-edit"></i> माहिती भरा</a>
                 </li>
                 <li class="nav-item ml-2">
-                    <a class="nav-link px-3 py-2" id="tab-reports" onclick="switchTab('reports')">
-                        <i class="fas fa-file-alt"></i> अहवाल
-                    </a>
+                    <a class="nav-link px-3 py-2" id="tab-reports" onclick="switchTab('reports')"><i class="fas fa-file-alt"></i> अहवाल</a>
                 </li>
             </ul>
             <button onclick="window.location.href='dashboard.html'" class="btn btn-secondary font-weight-bold shadow-sm">
@@ -64,9 +63,9 @@
             बेडका नमुना, CbNAAT, TruaNAAT, LPA, Food Basket, Follow up नोंदणी
         </h5>
 
-        <div class="alert alert-info d-flex justify-content-between align-items-center shadow-sm font-weight-bold" style="border-radius: 8px;">
+        <div class="alert alert-info d-flex justify-content-between align-items-center shadow-sm font-weight-bold">
             <span><i class="fas fa-calendar-day"></i> आजच्या एकूण नोंदी (Today's Entries):</span>
-            <span class="badge badge-primary p-2" id="todayCountBadge" style="font-size: 1rem;">...</span>
+            <span class="badge badge-primary p-2" id="todayCountBadge" style="font-size: 1rem;">0</span>
         </div>
 
         <form id="entryForm" onsubmit="event.preventDefault(); showPreview();">
@@ -75,20 +74,21 @@
                 <div class="form-row">
                     <div class="form-group col-md-6">
                         <label class="font-weight-bold text-secondary">उपकेंद्र (Subcenter) <span class="text-danger">*</span></label>
-                        <select id="subcenter" name="subcenter" class="form-control font-weight-bold" required></select>
+                        <select id="subcenter" class="form-control font-weight-bold" onchange="updateVillagesAndStaff()" required></select>
                     </div>
                     <div class="form-group col-md-6">
                         <label class="font-weight-bold text-secondary">नमुना तारीख (Sample Date) <span class="text-danger">*</span></label>
-                        <input type="date" id="sampleDate" name="sampleDate" class="form-control font-weight-bold" required>
+                        <input type="date" id="sampleDate" class="form-control font-weight-bold" required>
                     </div>
                 </div>
                 <div class="form-group">
                     <label class="font-weight-bold text-secondary">गाव (Village) <span class="text-danger">*</span></label>
-                    <select id="village" name="village" class="form-control font-weight-bold" required></select>
+                    <select id="village" class="form-control font-weight-bold" onchange="checkOtherVillage()" required></select>
+                    <input type="text" id="otherVillage" class="form-control mt-2" placeholder="गावाचे नाव टाईप करा" style="display:none;">
                 </div>
                 <div class="form-group">
                     <label class="font-weight-bold text-secondary">कर्मचाऱ्याचे नाव (Staff Name) <span class="text-danger">*</span></label>
-                    <select id="staffName" name="staffName" class="form-control font-weight-bold" required></select>
+                    <select id="staffName" class="form-control font-weight-bold" required></select>
                 </div>
             </div>
 
@@ -106,43 +106,29 @@
 
     <div id="view-reports" style="display:none;">
         <div class="section-title">३. अहवाल तयार करा (Generate Reports)</div>
-        <p class="text-muted mb-4 font-weight-bold">तुमच्या सोयीनुसार अहवालाचा प्रकार निवडा.</p>
+        <p class="text-muted mb-4 font-weight-bold">डाऊनलोड करण्यासाठी तारीख निवडा.</p>
 
         <div class="row">
-            <div class="col-md-4 mb-3">
-                <div class="card card-custom p-4 h-100 border text-center">
-                    <div class="report-icon"><i class="fas fa-chart-pie"></i></div>
-                    <h5 class="font-weight-bold text-dark">गोषवारा (Summary)</h5>
-                    <p class="text-muted small font-weight-bold">Daily / Monthly / Yearly</p>
-                    <div class="text-left mt-3">
-                        <label class="small font-weight-bold text-secondary">दिनांक निवडा:</label>
-                        <input type="date" id="summaryDate" class="form-control form-control-sm mb-3 font-weight-bold">
-                    </div>
-                    <button class="btn btn-sm btn-primary btn-block font-weight-bold mt-auto" onclick="triggerSummaryReport()">Download PDF</button>
-                </div>
-            </div>
-
-            <div class="col-md-4 mb-3">
-                <div class="card card-custom report-card d-flex flex-column justify-content-center" onclick="triggerReport('list')">
+            <div class="col-md-6 mb-3">
+                <div class="card card-custom report-card d-flex flex-column justify-content-center" onclick="downloadReport('today')">
                     <div class="report-icon"><i class="fas fa-clipboard-list"></i></div>
-                    <h5 class="font-weight-bold text-dark">आजची यादी</h5>
-                    <p class="text-muted small font-weight-bold">Today's patient list</p>
-                    <button class="btn btn-sm btn-success mt-3 font-weight-bold">Email PDF</button>
+                    <h5 class="font-weight-bold text-dark">आजची यादी (Today's Data)</h5>
+                    <p class="text-muted small font-weight-bold">आजच्या सर्व रुग्णांची यादी Excel मध्ये डाऊनलोड करा.</p>
+                    <button class="btn btn-sm btn-success mt-3 font-weight-bold">📥 Excel डाऊनलोड</button>
                 </div>
             </div>
 
-            <div class="col-md-4 mb-3">
+            <div class="col-md-6 mb-3">
                 <div class="card card-custom p-4 h-100 border text-center">
                     <div class="report-icon"><i class="fas fa-calendar-alt"></i></div>
-                    <h5 class="font-weight-bold text-dark">कस्टम यादी (Custom)</h5>
+                    <h5 class="font-weight-bold text-dark">कस्टम यादी (Custom List)</h5>
                     <div class="text-left mt-3">
                         <label class="small font-weight-bold text-secondary">सुरुवात (Start Date):</label>
                         <input type="date" id="reportStart" class="form-control form-control-sm mb-2 font-weight-bold">
-                        
                         <label class="small font-weight-bold text-secondary">शेवट (End Date):</label>
                         <input type="date" id="reportEnd" class="form-control form-control-sm mb-3 font-weight-bold">
                     </div>
-                    <button class="btn btn-sm btn-info btn-block font-weight-bold mt-auto" onclick="triggerCustomReport()">Download PDF</button>
+                    <button class="btn btn-sm btn-info btn-block font-weight-bold mt-auto" onclick="downloadReport('custom')">📥 Excel डाऊनलोड</button>
                 </div>
             </div>
         </div>
@@ -170,33 +156,81 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/js/bootstrap.bundle.min.js"></script>
 
 <script>
-    // ⚠️ महत्वाचे: तुमचा Google Apps Script चा Deployment URL येथे टाका
-    const GAS_URL = "येथे_तुमची_GOOGLE_SCRIPT_URL_टाका"; 
+    const SUPABASE_URL = 'https://qbmjsfiievcautxybaai.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_sdgZ9G8ko4H_3Mh9RouYFg_JOQ-4Mdx'; 
+    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    var masterData = [];
-    var riskCriteriaOptions = ["TB Contact", "Diabetic", "Smoker", "Malnourished", "HIV Positive"]; // तात्पुरते पर्याय
-    var patientCount = 0;
+    let dbSubcenters = [];
+    let dbVillages = [];
+    let dbEmployees = [];
+    let loggedInUser = null;
+    let patientCount = 0;
 
-    window.onload = function() {
+    const riskCriteriaOptions = [
+        "TB Contact", "Diabetic", "Smoker", "Malnourished", "HIV Positive",
+        "Asthma", "Cancer", "Post Covid", "Old TB Patient", "Other"
+    ];
+
+    window.onload = async function() {
+        const userStr = localStorage.getItem('loggedInUser');
+        if (!userStr) { window.location.href = "index.html"; return; }
+        loggedInUser = JSON.parse(userStr);
+
         document.getElementById('sampleDate').valueAsDate = new Date();
-        loadInitialData();
+        await loadMasterData();
     };
 
-    function loadInitialData() {
-        // डेमो डेटा (GAS मधून येईपर्यंत)
-        masterData = [
-            ["Subcenter A", "Village 1, Village 2", "Employee 1", "MPW"],
-            ["Subcenter B", "Village 3, Village 4", "Employee 2", "ANM"]
-        ];
-        
-        var subSel = document.getElementById('subcenter');
-        subSel.innerHTML = '<option value="">Select...</option>';
-        var scList = [...new Set(masterData.map(item => item[0]))];
-        scList.forEach(s => { if(s) subSel.add(new Option(s, s)) });
+    async function loadMasterData() {
+        showLoading(true, "माहिती लोड होत आहे...");
+        try {
+            const [scRes, vRes, eRes, statRes] = await Promise.all([
+                supabaseClient.from('sub_centers').select('*'),
+                supabaseClient.from('villages').select('*'),
+                supabaseClient.from('employees').select('*'),
+                supabaseClient.from('tb_entries').select('id', { count: 'exact' }).eq('sample_date', new Date().toISOString().split('T')[0])
+            ]);
 
-        document.getElementById('todayCountBadge').innerText = "0";
-        addRow();
+            dbSubcenters = scRes.data || [];
+            dbVillages = vRes.data || [];
+            dbEmployees = eRes.data || [];
+
+            document.getElementById('todayCountBadge').innerText = statRes.count || 0;
+
+            let scSelect = document.getElementById('subcenter');
+            scSelect.innerHTML = '<option value="">Select Subcenter...</option>';
+            dbSubcenters.forEach(sc => { scSelect.innerHTML += `<option value="${sc.id}">${sc.name}</option>`; });
+
+            addRow();
+        } catch (error) {
+            alert("डेटा लोड करताना त्रुटी: " + error.message);
+        }
         showLoading(false);
+    }
+
+    function updateVillagesAndStaff() {
+        let scId = document.getElementById('subcenter').value;
+        
+        // Update Villages
+        let vSelect = document.getElementById('village');
+        vSelect.innerHTML = '<option value="">Select Village...</option>';
+        dbVillages.filter(v => v.sub_center_id === scId).forEach(v => {
+            vSelect.innerHTML += `<option value="${v.name}">${v.name}</option>`;
+        });
+        vSelect.innerHTML += `<option value="Other">इतर (Other)</option>`;
+
+        // Update Staff
+        let eSelect = document.getElementById('staffName');
+        eSelect.innerHTML = '<option value="">Select Staff...</option>';
+        dbEmployees.filter(e => e.sub_center_id === scId).forEach(e => {
+            eSelect.innerHTML += `<option value="${e.full_name}">${e.full_name} (${e.role})</option>`;
+        });
+    }
+
+    function checkOtherVillage() {
+        let v = document.getElementById('village').value;
+        let i = document.getElementById('otherVillage');
+        i.style.display = (v === "Other") ? "block" : "none";
+        i.required = (v === "Other");
     }
 
     function switchTab(tab) {
@@ -215,11 +249,12 @@
 
     function addRow() {
         patientCount++;
-        var container = document.getElementById('patientCardsContainer');
-        var card = document.createElement('div');
+        let container = document.getElementById('patientCardsContainer');
+        let card = document.createElement('div');
         card.className = 'card-custom p-4 border bg-white shadow-sm';
         card.id = 'patientCard_' + patientCount;
-        var criteriaHtml = riskCriteriaOptions.map(opt => `<option value="${opt}">${opt}</option>`).join('');
+        
+        let criteriaHtml = riskCriteriaOptions.map(opt => `<option value="${opt}">${opt}</option>`).join('');
 
         card.innerHTML = `
             <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
@@ -245,29 +280,47 @@
                 </div>
             </div>
             <div class="form-row">
-                <div class="form-group col-md-6">
+                <div class="form-group col-md-4">
                     <label class="font-weight-bold text-secondary">निक्षय आयडी (Nikshay ID)</label>
-                    <input type="number" name="nikshayId" class="form-control font-weight-bold text-success">
+                    <input type="text" name="nikshayId" class="form-control font-weight-bold text-success">
                 </div>
-                <div class="form-group col-md-6">
+                <div class="form-group col-md-4">
                     <label class="font-weight-bold text-secondary">प्रकार (Type)</label>
                     <select name="type" class="form-control font-weight-bold text-info"><option selected>Sputum</option><option>FollowUp Sputum</option><option>Food Basket</option><option>LPA</option><option>TruaNaaT</option><option>X-Ray</option></select>
+                </div>
+                <div class="form-group col-md-4">
+                    <label class="font-weight-bold text-secondary">टेस्ट लोकेशन</label>
+                    <select name="testLocation" class="form-control font-weight-bold"><option>PHC</option><option>RH</option><option>DH</option></select>
                 </div>
             </div>
             <div class="form-group">
                 <label class="font-weight-bold text-secondary">जोखमीचे निकष (Risk Criteria) <span class="text-danger">*</span></label>
-                <select name="riskCriteria" class="form-control font-weight-bold" required><option value="">Select...</option>${criteriaHtml}</select>
+                <select name="riskCriteria" class="form-control font-weight-bold" onchange="toggleOtherRisk(this)" required><option value="">Select...</option>${criteriaHtml}</select>
+                <input type="text" name="otherRiskCriteria" class="form-control mt-2" placeholder="इतर कारण टाईप करा" style="display:none;">
             </div>
         `;
         container.appendChild(card);
     }
 
     function removeCard(id) { document.getElementById('patientCard_' + id).remove(); }
+    function toggleOtherRisk(el) { 
+        var inp = el.nextElementSibling; 
+        inp.style.display = (el.value === "Other") ? "block" : "none"; 
+        inp.required = (el.value === "Other"); 
+    }
 
     function showPreview() {
+        var form = document.getElementById('entryForm');
+        if(!form.checkValidity()) { form.reportValidity(); return; }
+
+        let scName = $("#subcenter option:selected").text();
+        let village = document.getElementById('village').value;
+        if(village === 'Other') village = document.getElementById('otherVillage').value;
+
         var html = `<div class="bg-white p-3 rounded border mb-3">
             <h6 class="text-secondary font-weight-bold">तारीख: <span class="text-dark">${document.getElementById('sampleDate').value}</span></h6>
-            <h6 class="text-secondary font-weight-bold">उपकेंद्र: <span class="text-primary">${document.getElementById('subcenter').value}</span></h6>
+            <h6 class="text-secondary font-weight-bold">उपकेंद्र: <span class="text-primary">${scName}</span></h6>
+            <h6 class="text-secondary font-weight-bold">गाव: <span class="text-primary">${village}</span></h6>
             </div><ul class="list-group">`;
         
         document.querySelectorAll('[id^="patientCard_"]').forEach((card, i) => {
@@ -275,7 +328,7 @@
             let type = card.querySelector('[name="type"]').value;
             html += `<li class="list-group-item d-flex justify-content-between align-items-center">
                 <span class="font-weight-bold">${i+1}. ${name}</span>
-                <span class="badge badge-info badge-pill">${type}</span>
+                <span class="badge badge-info badge-pill p-2">${type}</span>
             </li>`;
         });
         html += `</ul>`;
@@ -283,11 +336,89 @@
         $('#previewModal').modal('show');
     }
 
-    function finalSubmit() {
+    async function finalSubmit() {
         $('#previewModal').modal('hide');
         showLoading(true, "माहिती सेव्ह होत आहे...");
-        // येथे GAS ला डेटा पाठवण्याचा कोड येईल
-        setTimeout(() => { showLoading(false); alert("✅ माहिती यशस्वीरीत्या सेव्ह झाली!"); }, 1000);
+
+        let scName = $("#subcenter option:selected").text();
+        let village = document.getElementById('village').value;
+        if(village === 'Other') village = document.getElementById('otherVillage').value;
+        let sDate = document.getElementById('sampleDate').value;
+        let staff = document.getElementById('staffName').value;
+
+        let payloads = [];
+        document.querySelectorAll('[id^="patientCard_"]').forEach(card => {
+            let risk = card.querySelector('[name="riskCriteria"]').value;
+            if(risk === 'Other') risk = card.querySelector('[name="otherRiskCriteria"]').value;
+
+            payloads.push({
+                sample_date: sDate,
+                sub_center: scName,
+                village: village,
+                staff_name: staff,
+                patient_name: card.querySelector('[name="patientName"]').value,
+                age: card.querySelector('[name="age"]').value,
+                sex: card.querySelector('[name="sex"]').value,
+                mobile: card.querySelector('[name="mobile"]').value,
+                nikshay_id: card.querySelector('[name="nikshayId"]').value,
+                test_type: card.querySelector('[name="type"]').value,
+                test_location: card.querySelector('[name="testLocation"]').value,
+                risk_criteria: risk
+            });
+        });
+
+        try {
+            const { error } = await supabaseClient.from('tb_entries').insert(payloads);
+            if (error) throw error;
+            alert("✅ माहिती यशस्वीरीत्या सेव्ह झाली!"); 
+            location.reload();
+        } catch (err) {
+            alert("एरर: " + err.message);
+        }
+        showLoading(false);
+    }
+
+    // --- REPORTS ---
+    async function downloadReport(type) {
+        let sDate, eDate;
+        if(type === 'today') {
+            sDate = eDate = new Date().toISOString().split('T')[0];
+        } else {
+            sDate = document.getElementById('reportStart').value;
+            eDate = document.getElementById('reportEnd').value;
+            if(!sDate || !eDate) return alert("कृपया तारखा निवडा!");
+        }
+
+        showLoading(true, "अहवाल डाउनलोड होत आहे...");
+        try {
+            const { data, error } = await supabaseClient.from('tb_entries')
+                .select('*')
+                .gte('sample_date', sDate)
+                .lte('sample_date', eDate)
+                .order('sample_date', { ascending: false });
+
+            if (error) throw error;
+            if (!data || data.length === 0) { alert("या कालावधीत कोणताही डेटा नाही."); showLoading(false); return; }
+
+            let sheetData = [["अ.क्र.", "तारीख", "उपकेंद्र", "गाव", "कर्मचारी", "रुग्णाचे नाव", "वय", "लिंग", "मोबाईल", "निक्षय ID", "टेस्ट प्रकार", "लोकेशन", "जोखीम"]];
+            
+            data.forEach((row, i) => {
+                sheetData.push([
+                    i+1, row.sample_date, row.sub_center, row.village, row.staff_name,
+                    row.patient_name, row.age, row.sex, row.mobile, row.nikshay_id,
+                    row.test_type, row.test_location, row.risk_criteria
+                ]);
+            });
+
+            let wb = XLSX.utils.book_new();
+            let ws = XLSX.utils.aoa_to_sheet(sheetData);
+            XLSX.utils.book_append_sheet(wb, ws, "TB Report");
+            XLSX.writeFile(wb, `TB_Report_${sDate}_to_${eDate}.xlsx`);
+
+        } catch(e) {
+            alert("एरर: " + e.message);
+        }
+        showLoading(false);
     }
 
     function showLoading(show, text) {
