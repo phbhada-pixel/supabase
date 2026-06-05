@@ -37,7 +37,7 @@
 <nav class="navbar navbar-expand bg-white navbar-custom sticky-top py-3">
     <div class="container d-flex justify-content-between align-items-center">
         <span class="navbar-brand mb-0">
-            राष्ट्रीय क्षयरोग नियंत्रण कार्यक्रम <br><span class="text-dark" style="font-size: 0.9rem;">(प्राथमिक आरोग्य केंद्र)</span>
+            राष्ट्रीय क्षयरोग नियंत्रण कार्यक्रम <br><span class="text-dark" style="font-size: 0.9rem;" id="headerUserRole">(प्राथमिक आरोग्य केंद्र)</span>
         </span>
         <div class="d-flex align-items-center gap-3">
             <ul class="nav nav-pills align-self-center mr-3">
@@ -57,6 +57,7 @@
 
 <div class="container" style="max-width: 850px;"> 
 
+    <!-- ENTRY FORM -->
     <div id="view-entry" style="margin: auto;">
         
         <h5 class="text-center text-primary mb-4 font-weight-bold p-3 bg-white rounded shadow-sm border">
@@ -74,7 +75,7 @@
                 <div class="form-row">
                     <div class="form-group col-md-6">
                         <label class="font-weight-bold text-secondary">उपकेंद्र (Subcenter) <span class="text-danger">*</span></label>
-                        <select id="subcenter" class="form-control font-weight-bold" onchange="updateVillagesAndStaff()" required></select>
+                        <select id="subcenter" class="form-control font-weight-bold text-primary" onchange="updateVillagesAndStaff()" required></select>
                     </div>
                     <div class="form-group col-md-6">
                         <label class="font-weight-bold text-secondary">नमुना तारीख (Sample Date) <span class="text-danger">*</span></label>
@@ -88,7 +89,7 @@
                 </div>
                 <div class="form-group">
                     <label class="font-weight-bold text-secondary">कर्मचाऱ्याचे नाव (Staff Name) <span class="text-danger">*</span></label>
-                    <select id="staffName" class="form-control font-weight-bold" required></select>
+                    <select id="staffName" class="form-control font-weight-bold text-primary" required></select>
                 </div>
             </div>
 
@@ -104,6 +105,7 @@
         </form>
     </div>
 
+    <!-- REPORTS -->
     <div id="view-reports" style="display:none;">
         <div class="section-title">३. अहवाल तयार करा (Generate Reports)</div>
         <p class="text-muted mb-4 font-weight-bold">डाऊनलोड करण्यासाठी तारीख निवडा.</p>
@@ -136,6 +138,7 @@
 
 </div>
 
+<!-- PREVIEW MODAL -->
 <div class="modal fade" id="previewModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content" style="border-radius: 12px;">
@@ -177,14 +180,30 @@
         loggedInUser = JSON.parse(userStr);
 
         document.getElementById('sampleDate').valueAsDate = new Date();
+        
+        let roleName = "कर्मचारी";
+        if(loggedInUser.role === 'admin' || loggedInUser.role === 'taluka_admin') roleName = "तालुका ॲडमिन";
+        if(loggedInUser.role === 'phc_admin') roleName = "PHC ॲडमिन";
+        document.getElementById('headerUserRole').innerText = `(${loggedInUser.full_name} - ${roleName})`;
+
         await loadMasterData();
     };
 
     async function loadMasterData() {
         showLoading(true, "माहिती लोड होत आहे...");
         try {
+            const role = String(loggedInUser.role || '').toLowerCase().trim();
+            
+            // 🟢 Role नुसार उपकेंद्र शोधणे
+            let scQuery = supabaseClient.from('sub_centers').select('*');
+            if (role === 'phc_admin' && loggedInUser.phc_id) {
+                scQuery = scQuery.eq('phc_id', loggedInUser.phc_id);
+            } else if (role !== 'admin' && role !== 'taluka_admin' && role !== 'phc_admin') {
+                scQuery = scQuery.eq('id', loggedInUser.sub_center_id);
+            }
+
             const [scRes, vRes, eRes, statRes] = await Promise.all([
-                supabaseClient.from('sub_centers').select('*'),
+                scQuery,
                 supabaseClient.from('villages').select('*'),
                 supabaseClient.from('employees').select('*'),
                 supabaseClient.from('tb_entries').select('id', { count: 'exact' }).eq('sample_date', new Date().toISOString().split('T')[0])
@@ -200,6 +219,18 @@
             scSelect.innerHTML = '<option value="">Select Subcenter...</option>';
             dbSubcenters.forEach(sc => { scSelect.innerHTML += `<option value="${sc.id}">${sc.name}</option>`; });
 
+            // 🟢 जर सामान्य कर्मचारी असेल तर उपकेंद्र लॉक करा
+            if (role !== 'admin' && role !== 'taluka_admin' && role !== 'phc_admin') {
+                if (dbSubcenters.length > 0) {
+                    scSelect.value = dbSubcenters[0].id;
+                    scSelect.style.pointerEvents = "none"; // Dropdown Lock
+                    scSelect.style.backgroundColor = "#e9ecef";
+                    updateVillagesAndStaff();
+                } else {
+                    alert("⚠️ तुम्हाला कोणतेही उपकेंद्र दिलेले नाही!");
+                }
+            }
+
             addRow();
         } catch (error) {
             alert("डेटा लोड करताना त्रुटी: " + error.message);
@@ -209,8 +240,8 @@
 
     function updateVillagesAndStaff() {
         let scId = document.getElementById('subcenter').value;
+        const role = String(loggedInUser.role || '').toLowerCase().trim();
         
-        // Update Villages
         let vSelect = document.getElementById('village');
         vSelect.innerHTML = '<option value="">Select Village...</option>';
         dbVillages.filter(v => v.sub_center_id === scId).forEach(v => {
@@ -218,12 +249,17 @@
         });
         vSelect.innerHTML += `<option value="Other">इतर (Other)</option>`;
 
-        // Update Staff
         let eSelect = document.getElementById('staffName');
         eSelect.innerHTML = '<option value="">Select Staff...</option>';
         dbEmployees.filter(e => e.sub_center_id === scId).forEach(e => {
             eSelect.innerHTML += `<option value="${e.full_name}">${e.full_name} (${e.role})</option>`;
         });
+
+        // 🟢 जर कर्मचारी असेल तर त्याचे नाव आपोआप निवडा
+        if (role !== 'admin' && role !== 'taluka_admin' && role !== 'phc_admin') {
+             eSelect.value = loggedInUser.full_name;
+             // eSelect.style.pointerEvents = "none";
+        }
     }
 
     function checkOtherVillage() {
@@ -391,11 +427,23 @@
 
         showLoading(true, "अहवाल डाउनलोड होत आहे...");
         try {
-            const { data, error } = await supabaseClient.from('tb_entries')
+            // 🟢 Role नुसार अहवाल डाऊनलोड फिल्टर
+            let tbQuery = supabaseClient.from('tb_entries')
                 .select('*')
                 .gte('sample_date', sDate)
                 .lte('sample_date', eDate)
                 .order('sample_date', { ascending: false });
+
+            const role = String(loggedInUser.role || '').toLowerCase().trim();
+            if (role === 'phc_admin') {
+                let validScNames = dbSubcenters.map(s => s.name);
+                tbQuery = tbQuery.in('sub_center', validScNames);
+            } else if (role !== 'admin' && role !== 'taluka_admin' && role !== 'phc_admin') {
+                let mySc = dbSubcenters.find(s => s.id === loggedInUser.sub_center_id);
+                if (mySc) tbQuery = tbQuery.eq('sub_center', mySc.name);
+            }
+
+            const { data, error } = await tbQuery;
 
             if (error) throw error;
             if (!data || data.length === 0) { alert("या कालावधीत कोणताही डेटा नाही."); showLoading(false); return; }
