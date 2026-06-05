@@ -440,7 +440,7 @@
         }
     }
 
-    // --- 🟢 PDF PRINT REPORT (Summary with Role Check and Zero Filling) ---
+    // --- 🟢 PDF PRINT REPORT (BUG FIXED - SAFE String conversion) ---
     async function downloadSummaryReport() {
         let sDateStr = document.getElementById('summaryDate').value;
         if(!sDateStr) { alert("कृपया तारीख निवडा!"); return; }
@@ -477,13 +477,11 @@
             let printDate = `${reportDateParts[2]}/${reportDateParts[1]}/${reportDateParts[0]}`;
 
             if (isAdmin) {
-                // 🟢 1. तालुका ॲडमिन व्ह्यू (PHC आणि उपकेंद्र निहाय)
                 let scStats = {};
                 
-                // प्री-फिल (सर्वांचे शून्य दिसावे म्हणून)
                 dbSubcenters.forEach(sc => {
                     let phc = dbPhcs.find(p => p.id === sc.phc_id);
-                    let phcName = phc ? phc.name : 'इतर';
+                    let phcName = phc ? (phc.name || phc.phc_name || 'इतर') : 'इतर';
                     scStats[sc.name] = { phc: phcName, sc: sc.name, dS:0, mS:0, yS:0, dX:0, mX:0, yX:0 };
                 });
 
@@ -526,7 +524,7 @@
                         <th>Daily</th><th>Monthly</th><th>Yearly</th><th>Daily</th><th>Monthly</th><th>Yearly</th>
                     </tr>`;
 
-                let sortedSc = Object.values(scStats).sort((a,b) => a.phc.localeCompare(b.phc) || a.sc.localeCompare(b.sc));
+                let sortedSc = Object.values(scStats).sort((a,b) => String(a.phc).localeCompare(String(b.phc)) || String(a.sc).localeCompare(String(b.sc)));
                 let idx = 1;
                 
                 sortedSc.forEach(s => {
@@ -542,11 +540,9 @@
                 });
 
             } else {
-                // 🟢 2. PHC ॲडमिन व कर्मचारी व्ह्यू (कर्मचारी निहाय शून्य सह)
                 let empStats = {};
                 let ashaStats = { dS:0, mS:0, yS:0, dX:0, mX:0, yX:0 };
 
-                // प्री-फिल (सर्वांचे शून्य दिसावे म्हणून)
                 dbEmployees.forEach(e => {
                     if (role === 'employee' && e.full_name !== loggedInUser.full_name) return;
                     let sc = dbSubcenters.find(s => s.id === e.sub_center_id);
@@ -587,7 +583,11 @@
                 let phcNameHeader = "PRIMARY HEALTH CENTER";
                 if (role === 'phc_admin') {
                     let p = dbPhcs.find(x => x.id === loggedInUser.phc_id);
-                    if(p) phcNameHeader = p.name.toUpperCase();
+                    if (p) {
+                        // 🟢 Bug Fix: Using safe string conversion before toUpperCase
+                        let pName = p.name || p.phc_name || "PRIMARY HEALTH CENTER";
+                        phcNameHeader = String(pName).toUpperCase();
+                    }
                 }
 
                 html = `<html><head><title>TB Report - ${printDate}</title></head>
@@ -610,7 +610,7 @@
                     </tr>`;
 
                 let idx = 1;
-                let sortedEmps = Object.keys(empStats).sort((a,b) => empStats[a].sc.localeCompare(empStats[b].sc) || a.localeCompare(b));
+                let sortedEmps = Object.keys(empStats).sort((a,b) => String(empStats[a].sc).localeCompare(String(empStats[b].sc)) || String(a).localeCompare(String(b)));
 
                 sortedEmps.forEach(name => {
                     let s = empStats[name];
