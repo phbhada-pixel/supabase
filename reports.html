@@ -22,7 +22,6 @@
 </head>
 <body class="bg-gray-100 p-2 md:p-6 min-h-screen">
 
-    <!-- 🟢 Header (Role Display) -->
     <div class="max-w-7xl mx-auto bg-white p-4 rounded-lg shadow-md flex justify-between items-center mb-6 no-print border-t-8 border-green-700">
         <div>
             <h1 id="mainTitle" class="text-xl font-bold text-green-800">📊 प्रगत अहवाल केंद्र</h1>
@@ -35,7 +34,6 @@
 
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
             
-            <!-- मल्टी-सिलेक्ट फॉर्म्स -->
             <div class="relative" id="multiSelectContainer">
                 <label class="block text-gray-700 text-xs font-bold mb-1">अहवाल / फॉर्म निवडा</label>
                 <button onclick="toggleMultiSelect()" class="w-full p-2 border border-gray-300 rounded bg-white text-left text-sm font-medium flex justify-between items-center min-h-[38px] hover:border-green-500">
@@ -54,7 +52,6 @@
                 <select id="reportFormSelect" class="hidden"></select>
             </div>
 
-            <!-- महिना आणि वर्ष -->
             <div>
                 <label class="block text-gray-700 text-xs font-bold mb-1">अहवाल महिना</label>
                 <select id="reportMonth" class="w-full p-2 border border-gray-300 rounded bg-white text-sm font-bold">
@@ -72,7 +69,6 @@
                 <input type="number" id="reportYear" class="w-full p-2 border border-gray-300 rounded text-sm font-bold text-center" value="2026">
             </div>
 
-            <!-- 🟢 उपकेंद्र फिल्टर (फक्त ॲडमिन्ससाठी) -->
             <div id="subcenterFilterDiv">
                 <label class="block text-gray-700 text-xs font-bold mb-1">उपकेंद्र फिल्टर</label>
                 <select id="reportSubCenterFilter" class="w-full p-2 border border-gray-300 rounded bg-white text-sm font-bold">
@@ -83,7 +79,6 @@
 
         <div class="grid grid-cols-1 gap-4 border-t border-gray-200 pt-4">
             
-            <!-- 🟢 ग्रुप व्ह्यू फिल्टर (फक्त ॲडमिन्ससाठी) -->
             <div id="groupFilterDiv">
                 <label class="block text-gray-700 text-xs font-bold mb-1">अहवाल मांडणी प्रकार (Group View)</label>
                 <select id="reportGroupFilter" class="w-full p-2 border border-gray-300 rounded bg-blue-50 text-sm font-bold text-blue-800 focus:ring-2 focus:ring-blue-500">
@@ -102,20 +97,17 @@
 
     </div>
 
-    <!-- 🟢 लोडर -->
     <div id="reportLoader" class="text-center py-10 hidden no-print bg-white mx-auto max-w-lg rounded-lg shadow border border-gray-200">
         <div class="inline-block animate-spin rounded-full h-10 w-10 border-4 border-green-600 border-t-transparent mb-3"></div>
         <p class="text-green-700 font-bold">डेटाबेस मधून प्रगत अहवाल आणि आकडेमोड सुरू आहे, कृपया थांबा...</p>
     </div>
 
-    <!-- डाऊनलोड बटणे आणि रिपोर्ट व्ह्यू -->
     <div id="downloadButtonsArea" class="max-w-7xl mx-auto mb-4 no-print"></div>
 
     <div id="reportContentArea" class="max-w-7xl mx-auto bg-white p-2 md:p-6 rounded-lg shadow-md hidden overflow-hidden">
         <div id="reportTableContainer"></div>
     </div>
 
-    <!-- 🟢 JavaScript Logic -->
     <script>
         const SUPABASE_URL = 'https://qbmjsfiievcautxybaai.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_sdgZ9G8ko4H_3Mh9RouYFg_JOQ-4Mdx'; 
@@ -134,9 +126,6 @@
             7: "जुलै", 8: "ऑगस्ट", 9: "सप्टेंबर", 10: "ऑक्टोबर", 11: "नोव्हेंबर", 12: "डिसेंबर"
         };
 
-        // ==========================================
-        // 🟢 १. पेज लोड आणि रोल तपासणी (3-Tier System)
-        // ==========================================
         window.onload = async function() {
             const userDataString = localStorage.getItem('loggedInUser');
             if (!userDataString) { window.location.href = "index.html"; return; }
@@ -155,7 +144,6 @@
             } else if (roleStr === 'phc_admin') {
                 subtitle.innerHTML = "🏥 PHC ॲडमिन (फक्त तुमच्या PHC चा डेटा)";
             } else {
-                // कर्मचारी असेल तर फिल्टर्स लपवा
                 subtitle.innerHTML = "🧑‍⚕️ कर्मचारी (फक्त तुम्ही भरलेला स्वतःचा डेटा)";
                 document.getElementById('subcenterFilterDiv').classList.add('hidden');
                 document.getElementById('groupFilterDiv').classList.add('hidden');
@@ -170,18 +158,13 @@
             await loadInitialMasterData();
         };
 
-        // ==========================================
-        // 🟢 २. डेटाबेस फेच (Role-Based Filtering)
-        // ==========================================
         async function loadInitialMasterData() {
             document.getElementById('reportLoader').classList.remove('hidden');
 
             try {
-                // PHCs Fetch
                 const { data: pData } = await supabaseClient.from('phcs').select('*');
                 masterData.phcs = pData || [];
 
-                // Sub Centers Fetch (Filtered by Role)
                 let scQuery = supabaseClient.from('sub_centers').select('*').order('name');
                 if (user.role === 'phc_admin' && user.phc_id) {
                     scQuery = scQuery.eq('phc_id', user.phc_id);
@@ -189,14 +172,12 @@
                 const { data: scData } = await scQuery;
                 masterData.subCenters = scData || [];
 
-                // Dropdown Populate
                 let scFilter = document.getElementById('reportSubCenterFilter');
                 scFilter.innerHTML = '<option value="सर्व">सर्व उपकेंद्र (All Sub-centers)</option>';
                 masterData.subCenters.forEach(sc => { 
                     scFilter.innerHTML += `<option value="${sc.name}">${sc.name}</option>`; 
                 });
 
-                // Villages Fetch
                 let vQuery = supabaseClient.from('villages').select('*').order('name');
                 if (user.role === 'phc_admin') {
                     let scIds = masterData.subCenters.map(s => s.id);
@@ -206,17 +187,14 @@
                 const { data: vData } = await vQuery;
                 masterData.villages = vData || [];
 
-                // Employees Fetch
                 let eQuery = supabaseClient.from('employees').select('*').order('full_name');
                 if (user.role === 'phc_admin' && user.phc_id) eQuery = eQuery.eq('phc_id', user.phc_id);
                 const { data: empData } = await eQuery;
                 masterData.employees = empData || [];
 
-                // Forms Fetch
                 const { data: formData } = await supabaseClient.from('dynamic_forms').select('*').eq('is_active', true);
                 masterData.forms = formData || [];
 
-                // Populate Form Multi-Select
                 let select = document.getElementById('reportFormSelect');
                 let optionsDiv = document.getElementById('multiSelectOptions');
                 select.innerHTML = ''; optionsDiv.innerHTML = '';
@@ -229,7 +207,6 @@
                     optionsDiv.appendChild(div);
                 });
 
-                // Filled Stats
                 const { data: respData } = await supabaseClient.from('form_responses').select('form_id, village_id, report_month, report_year');
                 masterData.filledStats = respData || [];
 
@@ -241,9 +218,6 @@
             document.getElementById('reportLoader').classList.add('hidden');
         }
 
-        // ==========================================
-        // 🟢 ३. UI Helpers (Multi Select)
-        // ==========================================
         function toggleMultiSelect() {
             let dropdown = document.getElementById('multiSelectDropdown');
             dropdown.style.display = dropdown.style.display === "block" ? "none" : "block";
@@ -280,9 +254,6 @@
             let selected = []; document.querySelectorAll('.report-chk:checked').forEach(chk => selected.push(chk.value)); return selected;
         }
 
-        // ==========================================
-        // 🟢 ४. मुख्य अहवाल जनरेटर (Report Fetch)
-        // ==========================================
         async function fetchReportData() {
             let selectedIDs = getSelectedReportIDs(); if(selectedIDs.length === 0) { alert("कृपया किमान एक अहवाल निवडा!"); return; }
 
@@ -293,7 +264,6 @@
             let filterSubCenter = document.getElementById('reportSubCenterFilter').value; 
             let groupType = document.getElementById('reportGroupFilter').value;
 
-            // कर्मचाऱ्यांसाठी कायम गावनिहाय यादी (Group नको)
             if (user.role !== 'admin' && user.role !== 'taluka_admin' && user.role !== 'phc_admin') {
                 groupType = 'Village';
             }
@@ -329,16 +299,17 @@
                     let currentMonthResp = formResp.filter(r => r.report_month === parseInt(selMonthNum) && r.report_year === parseInt(selYear));
 
                     currentMonthResp.forEach(res => {
-                        // 🟢 Role Filtering Logic
+                        // 🟢 सर्वात महत्त्वाचे: निरंक (NIL) रिपोर्ट अहवालातून (टेबलमधून) वगळणे
+                        if (res.response_data && res.response_data.is_nil === true) return;
+
                         if (user.role !== 'admin' && user.role !== 'taluka_admin' && user.role !== 'phc_admin') {
-                            if (res.employee_id !== user.id) return; // कर्मचारी फक्त स्वतःचाच डेटा पाहणार
+                            if (res.employee_id !== user.id) return;
                         }
 
                         let villageObj = masterData.villages.find(v => v.id === res.village_id);
                         let empObj = masterData.employees.find(e => e.id === res.employee_id);
                         let scObj = villageObj ? masterData.subCenters.find(s => s.id === villageObj.sub_center_id) : null;
                         
-                        // PHC Admin Security Check
                         if (user.role === 'phc_admin') {
                             if (!scObj || scObj.phc_id !== user.phc_id) return;
                         }
@@ -354,7 +325,7 @@
                                 let sumProg = 0;
                                 getProgressiveMonthsList(selMonthNum, selYear).forEach(p => {
                                     let pastRes = formResp.find(r => r.village_id === res.village_id && r.report_month === p.month && r.report_year === p.year);
-                                    if(pastRes && pastRes.response_data[f.id]) sumProg += parseFloat(pastRes.response_data[f.id].value) || 0;
+                                    if(pastRes && pastRes.response_data && pastRes.response_data[f.id]) sumProg += parseFloat(pastRes.response_data[f.id].value) || 0;
                                 });
                                 row.values[f.id] = { M: formatNumberDecimals(monthlyVal), P: formatNumberDecimals(sumProg) };
                             } else { row.values[f.id] = formatNumberDecimals(monthlyVal); }
@@ -370,14 +341,11 @@
                     renderMultipleTables(finalReports, selMonth, selYear, groupType); 
                     document.getElementById('reportContentArea').classList.remove('hidden'); 
                 } else { 
-                    alert("या महिन्यासाठी तुमच्या अधिकारात कोणताही अहवाल उपलब्ध नाही."); 
+                    alert("या महिन्यासाठी तुमच्या अधिकारात किंवा निवडलेल्या फिल्टरमध्ये कोणताही डेटा उपलब्ध नाही."); 
                 }
             } catch(e) { alert("एरर: " + e.message); }
         }
 
-        // ==========================================
-        // 🟢 ५. रेंडरिंग आणि स्मार्ट कॅल्क्युलेशन
-        // ==========================================
         function getFieldHierarchyChain(fields, fieldObj) {
             let chain = []; let current = fieldObj;
             while (current && current.parent_id) {
@@ -449,9 +417,6 @@
             return results;
         }
 
-        // ==========================================
-        // 🟢 ६. UI Tables Generator
-        // ==========================================
         function renderMultipleTables(reports, month, year, groupType) {
             let container = document.getElementById('reportTableContainer');
             let downArea = document.getElementById('downloadButtonsArea');
@@ -575,7 +540,6 @@
                             tbodyHtml += `</tr>`;
                         });
 
-                        // 🟢 Only show PHC totals if Admin
                         if (user.role === 'admin' || user.role === 'taluka_admin' || user.role === 'phc_admin') {
                             let phcTotals = calculateSmartTotals(dataRowsToRender, columns, rep.isProg);
                             let colspanTotal = groupType === 'SubCenterFlat' ? 3 : 2;
@@ -663,7 +627,6 @@
                             html += `<div class="table-responsive"><table class="report-table"><thead>${l1Row + l2Row + l3Row + l4Row}</thead><tbody>${tbodyHtml}</tbody></table></div>`;
                         });
 
-                        // 🟢 Only show PHC totals if Admin
                         if (user.role === 'admin' || user.role === 'taluka_admin' || user.role === 'phc_admin') {
                             let phcTotals = calculateSmartTotals(rows, columns, rep.isProg);
                             html += `<div class="table-responsive"><table class="report-table"><tbody><tr class="bg-green-100 font-extrabold text-green-900 text-sm"><td class="border p-2" style="width:200px;" colspan="2">एकूण Total</td>`;
@@ -681,14 +644,10 @@
             container.innerHTML = html;
         }
 
-        // ==========================================
-        // 🟢 ७. Advanced Excel (XLSX) डाऊनलोड
-        // ==========================================
         function downloadConsolidatedExcel() {
             if(currentReports.length === 0) return;
             let groupType = document.getElementById('reportGroupFilter').value;
             
-            // कर्मचाऱ्यांसाठी फॉल-बॅक
             if (user.role !== 'admin' && user.role !== 'taluka_admin' && user.role !== 'phc_admin') groupType = 'Village';
 
             let wb = XLSX.utils.book_new();
@@ -763,7 +722,7 @@
                         dataRowsToRender = rows.sort((a,b) => a.subcenter.localeCompare(b.subcenter) || a.village.localeCompare(b.village));
                     }
 
-                    sheetData.push(["तालुका आरोग्य प्रणाली अहवाल"]);
+                    sheetData.push(["ताल तालुका आरोग्य प्रणाली अहवाल"]);
                     sheetData.push([`सलग अहवाल: ${rep.formName} | कालावधी: ${monthStr} ${yearStr}`]);
                     sheetData.push([]); 
 
@@ -1035,9 +994,6 @@
             XLSX.writeFile(wb, `अहवाल_${groupType}_${monthStr}_${yearStr}.xlsx`);
         }
 
-        // ==========================================
-        // 🟢 ८. अपूर्ण यादी शोधा (Pending Reports)
-        // ==========================================
         function generatePendingReport() {
             const selMonth = document.getElementById('reportMonth').value;
             const selMonthNum = monthNamesMarathi[selMonth];
@@ -1053,7 +1009,6 @@
             formsToCheck.forEach(f => {
                 groupedData[f.form_name] = [];
                 masterData.employees.forEach(u => {
-                    // Role Filtering
                     if (user.role === 'phc_admin' && u.phc_id !== user.phc_id) return;
                     if (user.role !== "admin" && user.role !== "taluka_admin" && user.role !== "phc_admin" && String(u.mobile_number).trim() !== String(user.mobile).trim()) return;
                     
@@ -1111,3 +1066,4 @@
     </script>
 </body>
 </html>
+}}
