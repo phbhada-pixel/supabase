@@ -119,7 +119,6 @@
                 </div>
             </div>
 
-            <!-- 🟢 Employee Tab Updated with PHC Selection & Dynamic Disable -->
             <div id="employeeTab" class="tab-content hidden">
                 <div class="phc-admin-warning hidden bg-red-100 text-red-800 p-4 rounded-lg border-2 border-red-300 font-bold mb-6 text-center shadow-sm">
                     🔒 तालुका ॲडमिनद्वारे नवीन कर्मचारी नोंदणी तात्पुरती बंद करण्यात आली आहे.
@@ -140,7 +139,6 @@
                             <option value="बाह्य रुग्ण विभाग सेविका">बाह्य रुग्ण विभाग सेविका (OPD)</option>
                         </select>
 
-                        <!-- 🟢 Taluka Admin ला OPD नर्स साठी PHC निवडायला लागेल -->
                         <select id="empPHCSelect" class="flex-1 p-2 border border-indigo-300 rounded font-bold hidden min-w-[150px]" onchange="populateEmpSubCenters()">
                             <option value="">-- PHC निवडा --</option>
                         </select>
@@ -315,7 +313,7 @@
                 document.getElementById('subCenterSelect').innerHTML += `<option value="${sc.id}">${sc.name}${phcName}</option>`;
             });
 
-            populateEmpSubCenters(); // 🟢 नवीन लॉजिक नुसार कर्मचाऱ्यांचे उपकेंद्र
+            populateEmpSubCenters(); 
 
             if (isTalukaAdmin) renderPHCHierarchy(); 
             
@@ -324,7 +322,6 @@
             renderEmployeeTable();
         }
 
-        // 🟢 Role बदलल्यावर उपकेंद्र सिलेक्ट बॉक्स अपडेट करणे
         function handleEmpRoleChange() {
             const role = document.getElementById('empRole').value;
             const scSel = document.getElementById('empSubCenterSelect');
@@ -341,7 +338,6 @@
             }
         }
 
-        // 🟢 कर्मचाऱ्यांच्या फॉर्ममधील उपकेंद्रे भरणे (PHC नुसार फिल्टर)
         function populateEmpSubCenters() {
             const role = document.getElementById('empRole').value;
             if (role === 'बाह्य रुग्ण विभाग सेविका') return;
@@ -463,7 +459,6 @@
                 let isOPD = String(e.role) === 'बाह्य रुग्ण विभाग सेविका';
                 let phcBadge = isTalukaAdmin && e.phc_id ? `<br><span class="text-[10px] font-bold text-blue-600 bg-blue-100 px-1 rounded">🏥 ${getPHCName(e.phc_id)}</span>` : '';
                 
-                // 🟢 OPD नर्स साठी "थेट PHC ला नियुक्त" दाखवणे
                 let scName = '';
                 if (isPhcAdmin) scName = `<span class="text-purple-700 font-bold">संपूर्ण PHC ॲडमिन</span>${phcBadge}`;
                 else if (isOPD) scName = `<span class="text-teal-700 font-bold">थेट PHC ला नियुक्त (OPD)</span>${phcBadge}`;
@@ -533,11 +528,11 @@
             hideLoader(); if(error) alert("एरर: " + error.message); else { alert("गावाची माहिती यशस्वीरीत्या सेव्ह झाली!"); resetVillageForm(); loadMasterData(); }
         }
 
-        // 🟢 कर्मचाऱ्यांची माहिती सेव्ह करणे
+        // 🟢 कर्मचाऱ्यांची माहिती सेव्ह करणे (FIXED FOREIGN KEY BUG)
         async function addEmployee(e) {
             e.preventDefault(); showLoader();
             const role = document.getElementById('empRole').value;
-            let scId = document.getElementById('empSubCenterSelect').value || '00000000-0000-0000-0000-000000000000';
+            let scId = document.getElementById('empSubCenterSelect').value || null; // <--- Changed here to handle null
             let targetPhcId = currentUser.phc_id;
 
             // 🟢 तालुका ॲडमिनसाठी PHC लॉजिक
@@ -546,16 +541,16 @@
                 if(!targetPhcId) {
                     if (role === 'बाह्य रुग्ण विभाग सेविका') {
                         alert("कृपया OPD सेविकेसाठी PHC निवडा!"); hideLoader(); return;
-                    } else if (scId !== '00000000-0000-0000-0000-000000000000') {
+                    } else if (scId) { // <--- Changed here
                         let scObj = globalSubCenters.find(x => x.id === scId); 
                         targetPhcId = scObj ? scObj.phc_id : null;
                     }
                 }
             }
 
-            // 🟢 OPD नर्स असेल तर उपकेंद्र Dummy (000...) टाका
+            // 🟢 OPD नर्स असेल तर उपकेंद्र 'Null' टाका (Foreign Key Error टाळण्यासाठी)
             if(role === 'बाह्य रुग्ण विभाग सेविका') {
-                scId = '00000000-0000-0000-0000-000000000000';
+                scId = null;
             }
 
             const payload = {
@@ -566,12 +561,16 @@
                 sub_center_id: scId, 
                 phc_id: targetPhcId
             };
+            
             const { error } = await supabaseClient.from('employees').insert([payload]); 
             hideLoader();
+            
             if (error) alert("एरर: " + error.message); 
             else { 
                 document.getElementById('empName').value = ''; 
                 document.getElementById('empMobile').value = ''; 
+                document.getElementById('empRole').value = '';
+                handleEmpRoleChange(); // Reset UI
                 loadMasterData(); 
                 alert("कर्मचारी यशस्वीरीत्या जोडला गेला!"); 
             }
