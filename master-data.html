@@ -119,6 +119,7 @@
                 </div>
             </div>
 
+            <!-- 🟢 Employee Tab Updated with PHC Selection & Dynamic Disable -->
             <div id="employeeTab" class="tab-content hidden">
                 <div class="phc-admin-warning hidden bg-red-100 text-red-800 p-4 rounded-lg border-2 border-red-300 font-bold mb-6 text-center shadow-sm">
                     🔒 तालुका ॲडमिनद्वारे नवीन कर्मचारी नोंदणी तात्पुरती बंद करण्यात आली आहे.
@@ -126,12 +127,11 @@
 
                 <div class="phc-admin-form bg-indigo-50 p-4 rounded-lg border border-indigo-200 mb-6">
                     <h2 class="font-bold text-indigo-800 mb-3 border-b border-indigo-200 pb-2">नवीन कर्मचारी जोडा (MPW / ANM / CHO / इतर)</h2>
-                    <form onsubmit="addEmployee(event)" class="grid grid-cols-1 md:grid-cols-5 gap-3">
-                        <input type="text" id="empName" placeholder="कर्मचाऱ्याचे पूर्ण नाव" required class="p-2 border border-indigo-300 rounded font-bold">
-                        <input type="tel" id="empMobile" placeholder="मोबाईल नंबर (लॉगिन आयडी)" required pattern="[0-9]{10}" class="p-2 border border-indigo-300 rounded font-bold">
+                    <form onsubmit="addEmployee(event)" class="flex flex-col md:flex-row flex-wrap gap-3">
+                        <input type="text" id="empName" placeholder="कर्मचाऱ्याचे पूर्ण नाव" required class="flex-1 p-2 border border-indigo-300 rounded font-bold min-w-[150px]">
+                        <input type="tel" id="empMobile" placeholder="मोबाईल (लॉगिन आयडी)" required pattern="[0-9]{10}" class="flex-1 p-2 border border-indigo-300 rounded font-bold min-w-[140px]">
                         
-                        <!-- 🟢 नवीन पदे जोडलेला ड्रॉपडाऊन -->
-                        <select id="empRole" required class="p-2 border border-indigo-300 rounded font-bold text-indigo-700">
+                        <select id="empRole" required onchange="handleEmpRoleChange()" class="flex-1 p-2 border border-indigo-300 rounded font-bold text-indigo-700 min-w-[160px]">
                             <option value="">-- पद / Role निवडा --</option>
                             <option value="MPW">MPW (आरोग्य सेवक)</option>
                             <option value="ANM">ANM (आरोग्य सेविका)</option>
@@ -140,11 +140,18 @@
                             <option value="बाह्य रुग्ण विभाग सेविका">बाह्य रुग्ण विभाग सेविका (OPD)</option>
                         </select>
 
-                        <select id="empSubCenterSelect" required class="p-2 border border-indigo-300 rounded font-bold"><option value="">-- उपकेंद्र निवडा --</option></select>
+                        <!-- 🟢 Taluka Admin ला OPD नर्स साठी PHC निवडायला लागेल -->
+                        <select id="empPHCSelect" class="flex-1 p-2 border border-indigo-300 rounded font-bold hidden min-w-[150px]" onchange="populateEmpSubCenters()">
+                            <option value="">-- PHC निवडा --</option>
+                        </select>
+
+                        <select id="empSubCenterSelect" required class="flex-1 p-2 border border-indigo-300 rounded font-bold min-w-[150px]">
+                            <option value="">-- उपकेंद्र निवडा --</option>
+                        </select>
                         
-                        <div class="flex gap-2">
+                        <div class="flex gap-2 flex-1 min-w-[150px]">
                             <input type="text" id="empPassword" placeholder="पासवर्ड" value="123456" required class="p-2 border border-indigo-300 rounded font-bold w-1/2 text-center text-indigo-600">
-                            <button type="submit" class="bg-indigo-600 text-white p-2 rounded font-bold shadow hover:bg-indigo-700 w-1/2">कर्मचारी जोडा</button>
+                            <button type="submit" class="bg-indigo-600 text-white p-2 rounded font-bold shadow hover:bg-indigo-700 w-1/2">जोडा</button>
                         </div>
                     </form>
                 </div>
@@ -153,7 +160,7 @@
                 <div class="overflow-x-auto border rounded shadow-sm max-h-96">
                     <table class="w-full text-left border-collapse text-sm">
                         <thead class="sticky top-0 bg-indigo-100 text-indigo-900 font-bold">
-                            <tr><th class="p-3 border">कर्मचाऱ्याचे नाव</th><th class="p-3 border text-center">पद (Role)</th><th class="p-3 border text-center">मोबाईल / पासवर्ड</th><th class="p-3 border">नियुक्त उपकेंद्र (व PHC)</th></tr>
+                            <tr><th class="p-3 border">कर्मचाऱ्याचे नाव</th><th class="p-3 border text-center">पद (Role)</th><th class="p-3 border text-center">मोबाईल / पासवर्ड</th><th class="p-3 border">नियुक्त ठिकाण (PHC/उपकेंद्र)</th></tr>
                         </thead>
                         <tbody id="employeeTableBody" class="bg-white text-gray-700">
                             <tr><td colspan="4" class="p-3 text-center text-gray-400">कर्मचारी डेटा लोड होत आहे...</td></tr>
@@ -199,6 +206,7 @@
                 document.getElementById('tabBtnPHC').classList.remove('hidden');
                 document.getElementById('scPHCSelect').classList.remove('hidden');
                 document.getElementById('thPHCName').classList.remove('hidden');
+                document.getElementById('empPHCSelect').classList.remove('hidden');
                 switchTab('phcTab'); 
             } else {
                 switchTab('subCenterTab'); 
@@ -288,36 +296,69 @@
 
             const adminPhcSel = document.getElementById('adminPHCSelect');
             const scPhcSel = document.getElementById('scPHCSelect');
+            const empPhcSel = document.getElementById('empPHCSelect');
+            
             adminPhcSel.innerHTML = '<option value="">-- PHC निवडा --</option>';
             scPhcSel.innerHTML = '<option value="">-- PHC निवडा --</option>';
+            if(isTalukaAdmin) empPhcSel.innerHTML = '<option value="">-- PHC निवडा --</option>';
             
             globalPHCs.forEach(p => { 
                 let pName = extractPHCName(p);
                 adminPhcSel.innerHTML += `<option value="${p.id}">${pName}</option>`; 
                 scPhcSel.innerHTML += `<option value="${p.id}">${pName}</option>`; 
+                if(isTalukaAdmin) empPhcSel.innerHTML += `<option value="${p.id}">${pName}</option>`;
             });
 
-            const subCenterSelectForms = [
-                document.getElementById('subCenterSelect'), 
-                document.getElementById('empSubCenterSelect')
-            ];
-            
-            subCenterSelectForms.forEach(sel => {
-                if (sel) sel.innerHTML = '<option value="">-- उपकेंद्र निवडा --</option>';
-            });
-            
+            document.getElementById('subCenterSelect').innerHTML = '<option value="">-- उपकेंद्र निवडा --</option>';
             globalSubCenters.forEach(sc => {
                 let phcName = isTalukaAdmin ? ` (${getPHCName(sc.phc_id)})` : '';
-                subCenterSelectForms.forEach(sel => {
-                    if (sel) sel.innerHTML += `<option value="${sc.id}">${sc.name}${phcName}</option>`;
-                });
+                document.getElementById('subCenterSelect').innerHTML += `<option value="${sc.id}">${sc.name}${phcName}</option>`;
             });
+
+            populateEmpSubCenters(); // 🟢 नवीन लॉजिक नुसार कर्मचाऱ्यांचे उपकेंद्र
 
             if (isTalukaAdmin) renderPHCHierarchy(); 
             
             renderSubCenterTable(); 
             renderVillageTable(); 
             renderEmployeeTable();
+        }
+
+        // 🟢 Role बदलल्यावर उपकेंद्र सिलेक्ट बॉक्स अपडेट करणे
+        function handleEmpRoleChange() {
+            const role = document.getElementById('empRole').value;
+            const scSel = document.getElementById('empSubCenterSelect');
+            if (role === 'बाह्य रुग्ण विभाग सेविका') {
+                scSel.disabled = true;
+                scSel.removeAttribute('required');
+                scSel.innerHTML = '<option value="">-- थेट PHC ला नियुक्त --</option>';
+                scSel.classList.add('bg-gray-200', 'text-gray-500');
+            } else {
+                scSel.disabled = false;
+                scSel.setAttribute('required', 'true');
+                scSel.classList.remove('bg-gray-200', 'text-gray-500');
+                populateEmpSubCenters();
+            }
+        }
+
+        // 🟢 कर्मचाऱ्यांच्या फॉर्ममधील उपकेंद्रे भरणे (PHC नुसार फिल्टर)
+        function populateEmpSubCenters() {
+            const role = document.getElementById('empRole').value;
+            if (role === 'बाह्य रुग्ण विभाग सेविका') return;
+
+            const scSel = document.getElementById('empSubCenterSelect');
+            scSel.innerHTML = '<option value="">-- उपकेंद्र निवडा --</option>';
+            
+            let phcId = isTalukaAdmin ? document.getElementById('empPHCSelect').value : currentUser.phc_id;
+            let filteredSc = globalSubCenters;
+            if (phcId) {
+                filteredSc = globalSubCenters.filter(sc => sc.phc_id === phcId);
+            }
+
+            filteredSc.forEach(sc => {
+                let pName = (isTalukaAdmin && !phcId) ? ` (${getPHCName(sc.phc_id)})` : '';
+                scSel.innerHTML += `<option value="${sc.id}">${sc.name}${pName}</option>`;
+            });
         }
 
         function getPHCName(id) { 
@@ -338,7 +379,6 @@
             else loadMasterData();
         }
 
-        // 🟢 ट्री-व्ह्यू जनरेटर (नो-डिलीट)
         function renderPHCHierarchy() {
             let container = document.getElementById('phcHierarchyTree'); container.innerHTML = '';
             if(globalPHCs.length === 0) { 
@@ -387,7 +427,6 @@
             if(globalSubCenters.length === 0) { tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-gray-400 font-bold">अद्याप उपकेंद्रे जोडलेली नाहीत.</td></tr>'; return; }
             globalSubCenters.forEach((sc, i) => {
                 let phcTd = isTalukaAdmin ? `<td class="p-3 border font-bold text-blue-700 bg-blue-50/30">${getPHCName(sc.phc_id)}</td>` : '';
-                
                 let actions = (isCreationAllowed || isTalukaAdmin) 
                     ? `<button onclick="startEditSubCenter(${i})" class="text-blue-600 font-bold hover:underline px-2 py-1 bg-blue-50 rounded border border-blue-200 shadow-sm">सुधारा (Edit)</button>` 
                     : `<span class="text-gray-400 font-bold text-xs">🔒 लॉक</span>`;
@@ -402,7 +441,6 @@
             globalVillages.forEach((v, i) => {
                 let scObj = globalSubCenters.find(x => x.id === v.sub_center_id);
                 let phcBadge = (isTalukaAdmin && scObj) ? `<br><span class="text-[10px] font-bold text-blue-600 bg-blue-100 px-1 rounded">🏥 ${getPHCName(scObj.phc_id)}</span>` : '';
-                
                 let actions = (isCreationAllowed || isTalukaAdmin) 
                     ? `<button onclick="startEditVillage(${i})" class="text-blue-600 font-bold hover:underline px-2 py-1 bg-blue-50 rounded border border-blue-200 shadow-sm">सुधारा (Edit)</button>` 
                     : `<span class="text-gray-400 font-bold text-xs">🔒 लॉक</span>`;
@@ -422,9 +460,15 @@
             
             validEmps.forEach(e => {
                 let isPhcAdmin = String(e.role).toLowerCase() === 'phc_admin';
+                let isOPD = String(e.role) === 'बाह्य रुग्ण विभाग सेविका';
                 let phcBadge = isTalukaAdmin && e.phc_id ? `<br><span class="text-[10px] font-bold text-blue-600 bg-blue-100 px-1 rounded">🏥 ${getPHCName(e.phc_id)}</span>` : '';
                 
-                let scName = isPhcAdmin ? `<span class="text-purple-700 font-bold">संपूर्ण PHC ॲडमिन</span>${phcBadge}` : `${getSCName(e.sub_center_id)}${phcBadge}`;
+                // 🟢 OPD नर्स साठी "थेट PHC ला नियुक्त" दाखवणे
+                let scName = '';
+                if (isPhcAdmin) scName = `<span class="text-purple-700 font-bold">संपूर्ण PHC ॲडमिन</span>${phcBadge}`;
+                else if (isOPD) scName = `<span class="text-teal-700 font-bold">थेट PHC ला नियुक्त (OPD)</span>${phcBadge}`;
+                else scName = `${getSCName(e.sub_center_id)}${phcBadge}`;
+
                 let pwd = e.password || e.possword || 'Set NA';
                 let roleColor = isPhcAdmin ? 'bg-purple-100 text-purple-800 border-purple-300' : 'bg-blue-100 text-blue-800 border-blue-300';
                 
@@ -489,18 +533,48 @@
             hideLoader(); if(error) alert("एरर: " + error.message); else { alert("गावाची माहिती यशस्वीरीत्या सेव्ह झाली!"); resetVillageForm(); loadMasterData(); }
         }
 
+        // 🟢 कर्मचाऱ्यांची माहिती सेव्ह करणे
         async function addEmployee(e) {
             e.preventDefault(); showLoader();
-            const scId = document.getElementById('empSubCenterSelect').value;
+            const role = document.getElementById('empRole').value;
+            let scId = document.getElementById('empSubCenterSelect').value || '00000000-0000-0000-0000-000000000000';
             let targetPhcId = currentUser.phc_id;
-            if (isTalukaAdmin) { let scObj = globalSubCenters.find(x => x.id === scId); targetPhcId = scObj ? scObj.phc_id : null; }
+
+            // 🟢 तालुका ॲडमिनसाठी PHC लॉजिक
+            if (isTalukaAdmin) { 
+                targetPhcId = document.getElementById('empPHCSelect').value;
+                if(!targetPhcId) {
+                    if (role === 'बाह्य रुग्ण विभाग सेविका') {
+                        alert("कृपया OPD सेविकेसाठी PHC निवडा!"); hideLoader(); return;
+                    } else if (scId !== '00000000-0000-0000-0000-000000000000') {
+                        let scObj = globalSubCenters.find(x => x.id === scId); 
+                        targetPhcId = scObj ? scObj.phc_id : null;
+                    }
+                }
+            }
+
+            // 🟢 OPD नर्स असेल तर उपकेंद्र Dummy (000...) टाका
+            if(role === 'बाह्य रुग्ण विभाग सेविका') {
+                scId = '00000000-0000-0000-0000-000000000000';
+            }
+
             const payload = {
-                full_name: document.getElementById('empName').value.trim(), mobile_number: document.getElementById('empMobile').value.trim(),
-                password: document.getElementById('empPassword').value.trim(), role: document.getElementById('empRole').value,
-                sub_center_id: scId, phc_id: targetPhcId
+                full_name: document.getElementById('empName').value.trim(), 
+                mobile_number: document.getElementById('empMobile').value.trim(),
+                password: document.getElementById('empPassword').value.trim(), 
+                role: role,
+                sub_center_id: scId, 
+                phc_id: targetPhcId
             };
-            const { error } = await supabaseClient.from('employees').insert([payload]); hideLoader();
-            if (error) alert("एरर: " + error.message); else { document.getElementById('empName').value = ''; document.getElementById('empMobile').value = ''; loadMasterData(); alert("कर्मचारी यशस्वीरीत्या जोडला गेला!"); }
+            const { error } = await supabaseClient.from('employees').insert([payload]); 
+            hideLoader();
+            if (error) alert("एरर: " + error.message); 
+            else { 
+                document.getElementById('empName').value = ''; 
+                document.getElementById('empMobile').value = ''; 
+                loadMasterData(); 
+                alert("कर्मचारी यशस्वीरीत्या जोडला गेला!"); 
+            }
         }
     </script>
 </body>
