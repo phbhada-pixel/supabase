@@ -125,16 +125,21 @@
                 </div>
 
                 <div class="phc-admin-form bg-indigo-50 p-4 rounded-lg border border-indigo-200 mb-6">
-                    <h2 class="font-bold text-indigo-800 mb-3 border-b border-indigo-200 pb-2">नवीन कर्मचारी जोडा (MPW / ANM / CHO)</h2>
+                    <h2 class="font-bold text-indigo-800 mb-3 border-b border-indigo-200 pb-2">नवीन कर्मचारी जोडा (MPW / ANM / CHO / इतर)</h2>
                     <form onsubmit="addEmployee(event)" class="grid grid-cols-1 md:grid-cols-5 gap-3">
                         <input type="text" id="empName" placeholder="कर्मचाऱ्याचे पूर्ण नाव" required class="p-2 border border-indigo-300 rounded font-bold">
                         <input type="tel" id="empMobile" placeholder="मोबाईल नंबर (लॉगिन आयडी)" required pattern="[0-9]{10}" class="p-2 border border-indigo-300 rounded font-bold">
+                        
+                        <!-- 🟢 नवीन पदे जोडलेला ड्रॉपडाऊन -->
                         <select id="empRole" required class="p-2 border border-indigo-300 rounded font-bold text-indigo-700">
                             <option value="">-- पद / Role निवडा --</option>
                             <option value="MPW">MPW (आरोग्य सेवक)</option>
                             <option value="ANM">ANM (आरोग्य सेविका)</option>
                             <option value="CHO">CHO (समुदाय आरोग्य अधिकारी)</option>
+                            <option value="आशा कार्यकर्ती">आशा कार्यकर्ती</option>
+                            <option value="बाह्य रुग्ण विभाग सेविका">बाह्य रुग्ण विभाग सेविका (OPD)</option>
                         </select>
+
                         <select id="empSubCenterSelect" required class="p-2 border border-indigo-300 rounded font-bold"><option value="">-- उपकेंद्र निवडा --</option></select>
                         
                         <div class="flex gap-2">
@@ -377,14 +382,12 @@
             });
         }
 
-        // 🟢 'काढा' बटण काढलेले टेबल
         function renderSubCenterTable() {
             let tbody = document.getElementById('subCenterTableBody'); tbody.innerHTML = '';
             if(globalSubCenters.length === 0) { tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-gray-400 font-bold">अद्याप उपकेंद्रे जोडलेली नाहीत.</td></tr>'; return; }
             globalSubCenters.forEach((sc, i) => {
                 let phcTd = isTalukaAdmin ? `<td class="p-3 border font-bold text-blue-700 bg-blue-50/30">${getPHCName(sc.phc_id)}</td>` : '';
                 
-                // फक्त Edit बटण ठेवले आहे
                 let actions = (isCreationAllowed || isTalukaAdmin) 
                     ? `<button onclick="startEditSubCenter(${i})" class="text-blue-600 font-bold hover:underline px-2 py-1 bg-blue-50 rounded border border-blue-200 shadow-sm">सुधारा (Edit)</button>` 
                     : `<span class="text-gray-400 font-bold text-xs">🔒 लॉक</span>`;
@@ -400,7 +403,6 @@
                 let scObj = globalSubCenters.find(x => x.id === v.sub_center_id);
                 let phcBadge = (isTalukaAdmin && scObj) ? `<br><span class="text-[10px] font-bold text-blue-600 bg-blue-100 px-1 rounded">🏥 ${getPHCName(scObj.phc_id)}</span>` : '';
                 
-                // फक्त Edit बटण ठेवले आहे
                 let actions = (isCreationAllowed || isTalukaAdmin) 
                     ? `<button onclick="startEditVillage(${i})" class="text-blue-600 font-bold hover:underline px-2 py-1 bg-blue-50 rounded border border-blue-200 shadow-sm">सुधारा (Edit)</button>` 
                     : `<span class="text-gray-400 font-bold text-xs">🔒 लॉक</span>`;
@@ -426,14 +428,10 @@
                 let pwd = e.password || e.possword || 'Set NA';
                 let roleColor = isPhcAdmin ? 'bg-purple-100 text-purple-800 border-purple-300' : 'bg-blue-100 text-blue-800 border-blue-300';
                 
-                // कर्मचाऱ्यांसाठी 'कृती/काढा' रकाना पूर्णपणे हटवला आहे.
                 tbody.innerHTML += `<tr class="hover:bg-gray-50"><td class="p-3 border font-bold text-gray-800">${e.full_name}</td><td class="p-3 border text-center"><span class="px-2 py-1 rounded text-xs font-bold border ${roleColor}">${String(e.role).toUpperCase()}</span></td><td class="p-3 border text-center text-gray-700">📱 ${e.mobile_number}<br><span class="text-[10px] text-gray-500">🔑 ${pwd}</span></td><td class="p-3 border">${scName}</td></tr>`;
             });
         }
 
-        // ==========================================
-        // CRUD ऑपरेशन्स (Only Add/Edit)
-        // ==========================================
         async function addPHC(e) {
             e.preventDefault(); showLoader(); const name = document.getElementById('newPHCName').value.trim();
             const { error } = await supabaseClient.from('phcs').insert([{ phc_name: name, allow_creation: true }]); 
