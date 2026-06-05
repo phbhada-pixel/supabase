@@ -1069,10 +1069,18 @@
             formsToCheck.forEach(f => {
                 groupedData[f.form_name] = [];
                 masterData.employees.forEach(u => {
-                    // 🟢 Role Filter - कर्मचाऱ्याच्या पदानुसार फॉर्म तपासा
-                    if (f.allowed_roles && f.allowed_roles !== 'ALL') {
+                    
+                    let empRole = String(u.role).toUpperCase().trim();
+
+                    // 🚫 1. ॲडमिन लोकांना अपूर्ण यादीत कधीही दाखवू नका
+                    if (['ADMIN', 'TALUKA_ADMIN', 'PHC_ADMIN'].includes(empRole)) return;
+                    
+                    // 🚫 2. ज्या कर्मचाऱ्यांना उपकेंद्र दिले नाही, त्यांना वगळा
+                    if (!u.sub_center_id || u.sub_center_id === '00000000-0000-0000-0000-000000000000') return;
+
+                    // 🟢 3. Role Filter - कर्मचाऱ्याच्या पदानुसार फॉर्म तपासा
+                    if (f.allowed_roles && f.allowed_roles.toUpperCase() !== 'ALL') {
                         let allowedArray = f.allowed_roles.toUpperCase().split(',').map(r => r.trim());
-                        let empRole = String(u.role).toUpperCase().trim();
                         if (!allowedArray.includes(empRole)) return; // जर फॉर्म या पदासाठी नसेल तर सोडून द्या
                     }
 
