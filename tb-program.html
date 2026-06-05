@@ -42,7 +42,7 @@
         </span>
         <div class="d-flex flex-column flex-sm-row align-items-center w-100 w-lg-auto justify-content-center justify-content-lg-end">
             <ul class="nav nav-pills mb-3 mb-sm-0 justify-content-center w-100 w-sm-auto">
-                <li class="nav-item" id="nav-item-entry"><a class="nav-link active px-4 py-2" id="tab-entry" onclick="switchTab('entry')"><i class="fas fa-edit"></i> माहिती भरा</a></li>
+                <li class="nav-item" id="nav-entry-li"><a class="nav-link active px-4 py-2" id="tab-entry" onclick="switchTab('entry')"><i class="fas fa-edit"></i> माहिती भरा</a></li>
                 <li class="nav-item ml-2"><a class="nav-link px-4 py-2" id="tab-reports" onclick="switchTab('reports')"><i class="fas fa-file-alt"></i> अहवाल</a></li>
             </ul>
             <button onclick="window.location.href='dashboard.html'" class="btn btn-secondary font-weight-bold shadow-sm ml-sm-3 w-100 w-sm-auto mt-2 mt-sm-0"><i class="fas fa-arrow-left"></i> डॅशबोर्ड</button>
@@ -51,7 +51,7 @@
 </nav>
 
 <div class="container" style="max-width: 850px;"> 
-    <div id="view-entry" style="margin: auto;">
+    <div id="view-entry" style="margin: auto; display: none;">
         <h5 class="text-center text-primary mb-4 font-weight-bold p-3 bg-white rounded shadow-sm border" style="line-height: 1.5;">
             बेडका नमुना, CbNAAT, TruaNAAT, LPA, <br class="d-md-none"> Food Basket, Follow up नोंदणी
         </h5>
@@ -187,22 +187,17 @@
             document.getElementById('summaryDate').value = todayStr;
             
             const role = String(loggedInUser.role || '').toLowerCase().trim();
-            const isAdmin = ['admin', 'taluka_admin', 'phc_admin'].includes(role);
-            const isScAdmin = ['sc_admin', 'subcenter_admin', 'उपकेंद्र ॲडमिन'].includes(role);
-            
             let roleName = "कर्मचारी";
-            if(['admin', 'taluka_admin'].includes(role)) roleName = "तालुका ॲडमिन";
-            else if(role === 'phc_admin') roleName = "PHC ॲडमिन";
-            else if(isScAdmin) roleName = "उपकेंद्र ॲडमिन";
-            
+            if(role === 'admin' || role === 'taluka_admin') roleName = "तालुका ॲडमिन";
+            if(role === 'phc_admin') roleName = "PHC ॲडमिन";
             document.getElementById('headerUserRole').innerText = `(${loggedInUser.full_name} - ${roleName})`;
 
             // 🟢 ॲडमिनसाठी डेटा एंट्री टॅब लपवणे
+            let isAdmin = (role === 'admin' || role === 'taluka_admin' || role === 'phc_admin');
             if (isAdmin) {
-                document.getElementById('nav-item-entry').style.display = 'none';
+                document.getElementById('nav-entry-li').style.display = 'none';
                 switchTab('reports');
             } else {
-                document.getElementById('nav-item-entry').style.display = 'block';
                 switchTab('entry');
             }
 
@@ -217,7 +212,6 @@
         showLoading(true, "माहिती लोड होत आहे...");
         try {
             const role = String(loggedInUser.role || '').toLowerCase().trim();
-            const isAdmin = ['admin', 'taluka_admin', 'phc_admin'].includes(role);
             
             const pRes = await supabaseClient.from('phcs').select('*');
             dbPhcs = pRes.data || [];
@@ -225,7 +219,7 @@
             let scQuery = supabaseClient.from('sub_centers').select('*');
             if (role === 'phc_admin') {
                 scQuery = loggedInUser.phc_id ? scQuery.eq('phc_id', loggedInUser.phc_id) : scQuery;
-            } else if (!isAdmin) {
+            } else if (role !== 'admin' && role !== 'taluka_admin' && role !== 'phc_admin') {
                 scQuery = loggedInUser.sub_center_id ? scQuery.eq('id', loggedInUser.sub_center_id) : scQuery.eq('id', '00000000-0000-0000-0000-000000000000');
             }
             const scRes = await scQuery;
@@ -237,8 +231,8 @@
             let eQuery = supabaseClient.from('employees').select('*');
             if (role === 'phc_admin') {
                 eQuery = loggedInUser.phc_id ? eQuery.eq('phc_id', loggedInUser.phc_id) : eQuery;
-            } else if (!isAdmin) {
-                eQuery = eQuery.eq('sub_center_id', loggedInUser.sub_center_id);
+            } else if (role !== 'admin' && role !== 'taluka_admin' && role !== 'phc_admin') {
+                eQuery = eQuery.eq('id', loggedInUser.id);
             }
             const eRes = await eQuery;
             dbEmployees = eRes.data || [];
@@ -250,9 +244,8 @@
                 if (role === 'phc_admin') {
                     let validScNames = dbSubcenters.map(s => s.name);
                     if(validScNames.length > 0) tbQuery = tbQuery.in('sub_center', validScNames);
-                } else if (!isAdmin) {
-                    let mySc = dbSubcenters.find(s => s.id === loggedInUser.sub_center_id);
-                    if (mySc) tbQuery = tbQuery.eq('sub_center', mySc.name);
+                } else if (role !== 'admin' && role !== 'taluka_admin' && role !== 'phc_admin') {
+                    tbQuery = tbQuery.eq('staff_name', loggedInUser.full_name);
                 }
                 const statRes = await tbQuery;
                 if (statRes && statRes.count !== null) document.getElementById('todayCountBadge').innerText = statRes.count;
@@ -262,7 +255,7 @@
             scSelect.innerHTML = '<option value="">Select Subcenter...</option>';
             dbSubcenters.forEach(sc => { scSelect.innerHTML += `<option value="${sc.id}">${sc.name}</option>`; });
 
-            if (!isAdmin) {
+            if (role !== 'admin' && role !== 'taluka_admin' && role !== 'phc_admin') {
                 if (dbSubcenters.length > 0) {
                     scSelect.value = dbSubcenters[0].id;
                     scSelect.style.pointerEvents = "none"; 
@@ -273,8 +266,9 @@
                 }
             }
 
-            if(!isAdmin) addRow();
+            addRow();
         } catch (error) {
+            console.error(error);
             alert("डेटा लोड करताना त्रुटी आली: " + error.message);
         } finally {
             showLoading(false);
@@ -284,8 +278,6 @@
     function updateVillagesAndStaff() {
         let scId = document.getElementById('subcenter').value;
         const role = String(loggedInUser.role || '').toLowerCase().trim();
-        const isAdmin = ['admin', 'taluka_admin', 'phc_admin'].includes(role);
-        const isScAdmin = ['sc_admin', 'subcenter_admin', 'उपकेंद्र ॲडमिन'].includes(role);
         
         let vSelect = document.getElementById('village');
         vSelect.innerHTML = '<option value="">Select Village...</option>';
@@ -300,7 +292,7 @@
             eSelect.innerHTML += `<option value="${e.full_name}">${e.full_name} (${e.role})</option>`;
         });
 
-        if (!isAdmin && !isScAdmin) {
+        if (role !== 'admin' && role !== 'taluka_admin' && role !== 'phc_admin') {
              eSelect.value = loggedInUser.full_name;
         }
     }
@@ -316,13 +308,13 @@
         if(tab === 'entry') {
             document.getElementById('view-entry').style.display = 'block';
             document.getElementById('view-reports').style.display = 'none';
-            document.getElementById('tab-entry').classList.add('active');
-            document.getElementById('tab-reports').classList.remove('active');
+            if(document.getElementById('tab-entry')) document.getElementById('tab-entry').classList.add('active');
+            if(document.getElementById('tab-reports')) document.getElementById('tab-reports').classList.remove('active');
         } else {
             document.getElementById('view-entry').style.display = 'none';
             document.getElementById('view-reports').style.display = 'block';
-            document.getElementById('tab-entry').classList.remove('active');
-            document.getElementById('tab-reports').classList.add('active');
+            if(document.getElementById('tab-entry')) document.getElementById('tab-entry').classList.remove('active');
+            if(document.getElementById('tab-reports')) document.getElementById('tab-reports').classList.add('active');
         }
     }
 
@@ -458,7 +450,7 @@
         }
     }
 
-    // --- 🟢 SUMMARY REPORT (Smart Role Based & Zero Fill) ---
+    // --- 🟢 PDF PRINT REPORT ---
     async function downloadSummaryReport() {
         let sDateStr = document.getElementById('summaryDate').value;
         if(!sDateStr) { alert("कृपया तारीख निवडा!"); return; }
@@ -470,21 +462,20 @@
         showLoading(true, "गोषवारा PDF तयार होत आहे...");
         try {
             const role = String(loggedInUser.role || '').toLowerCase().trim();
-            let isTalukaAdmin = (role === 'admin' || role === 'taluka_admin');
-            let isPhcAdmin = (role === 'phc_admin');
-            let isScAdmin = ['sc_admin', 'subcenter_admin', 'उपकेंद्र ॲडमिन'].includes(role);
+            let isAdmin = (role === 'admin' || role === 'taluka_admin');
 
             let tbQuery = supabaseClient.from('tb_entries')
                 .select('*')
                 .gte('sample_date', `${year}-01-01`)
                 .lte('sample_date', sDateStr);
 
-            if (isPhcAdmin) {
+            if (role === 'phc_admin') {
                 let validScNames = dbSubcenters.map(s => s.name);
                 if(validScNames.length > 0) tbQuery = tbQuery.in('sub_center', validScNames);
-            } else if (!isTalukaAdmin) {
+            } else if (!isAdmin) {
                 let mySc = dbSubcenters.find(s => s.id === loggedInUser.sub_center_id);
                 if (mySc) tbQuery = tbQuery.eq('sub_center', mySc.name);
+                tbQuery = tbQuery.eq('staff_name', loggedInUser.full_name);
             }
 
             const { data, error } = await tbQuery;
@@ -495,9 +486,9 @@
             let reportDateParts = sDateStr.split('-');
             let printDate = `${reportDateParts[2]}/${reportDateParts[1]}/${reportDateParts[0]}`;
 
-            if (isTalukaAdmin) {
-                // 🟢 तालुका ॲडमिन व्ह्यू
+            if (isAdmin) {
                 let scStats = {};
+                
                 dbSubcenters.forEach(sc => {
                     let phc = dbPhcs.find(p => p.id === sc.phc_id);
                     let phcName = phc ? (phc.name || phc.phc_name || 'इतर') : 'इतर';
@@ -533,8 +524,11 @@
                 </div>
                 <table border='1' cellpadding='6' style='width:100%; border-collapse:collapse; text-align:center; font-size:13px;'>
                     <tr style='background-color: #2c3e50; color: #ffffff;'>
-                        <th rowspan='2'>अ.क्र.</th><th rowspan='2'>प्राथमिक आरोग्य केंद्र (PHC)</th><th rowspan='2'>उपकेंद्र</th>
-                        <th colspan='3'>Sputum (बेडका नमुना)</th><th colspan='3'>X-Ray (क्ष-किरण)</th>
+                        <th rowspan='2'>अ.क्र.</th>
+                        <th rowspan='2'>प्राथमिक आरोग्य केंद्र (PHC)</th>
+                        <th rowspan='2'>उपकेंद्र</th>
+                        <th colspan='3'>Sputum (बेडका नमुना)</th>
+                        <th colspan='3'>X-Ray (क्ष-किरण)</th>
                     </tr>
                     <tr style='background-color: #34495e; color: #ffffff;'>
                         <th>Daily</th><th>Monthly</th><th>Yearly</th><th>Daily</th><th>Monthly</th><th>Yearly</th>
@@ -542,22 +536,25 @@
 
                 let sortedSc = Object.values(scStats).sort((a,b) => String(a.phc).localeCompare(String(b.phc)) || String(a.sc).localeCompare(String(b.sc)));
                 let idx = 1;
+                
                 sortedSc.forEach(s => {
-                    html += `<tr><td>${idx++}</td><td style='text-align:left; padding-left:10px; font-weight:bold;'>${s.phc}</td><td style='text-align:left; padding-left:10px;'>${s.sc}</td>
-                        <td>${s.dS}</td><td>${s.mS}</td><td>${s.yS}</td><td>${s.dX}</td><td>${s.mX}</td><td>${s.yX}</td></tr>`;
+                    html += `<tr>
+                        <td>${idx++}</td>
+                        <td style='text-align:left; padding-left:10px; font-weight:bold;'>${s.phc}</td>
+                        <td style='text-align:left; padding-left:10px;'>${s.sc}</td>
+                        <td>${s.dS}</td><td>${s.mS}</td><td>${s.yS}</td>
+                        <td>${s.dX}</td><td>${s.mX}</td><td>${s.yX}</td>
+                    </tr>`;
                     grandTotal.dS += s.dS; grandTotal.mS += s.mS; grandTotal.yS += s.yS;
                     grandTotal.dX += s.dX; grandTotal.mX += s.mX; grandTotal.yX += s.yX;
                 });
 
             } else {
-                // 🟢 PHC ॲडमिन, उपकेंद्र ॲडमिन आणि सामान्य कर्मचारी व्ह्यू
                 let empStats = {};
                 let ashaStats = { dS:0, mS:0, yS:0, dX:0, mX:0, yX:0 };
 
                 dbEmployees.forEach(e => {
-                    if (!isPhcAdmin && !isScAdmin && e.full_name !== loggedInUser.full_name) return;
-                    if (isScAdmin && e.sub_center_id !== loggedInUser.sub_center_id) return;
-                    
+                    if (role === 'employee' && e.full_name !== loggedInUser.full_name) return;
                     let sc = dbSubcenters.find(s => s.id === e.sub_center_id);
                     let scName = sc ? sc.name : '-';
                     let isAsha = (String(e.role).toLowerCase().includes('asha') || String(e.role).includes('आशा'));
@@ -579,9 +576,6 @@
                         let empObj = dbEmployees.find(e => e.full_name === empName);
                         let isAsha = empObj && (String(empObj.role).toLowerCase().includes('asha') || String(empObj.role).includes('आशा'));
 
-                        // फिल्टर: जर सामान्य कर्मचारी असेल तर फक्त स्वतःचा डेटा घेईल
-                        if (!isPhcAdmin && !isScAdmin && empName !== loggedInUser.full_name) return;
-
                         let targetStat = isAsha ? ashaStats : empStats[empName];
                         if(!isAsha && !empStats[empName]) {
                             empStats[empName] = { sc: scName, dS:0, mS:0, yS:0, dX:0, mX:0, yX:0 };
@@ -597,9 +591,8 @@
                 });
 
                 let phcNameHeader = "PRIMARY HEALTH CENTER";
-                if (isPhcAdmin || isScAdmin || !isTalukaAdmin) {
-                    let myPhcId = isPhcAdmin ? loggedInUser.phc_id : (dbSubcenters.find(s=>s.id === loggedInUser.sub_center_id) || {}).phc_id;
-                    let p = dbPhcs.find(x => x.id === myPhcId);
+                if (role === 'phc_admin') {
+                    let p = dbPhcs.find(x => x.id === loggedInUser.phc_id);
                     if (p) {
                         let pName = p.name || p.phc_name || "PRIMARY HEALTH CENTER";
                         phcNameHeader = String(pName).toUpperCase();
@@ -615,8 +608,11 @@
                 </div>
                 <table border='1' cellpadding='6' style='width:100%; border-collapse:collapse; text-align:center; font-size:13px;'>
                     <tr style='background-color: #2c3e50; color: #ffffff;'>
-                        <th rowspan='2'>अ.क्र.</th><th rowspan='2'>उपकेंद्र</th><th rowspan='2'>कर्मचाऱ्याचे नाव</th>
-                        <th colspan='3'>Sputum (बेडका नमुना)</th><th colspan='3'>X-Ray (क्ष-किरण)</th>
+                        <th rowspan='2'>अ.क्र.</th>
+                        <th rowspan='2'>उपकेंद्र</th>
+                        <th rowspan='2'>कर्मचाऱ्याचे नाव</th>
+                        <th colspan='3'>Sputum (बेडका नमुना)</th>
+                        <th colspan='3'>X-Ray (क्ष-किरण)</th>
                     </tr>
                     <tr style='background-color: #34495e; color: #ffffff;'>
                         <th>Daily</th><th>Monthly</th><th>Yearly</th><th>Daily</th><th>Monthly</th><th>Yearly</th>
@@ -629,16 +625,20 @@
                     let s = empStats[name];
                     let bg = (idx % 2 === 0) ? "#ffffff" : "#f9f9f9";
                     html += `<tr style='background-color:${bg};'>
-                        <td>${idx++}</td><td>${s.sc}</td><td style='text-align:left; padding-left:10px;'>${name}</td>
-                        <td>${s.dS}</td><td>${s.mS}</td><td>${s.yS}</td><td>${s.dX}</td><td>${s.mX}</td><td>${s.yX}</td>
+                        <td>${idx++}</td>
+                        <td>${s.sc}</td>
+                        <td style='text-align:left; padding-left:10px;'>${name}</td>
+                        <td>${s.dS}</td><td>${s.mS}</td><td>${s.yS}</td>
+                        <td>${s.dX}</td><td>${s.mX}</td><td>${s.yX}</td>
                     </tr>`;
                     grandTotal.dS += s.dS; grandTotal.mS += s.mS; grandTotal.yS += s.yS;
                     grandTotal.dX += s.dX; grandTotal.mX += s.mX; grandTotal.yX += s.yX;
                 });
 
-                if(isPhcAdmin || isScAdmin) {
+                if(role !== 'employee') {
                     html += `<tr style='font-weight:bold; background-color: #ecf0f1;'>
-                        <td>-</td><td>-</td><td style='text-align:left; padding-left:10px;'>इतर (सर्व आशा कर्मचारी एकत्रित)</td>
+                        <td>-</td><td>-</td>
+                        <td style='text-align:left; padding-left:10px;'>इतर (सर्व आशा कर्मचारी एकत्रित)</td>
                         <td>${ashaStats.dS}</td><td>${ashaStats.mS}</td><td>${ashaStats.yS}</td>
                         <td>${ashaStats.dX}</td><td>${ashaStats.mX}</td><td>${ashaStats.yX}</td>
                     </tr>`;
@@ -692,15 +692,10 @@
                 .order('sample_date', { ascending: false });
 
             const role = String(loggedInUser.role || '').toLowerCase().trim();
-            let isScAdmin = ['sc_admin', 'subcenter_admin', 'उपकेंद्र ॲडमिन'].includes(role);
-
             if (role === 'phc_admin') {
                 let validScNames = dbSubcenters.map(s => s.name);
                 if(validScNames.length > 0) tbQuery = tbQuery.in('sub_center', validScNames);
-            } else if (isScAdmin) {
-                let mySc = dbSubcenters.find(s => s.id === loggedInUser.sub_center_id);
-                if (mySc) tbQuery = tbQuery.eq('sub_center', mySc.name);
-            } else if (role !== 'admin' && role !== 'taluka_admin') {
+            } else if (role !== 'admin' && role !== 'taluka_admin' && role !== 'phc_admin') {
                 tbQuery = tbQuery.eq('staff_name', loggedInUser.full_name);
             }
 
