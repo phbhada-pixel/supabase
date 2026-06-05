@@ -298,7 +298,6 @@
                     let currentMonthResp = formResp.filter(r => r.report_month === parseInt(selMonthNum) && r.report_year === parseInt(selYear));
 
                     currentMonthResp.forEach(res => {
-                        // 🟢 कडक निरंक फिल्टर: डेटाबेसमधील "is_nil" किंवा डेटामधील मजकूर "निरंक" चेक करणे
                         if (res.response_data && res.response_data.is_nil === true) return;
                         
                         let isStringNil = false;
@@ -310,7 +309,7 @@
                                 }
                             }
                         }
-                        if (isStringNil) return; // जर जुन्या डेटामध्ये निरंक असेल तर ती ओळ इथेच ड्रॉप करा
+                        if (isStringNil) return;
 
                         if (user.role !== 'admin' && user.role !== 'taluka_admin' && user.role !== 'phc_admin') {
                             if (res.employee_id !== user.id) return;
@@ -334,7 +333,6 @@
                             if (!f.formula || String(f.formula).trim() === "") {
                                 let monthlyVal = res.response_data[f.id] ? res.response_data[f.id].value : '';
                                 
-                                // Date Formatting (YYYY-MM-DD to DD-MM-YYYY)
                                 if (f.type === 'date' && monthlyVal && String(monthlyVal).trim() !== '') {
                                     let dStr = String(monthlyVal).split('T')[0];
                                     let parts = dStr.split('-');
@@ -830,9 +828,15 @@
                                     }
                                     k = m;
                                 } else {
-                                    let mult2 = (rep.isProg && c2.type === 'number') ? 2 : 1;
-                                    if(mult2 === 2) { r2.push(c2.l3); r2.push(""); merges.push({ s: { r: startR+1, c: r2.length - 2 }, e: { r: startR+2, c: r2.length - 1 } }); r3.push(""); r3.push(""); r4.push("मासिक"); r4.push("प्रगत"); } 
-                                    else { r2.push(c2.l3); if(rep.isProg) { merges.push({ s: { r: startR+1, c: r2.length - 1 }, e: { r: startR+3, c: r2.length - 1 } }); r3.push(""); r4.push(""); } else { merges.push({ s: { r: startR+1, c: r2.length - 1 }, e: { r: startR+2, c: r2.length - 1 } }); r3.push(""); } }
+                                    let w = (rep.isProg && c2.type === 'number') ? 2 : 1;
+                                    r2.push(c2.l3);
+                                    if(w === 2) {
+                                        r2.push(""); merges.push({ s: { r: startR+1, c: r2.length - 2 }, e: { r: startR+2, c: r2.length - 1 } }); 
+                                        r3.push(""); r3.push(""); r4.push("मासिक"); r4.push("प्रगत");
+                                    } else {
+                                        if(rep.isProg) { merges.push({ s: { r: startR+1, c: r2.length - 1 }, e: { r: startR+3, c: r2.length - 1 } }); r3.push(""); r4.push(""); } 
+                                        else { merges.push({ s: { r: startR+1, c: r2.length - 1 }, e: { r: startR+2, c: r2.length - 1 } }); r3.push(""); }
+                                    }
                                     k++;
                                 }
                             }
@@ -1117,7 +1121,7 @@
                 table.querySelectorAll('tbody tr').forEach((row, rowIndex) => { let cells = row.querySelectorAll('td'); if(cells.length >= 2) textToCopy += `${rowIndex + 1}. ${cells[1].innerText.replace(/\n/g, " ").trim()}\n`; });
                 textToCopy += `\n`;
             });
-            navigator.clipboard.writeText(textToCopy).then(() => { alert("✅ यादी व्हॉट्सॲप मेसेजसाठी कॉपी झाली অফিসে आहे!"); });
+            navigator.clipboard.writeText(textToCopy).then(() => { alert("✅ यादी व्हॉट्सॲप मेसेजसाठी कॉपी झाली आहे!"); });
         }
     </script>
 </body>
