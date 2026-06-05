@@ -36,42 +36,26 @@
 
 <nav class="navbar bg-white navbar-custom sticky-top py-3">
     <div class="container d-flex flex-column flex-lg-row justify-content-between align-items-center text-center text-lg-left">
-        
         <span class="navbar-brand mb-3 mb-lg-0 w-100 w-lg-auto">
             राष्ट्रीय क्षयरोग नियंत्रण कार्यक्रम <br>
             <span class="text-dark" style="font-size: 0.9rem;" id="headerUserRole">(लोड होत आहे...)</span>
         </span>
-        
         <div class="d-flex flex-column flex-sm-row align-items-center w-100 w-lg-auto justify-content-center justify-content-lg-end">
             <ul class="nav nav-pills mb-3 mb-sm-0 justify-content-center w-100 w-sm-auto">
-                <li class="nav-item">
-                    <a class="nav-link active px-4 py-2" id="tab-entry" onclick="switchTab('entry')">
-                        <i class="fas fa-edit"></i> माहिती भरा
-                    </a>
-                </li>
-                <li class="nav-item ml-2">
-                    <a class="nav-link px-4 py-2" id="tab-reports" onclick="switchTab('reports')">
-                        <i class="fas fa-file-alt"></i> अहवाल
-                    </a>
-                </li>
+                <li class="nav-item"><a class="nav-link active px-4 py-2" id="tab-entry" onclick="switchTab('entry')"><i class="fas fa-edit"></i> माहिती भरा</a></li>
+                <li class="nav-item ml-2"><a class="nav-link px-4 py-2" id="tab-reports" onclick="switchTab('reports')"><i class="fas fa-file-alt"></i> अहवाल</a></li>
             </ul>
-            <button onclick="window.location.href='dashboard.html'" class="btn btn-secondary font-weight-bold shadow-sm ml-sm-3 w-100 w-sm-auto mt-2 mt-sm-0">
-                <i class="fas fa-arrow-left"></i> डॅशबोर्ड
-            </button>
+            <button onclick="window.location.href='dashboard.html'" class="btn btn-secondary font-weight-bold shadow-sm ml-sm-3 w-100 w-sm-auto mt-2 mt-sm-0"><i class="fas fa-arrow-left"></i> डॅशबोर्ड</button>
         </div>
-        
     </div>
 </nav>
 
 <div class="container" style="max-width: 850px;"> 
-
     <!-- ENTRY FORM -->
     <div id="view-entry" style="margin: auto;">
-        
         <h5 class="text-center text-primary mb-4 font-weight-bold p-3 bg-white rounded shadow-sm border" style="line-height: 1.5;">
             बेडका नमुना, CbNAAT, TruaNAAT, LPA, <br class="d-md-none"> Food Basket, Follow up नोंदणी
         </h5>
-
         <div class="alert alert-info d-flex flex-column flex-md-row justify-content-between align-items-center shadow-sm font-weight-bold text-center text-md-left">
             <span class="mb-2 mb-md-0"><i class="fas fa-calendar-day"></i> आजच्या एकूण नोंदी (Today's Entries):</span>
             <span class="badge badge-primary p-2" id="todayCountBadge" style="font-size: 1rem;">0</span>
@@ -119,8 +103,6 @@
         <p class="text-muted mb-4 font-weight-bold">डाऊनलोड करण्यासाठी तारीख निवडा.</p>
 
         <div class="row">
-            
-            <!-- 🟢 समरी रिपोर्ट (गोषवारा) - PDF Format -->
             <div class="col-lg-4 col-md-6 mb-3">
                 <div class="card card-custom p-4 h-100 border text-center shadow-sm hover:shadow-lg transition">
                     <div class="report-icon"><i class="fas fa-chart-pie text-danger"></i></div>
@@ -134,7 +116,6 @@
                 </div>
             </div>
 
-            <!-- आजची यादी -->
             <div class="col-lg-4 col-md-6 mb-3">
                 <div class="card card-custom report-card d-flex flex-column justify-content-center" onclick="downloadReport('today')">
                     <div class="report-icon"><i class="fas fa-clipboard-list text-success"></i></div>
@@ -144,7 +125,6 @@
                 </div>
             </div>
 
-            <!-- कस्टम यादी -->
             <div class="col-lg-4 col-md-12 mb-3">
                 <div class="card card-custom p-4 h-100 border text-center shadow-sm hover:shadow-lg transition">
                     <div class="report-icon"><i class="fas fa-calendar-alt text-info"></i></div>
@@ -158,10 +138,8 @@
                     <button class="btn btn-sm btn-info btn-block font-weight-bold mt-auto shadow text-white" onclick="downloadReport('custom')">📥 Excel डाऊनलोड</button>
                 </div>
             </div>
-
         </div>
     </div>
-
 </div>
 
 <!-- PREVIEW MODAL -->
@@ -223,24 +201,29 @@
             const role = String(loggedInUser.role || '').toLowerCase().trim();
             
             let scQuery = supabaseClient.from('sub_centers').select('*');
-            if (role === 'phc_admin' && loggedInUser.phc_id) {
-                scQuery = scQuery.eq('phc_id', loggedInUser.phc_id);
+            if (role === 'phc_admin') {
+                scQuery = loggedInUser.phc_id ? scQuery.eq('phc_id', loggedInUser.phc_id) : scQuery;
             } else if (role !== 'admin' && role !== 'taluka_admin' && role !== 'phc_admin') {
-                scQuery = scQuery.eq('id', loggedInUser.sub_center_id);
+                scQuery = loggedInUser.sub_center_id ? scQuery.eq('id', loggedInUser.sub_center_id) : scQuery.eq('id', '00000000-0000-0000-0000-000000000000');
             }
+
+            // Anti-Crash: Handle missing tb_entries table smoothly
+            let tbQuery = supabaseClient.from('tb_entries').select('*', { count: 'exact', head: true }).eq('sample_date', new Date().toISOString().split('T')[0]);
 
             const [scRes, vRes, eRes, statRes] = await Promise.all([
                 scQuery,
                 supabaseClient.from('villages').select('*'),
                 supabaseClient.from('employees').select('*'),
-                supabaseClient.from('tb_entries').select('id', { count: 'exact' }).eq('sample_date', new Date().toISOString().split('T')[0])
+                tbQuery
             ]);
 
             dbSubcenters = scRes.data || [];
             dbVillages = vRes.data || [];
             dbEmployees = eRes.data || [];
 
-            document.getElementById('todayCountBadge').innerText = statRes.count || 0;
+            if(statRes && statRes.count !== null) {
+                document.getElementById('todayCountBadge').innerText = statRes.count;
+            }
 
             let scSelect = document.getElementById('subcenter');
             scSelect.innerHTML = '<option value="">Select Subcenter...</option>';
@@ -253,13 +236,14 @@
                     scSelect.style.backgroundColor = "#e9ecef";
                     updateVillagesAndStaff();
                 } else {
-                    alert("⚠️ तुम्हाला कोणतेही उपकेंद्र दिलेले नाही!");
+                    alert("⚠️ तुमच्या खात्याला कोणतेही उपकेंद्र जोडलेले नाही. कृपया ॲडमिनशी संपर्क साधा.");
                 }
             }
 
             addRow();
         } catch (error) {
-            alert("डेटा लोड करताना त्रुटी: " + error.message);
+            console.error("Error Loading Data:", error);
+            alert("डेटा लोड करताना त्रुटी आली. कृपया SQL रन केले आहे का ते तपासा.");
         }
         showLoading(false);
     }
@@ -438,7 +422,7 @@
         showLoading(false);
     }
 
-    // --- 🟢 NEW: SUMMARY REPORT (PDF Print Format same as Old App Script) ---
+    // --- PDF PRINT REPORT (Summary) ---
     async function downloadSummaryReport() {
         let sDateStr = document.getElementById('summaryDate').value;
         if(!sDateStr) { alert("कृपया तारीख निवडा!"); return; }
@@ -452,7 +436,7 @@
             let tbQuery = supabaseClient.from('tb_entries')
                 .select('*')
                 .gte('sample_date', `${year}-01-01`)
-                .lte('sample_date', sDateStr); // पर्यंतचा डेटा
+                .lte('sample_date', sDateStr);
 
             const role = String(loggedInUser.role || '').toLowerCase().trim();
             if (role === 'phc_admin') {
@@ -486,7 +470,6 @@
                 let empName = row.staff_name || 'अज्ञात';
                 let sc = row.sub_center || '-';
                 
-                // कर्मचारी 'आशा' आहे का ते तपासणे
                 let empObj = dbEmployees.find(e => e.full_name === empName);
                 let isAsha = empObj && (String(empObj.role).toLowerCase().includes('asha') || String(empObj.role).includes('आशा'));
 
