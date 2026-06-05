@@ -299,6 +299,7 @@
                     let currentMonthResp = formResp.filter(r => r.report_month === parseInt(selMonthNum) && r.report_year === parseInt(selYear));
 
                     currentMonthResp.forEach(res => {
+                        // निरंक रिपोर्ट स्किप करणे
                         if (res.response_data && res.response_data.is_nil === true) return;
 
                         if (user.role !== 'admin' && user.role !== 'taluka_admin' && user.role !== 'phc_admin') {
@@ -318,27 +319,71 @@
 
                         let row = { month: selMonth, year: selYear, subcenter: scName, village: villageObj?villageObj.name:'-', employee: empObj?empObj.full_name:'-', values: {} };
                         
+                        // 🟢 Pass 1: Raw Inputs Fetching
                         validDataFields.forEach(f => {
-                            let monthlyVal = res.response_data[f.id] ? res.response_data[f.id].value : '';
-                            
-                            // 🟢 Date Formatting (YYYY-MM-DD to DD-MM-YYYY)
-                            if (f.type === 'date' && monthlyVal && String(monthlyVal).trim() !== '') {
-                                let dStr = String(monthlyVal).split('T')[0];
-                                let parts = dStr.split('-');
-                                if(parts.length === 3 && parts[0].length === 4) {
-                                    monthlyVal = `${parts[2]}-${parts[1]}-${parts[0]}`;
+                            if (!f.formula || String(f.formula).trim() === "") {
+                                let monthlyVal = res.response_data[f.id] ? res.response_data[f.id].value : '';
+                                
+                                if (f.type === 'date' && monthlyVal && String(monthlyVal).trim() !== '') {
+                                    let dStr = String(monthlyVal).split('T')[0];
+                                    let parts = dStr.split('-');
+                                    if(parts.length === 3 && parts[0].length === 4) {
+                                        monthlyVal = `${parts[2]}-${parts[1]}-${parts[0]}`;
+                                    }
+                                }
+
+                                if (isProgressive && f.type === 'number') {
+                                    let sumProg = 0;
+                                    getProgressiveMonthsList(selMonthNum, selYear).forEach(p => {
+                                        let pastRes = formResp.find(r => r.village_id === res.village_id && r.report_month === p.month && r.report_year === p.year);
+                                        if(pastRes && pastRes.response_data && pastRes.response_data[f.id]) {
+                                            sumProg += parseFloat(pastRes.response_data[f.id].value) || 0;
+                                        }
+                                    });
+                                    row.values[f.id] = { M: formatNumberDecimals(monthlyVal), P: formatNumberDecimals(sumProg) };
+                                } else { 
+                                    row.values[f.id] = formatNumberDecimals(monthlyVal); 
                                 }
                             }
-
-                            if (isProgressive && f.type === 'number') {
-                                let sumProg = 0;
-                                getProgressiveMonthsList(selMonthNum, selYear).forEach(p => {
-                                    let pastRes = formResp.find(r => r.village_id === res.village_id && r.report_month === p.month && r.report_year === p.year);
-                                    if(pastRes && pastRes.response_data && pastRes.response_data[f.id]) sumProg += parseFloat(pastRes.response_data[f.id].value) || 0;
-                                });
-                                row.values[f.id] = { M: formatNumberDecimals(monthlyVal), P: formatNumberDecimals(sumProg) };
-                            } else { row.values[f.id] = formatNumberDecimals(monthlyVal); }
                         });
+
+                        // 🟢 Pass 2: Row Level Formula Evaluation
+                        validDataFields.forEach(f => {
+                            if (f.formula && String(f.formula).trim() !== "") {
+                                let evalRowFormula = (type) => {
+                                    let formulaStr = String(f.formula).toLowerCase().trim();
+                                    validDataFields.forEach(af => {
+                                        if (!af.formula || String(af.formula).trim() === "") {
+                                            let ph = `[${af.id.toLowerCase()}]`;
+                                            if(formulaStr.includes(ph)) {
+                                                let val = 0;
+                                                let afVal = row.values[af.id];
+                                                if (typeof afVal === 'object' && afVal !== null) {
+                                                    val = parseFloat(afVal[type]) || 0;
+                                                } else {
+                                                    val = parseFloat(afVal) || 0;
+                                                }
+                                                formulaStr = formulaStr.replaceAll(ph, val);
+                                            }
+                                        }
+                                    });
+                                    try {
+                                        if (/^[0-9.+\-*/() ]+$/.test(formulaStr)) {
+                                            let res = eval(formulaStr); 
+                                            return isNaN(res) || !isFinite(res) ? 0 : res;
+                                        }
+                                    } catch(e) {}
+                                    return 0;
+                                };
+
+                                if (isProgressive && f.type === 'number') {
+                                    row.values[f.id] = { M: formatNumberDecimals(evalRowFormula('M')), P: formatNumberDecimals(evalRowFormula('P')) };
+                                } else {
+                                    row.values[f.id] = formatNumberDecimals(evalRowFormula('M'));
+                                }
+                            }
+                        });
+
                         fData.push(row);
                     });
 
