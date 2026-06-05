@@ -34,7 +34,6 @@
     <h5 class="mt-3 text-primary font-weight-bold" id="loadingText">डेटा लोड होत आहे...</h5>
 </div>
 
-<!-- 🟢 मोबाईल फ्रेंडली नेव्हिगेशन बार -->
 <nav class="navbar bg-white navbar-custom sticky-top py-3">
     <div class="container d-flex flex-column flex-lg-row justify-content-between align-items-center text-center text-lg-left">
         
@@ -120,28 +119,46 @@
         <p class="text-muted mb-4 font-weight-bold">डाऊनलोड करण्यासाठी तारीख निवडा.</p>
 
         <div class="row">
-            <div class="col-md-6 mb-3">
+            
+            <!-- 🟢 नवीन: समरी रिपोर्ट (गोषवारा) -->
+            <div class="col-lg-4 col-md-6 mb-3">
+                <div class="card card-custom p-4 h-100 border text-center shadow-sm hover:shadow-lg transition">
+                    <div class="report-icon"><i class="fas fa-chart-pie"></i></div>
+                    <h5 class="font-weight-bold text-dark">गोषवारा (Summary)</h5>
+                    <p class="text-muted small font-weight-bold">Daily / Monthly / Yearly</p>
+                    <div class="text-left mt-3">
+                        <label class="small font-weight-bold text-secondary">तारीख (Date):</label>
+                        <input type="date" id="summaryDate" class="form-control form-control-sm mb-3 font-weight-bold">
+                    </div>
+                    <button class="btn btn-sm btn-primary btn-block font-weight-bold mt-auto" onclick="downloadSummaryReport()">📥 Excel डाऊनलोड</button>
+                </div>
+            </div>
+
+            <!-- आजची यादी -->
+            <div class="col-lg-4 col-md-6 mb-3">
                 <div class="card card-custom report-card d-flex flex-column justify-content-center" onclick="downloadReport('today')">
                     <div class="report-icon"><i class="fas fa-clipboard-list"></i></div>
-                    <h5 class="font-weight-bold text-dark">आजची यादी (Today's Data)</h5>
+                    <h5 class="font-weight-bold text-dark">आजची यादी</h5>
                     <p class="text-muted small font-weight-bold">आजच्या सर्व रुग्णांची यादी Excel मध्ये डाऊनलोड करा.</p>
                     <button class="btn btn-sm btn-success mt-3 font-weight-bold w-100">📥 Excel डाऊनलोड</button>
                 </div>
             </div>
 
-            <div class="col-md-6 mb-3">
-                <div class="card card-custom p-4 h-100 border text-center">
+            <!-- कस्टम यादी -->
+            <div class="col-lg-4 col-md-12 mb-3">
+                <div class="card card-custom p-4 h-100 border text-center shadow-sm hover:shadow-lg transition">
                     <div class="report-icon"><i class="fas fa-calendar-alt"></i></div>
                     <h5 class="font-weight-bold text-dark">कस्टम यादी (Custom List)</h5>
                     <div class="text-left mt-3">
-                        <label class="small font-weight-bold text-secondary">सुरुवात (Start Date):</label>
+                        <label class="small font-weight-bold text-secondary">सुरुवात (Start):</label>
                         <input type="date" id="reportStart" class="form-control form-control-sm mb-2 font-weight-bold">
-                        <label class="small font-weight-bold text-secondary">शेवट (End Date):</label>
+                        <label class="small font-weight-bold text-secondary">शेवट (End):</label>
                         <input type="date" id="reportEnd" class="form-control form-control-sm mb-3 font-weight-bold">
                     </div>
                     <button class="btn btn-sm btn-info btn-block font-weight-bold mt-auto" onclick="downloadReport('custom')">📥 Excel डाऊनलोड</button>
                 </div>
             </div>
+
         </div>
     </div>
 
@@ -188,7 +205,9 @@
         if (!userStr) { window.location.href = "index.html"; return; }
         loggedInUser = JSON.parse(userStr);
 
-        document.getElementById('sampleDate').valueAsDate = new Date();
+        let todayStr = new Date().toISOString().split('T')[0];
+        document.getElementById('sampleDate').value = todayStr;
+        document.getElementById('summaryDate').value = todayStr;
         
         let roleName = "कर्मचारी";
         if(loggedInUser.role === 'admin' || loggedInUser.role === 'taluka_admin') roleName = "तालुका ॲडमिन";
@@ -336,7 +355,7 @@
             </div>
             <div class="form-group">
                 <label class="font-weight-bold text-secondary">जोखमीचे निकष (Risk Criteria) <span class="text-danger">*</span></label>
-                <select name="riskCriteria" class="form-control font-weight-bold" onchange="toggleOtherRisk(this)" required><option value="">Select...</option>${criteriaHtml}</select>
+                <select name="riskCriteria" class="form-control font-weight-bold" onchange="toggleOtherRisk(this)" required><option value="">Select...</option>${criteriaHtml}<option value="Other">इतर (Other)</option></select>
                 <input type="text" name="otherRiskCriteria" class="form-control mt-2" placeholder="इतर कारण टाईप करा" style="display:none;">
             </div>
         `;
@@ -419,7 +438,95 @@
         showLoading(false);
     }
 
-    // --- REPORTS ---
+    // --- 🟢 NEW: SUMMARY REPORT ---
+    async function downloadSummaryReport() {
+        let sDateStr = document.getElementById('summaryDate').value;
+        if(!sDateStr) { alert("कृपया तारीख निवडा!"); return; }
+
+        let targetDate = new Date(sDateStr);
+        let year = targetDate.getFullYear();
+        let month = targetDate.getMonth() + 1;
+
+        showLoading(true, "गोषवारा तयार होत आहे...");
+        try {
+            let tbQuery = supabaseClient.from('tb_entries')
+                .select('*')
+                .gte('sample_date', `${year}-01-01`)
+                .lte('sample_date', `${year}-12-31`);
+
+            const role = String(loggedInUser.role || '').toLowerCase().trim();
+            if (role === 'phc_admin') {
+                let validScNames = dbSubcenters.map(s => s.name);
+                tbQuery = tbQuery.in('sub_center', validScNames);
+            } else if (role !== 'admin' && role !== 'taluka_admin' && role !== 'phc_admin') {
+                let mySc = dbSubcenters.find(s => s.id === loggedInUser.sub_center_id);
+                if (mySc) tbQuery = tbQuery.eq('sub_center', mySc.name);
+            }
+
+            const { data, error } = await tbQuery;
+            if (error) throw error;
+
+            let empStats = {};
+            
+            data.forEach(row => {
+                let rDate = new Date(row.sample_date);
+                let isDaily = row.sample_date === sDateStr;
+                let isMonthly = (rDate.getMonth() + 1 === month);
+                let isYearly = true; 
+
+                let cat = "";
+                let t = String(row.test_type).toLowerCase();
+                if(t.includes('sputum')) cat = "S";
+                else if(t.includes('x-ray') || t.includes('xray')) cat = "X";
+                
+                if(cat) {
+                    let emp = row.staff_name || 'अज्ञात';
+                    let sc = row.sub_center || '-';
+                    if(!empStats[emp]) empStats[emp] = { sc: sc, dS:0, mS:0, yS:0, dX:0, mX:0, yX:0 };
+                    
+                    if(cat === 'S') {
+                        if(isDaily) empStats[emp].dS++;
+                        if(isMonthly) empStats[emp].mS++;
+                        if(isYearly) empStats[emp].yS++;
+                    } else {
+                        if(isDaily) empStats[emp].dX++;
+                        if(isMonthly) empStats[emp].mX++;
+                        if(isYearly) empStats[emp].yX++;
+                    }
+                }
+            });
+
+            let sheetData = [
+                ["अ.क्र.", "उपकेंद्र", "कर्मचारी", "Sputum (Daily)", "Sputum (Monthly)", "Sputum (Yearly)", "X-Ray (Daily)", "X-Ray (Monthly)", "X-Ray (Yearly)"]
+            ];
+
+            let idx = 1;
+            let g = { dS:0, mS:0, yS:0, dX:0, mX:0, yX:0 };
+
+            for(let e in empStats) {
+                let s = empStats[e];
+                sheetData.push([idx++, s.sc, e, s.dS, s.mS, s.yS, s.dX, s.mX, s.yX]);
+                g.dS += s.dS; g.mS += s.mS; g.yS += s.yS; g.dX += s.dX; g.mX += s.mX; g.yX += s.yX;
+            }
+
+            sheetData.push(["", "एकूण (Total)", "", g.dS, g.mS, g.yS, g.dX, g.mX, g.yX]);
+
+            let wb = XLSX.utils.book_new();
+            let ws = XLSX.utils.aoa_to_sheet(sheetData);
+            
+            // रुंदी सेट करणे
+            ws["!cols"] = [{wch: 6}, {wch: 20}, {wch: 25}, {wch: 15}, {wch: 15}, {wch: 15}, {wch: 15}, {wch: 15}, {wch: 15}];
+            
+            XLSX.utils.book_append_sheet(wb, ws, "Summary");
+            XLSX.writeFile(wb, `TB_Summary_${sDateStr}.xlsx`);
+
+        } catch(e) {
+            alert("एरर: " + e.message);
+        }
+        showLoading(false);
+    }
+
+    // --- LIST REPORTS ---
     async function downloadReport(type) {
         let sDate, eDate;
         if(type === 'today') {
@@ -464,8 +571,11 @@
 
             let wb = XLSX.utils.book_new();
             let ws = XLSX.utils.aoa_to_sheet(sheetData);
-            XLSX.utils.book_append_sheet(wb, ws, "TB Report");
-            XLSX.writeFile(wb, `TB_Report_${sDate}_to_${eDate}.xlsx`);
+            
+            ws["!cols"] = [{wch: 6}, {wch: 12}, {wch: 15}, {wch: 15}, {wch: 20}, {wch: 25}, {wch: 5}, {wch: 8}, {wch: 12}, {wch: 12}, {wch: 15}, {wch: 10}, {wch: 20}];
+
+            XLSX.utils.book_append_sheet(wb, ws, "TB Patient List");
+            XLSX.writeFile(wb, `TB_Patient_List_${sDate}_to_${eDate}.xlsx`);
 
         } catch(e) {
             alert("एरर: " + e.message);
