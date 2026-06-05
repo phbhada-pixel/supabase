@@ -36,42 +36,25 @@
 
 <nav class="navbar bg-white navbar-custom sticky-top py-3">
     <div class="container d-flex flex-column flex-lg-row justify-content-between align-items-center text-center text-lg-left">
-        
         <span class="navbar-brand mb-3 mb-lg-0 w-100 w-lg-auto">
             राष्ट्रीय क्षयरोग नियंत्रण कार्यक्रम <br>
             <span class="text-dark" style="font-size: 0.9rem;" id="headerUserRole">(लोड होत आहे...)</span>
         </span>
-        
         <div class="d-flex flex-column flex-sm-row align-items-center w-100 w-lg-auto justify-content-center justify-content-lg-end">
             <ul class="nav nav-pills mb-3 mb-sm-0 justify-content-center w-100 w-sm-auto">
-                <li class="nav-item">
-                    <a class="nav-link active px-4 py-2" id="tab-entry" onclick="switchTab('entry')">
-                        <i class="fas fa-edit"></i> माहिती भरा
-                    </a>
-                </li>
-                <li class="nav-item ml-2">
-                    <a class="nav-link px-4 py-2" id="tab-reports" onclick="switchTab('reports')">
-                        <i class="fas fa-file-alt"></i> अहवाल
-                    </a>
-                </li>
+                <li class="nav-item"><a class="nav-link active px-4 py-2" id="tab-entry" onclick="switchTab('entry')"><i class="fas fa-edit"></i> माहिती भरा</a></li>
+                <li class="nav-item ml-2"><a class="nav-link px-4 py-2" id="tab-reports" onclick="switchTab('reports')"><i class="fas fa-file-alt"></i> अहवाल</a></li>
             </ul>
-            <button onclick="window.location.href='dashboard.html'" class="btn btn-secondary font-weight-bold shadow-sm ml-sm-3 w-100 w-sm-auto mt-2 mt-sm-0">
-                <i class="fas fa-arrow-left"></i> डॅशबोर्ड
-            </button>
+            <button onclick="window.location.href='dashboard.html'" class="btn btn-secondary font-weight-bold shadow-sm ml-sm-3 w-100 w-sm-auto mt-2 mt-sm-0"><i class="fas fa-arrow-left"></i> डॅशबोर्ड</button>
         </div>
-        
     </div>
 </nav>
 
 <div class="container" style="max-width: 850px;"> 
-
-    <!-- ENTRY FORM -->
     <div id="view-entry" style="margin: auto;">
-        
         <h5 class="text-center text-primary mb-4 font-weight-bold p-3 bg-white rounded shadow-sm border" style="line-height: 1.5;">
             बेडका नमुना, CbNAAT, TruaNAAT, LPA, <br class="d-md-none"> Food Basket, Follow up नोंदणी
         </h5>
-
         <div class="alert alert-info d-flex flex-column flex-md-row justify-content-between align-items-center shadow-sm font-weight-bold text-center text-md-left">
             <span class="mb-2 mb-md-0"><i class="fas fa-calendar-day"></i> आजच्या एकूण नोंदी (Today's Entries):</span>
             <span class="badge badge-primary p-2" id="todayCountBadge" style="font-size: 1rem;">0</span>
@@ -113,13 +96,11 @@
         </form>
     </div>
 
-    <!-- REPORTS -->
     <div id="view-reports" style="display:none;">
         <div class="section-title">३. अहवाल तयार करा (Generate Reports)</div>
         <p class="text-muted mb-4 font-weight-bold">डाऊनलोड करण्यासाठी तारीख निवडा.</p>
 
         <div class="row">
-            
             <div class="col-lg-4 col-md-6 mb-3">
                 <div class="card card-custom p-4 h-100 border text-center shadow-sm hover:shadow-lg transition">
                     <div class="report-icon"><i class="fas fa-chart-pie text-danger"></i></div>
@@ -155,13 +136,10 @@
                     <button class="btn btn-sm btn-info btn-block font-weight-bold mt-auto shadow text-white" onclick="downloadReport('custom')">📥 Excel डाऊनलोड</button>
                 </div>
             </div>
-
         </div>
     </div>
-
 </div>
 
-<!-- PREVIEW MODAL -->
 <div class="modal fade" id="previewModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content" style="border-radius: 12px;">
@@ -186,6 +164,7 @@
     const SUPABASE_KEY = 'sb_publishable_sdgZ9G8ko4H_3Mh9RouYFg_JOQ-4Mdx'; 
     const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+    let dbPhcs = [];
     let dbSubcenters = [];
     let dbVillages = [];
     let dbEmployees = [];
@@ -224,7 +203,9 @@
         try {
             const role = String(loggedInUser.role || '').toLowerCase().trim();
             
-            // 1. Load Subcenters safely
+            const pRes = await supabaseClient.from('phcs').select('*');
+            dbPhcs = pRes.data || [];
+
             let scQuery = supabaseClient.from('sub_centers').select('*');
             if (role === 'phc_admin') {
                 scQuery = loggedInUser.phc_id ? scQuery.eq('phc_id', loggedInUser.phc_id) : scQuery;
@@ -232,31 +213,34 @@
                 scQuery = loggedInUser.sub_center_id ? scQuery.eq('id', loggedInUser.sub_center_id) : scQuery.eq('id', '00000000-0000-0000-0000-000000000000');
             }
             const scRes = await scQuery;
-            if(scRes.error) throw scRes.error;
             dbSubcenters = scRes.data || [];
 
-            // 2. Load Villages safely
             const vRes = await supabaseClient.from('villages').select('*');
-            if(vRes.error) throw vRes.error;
             dbVillages = vRes.data || [];
 
-            // 3. Load Employees safely
-            const eRes = await supabaseClient.from('employees').select('*');
-            if(eRes.error) throw eRes.error;
+            let eQuery = supabaseClient.from('employees').select('*');
+            if (role === 'phc_admin') {
+                eQuery = loggedInUser.phc_id ? eQuery.eq('phc_id', loggedInUser.phc_id) : eQuery;
+            } else if (role !== 'admin' && role !== 'taluka_admin' && role !== 'phc_admin') {
+                eQuery = eQuery.eq('id', loggedInUser.id);
+            }
+            const eRes = await eQuery;
             dbEmployees = eRes.data || [];
 
-            // 4. Safe check for TB Table (Anti-crash if SQL not run)
             try {
                 let today = new Date().toISOString().split('T')[0];
-                const statRes = await supabaseClient.from('tb_entries').select('id').eq('sample_date', today);
-                if (statRes && statRes.data) {
-                    document.getElementById('todayCountBadge').innerText = statRes.data.length;
+                let tbQuery = supabaseClient.from('tb_entries').select('id', { count: 'exact', head: true }).eq('sample_date', today);
+                
+                if (role === 'phc_admin') {
+                    let validScNames = dbSubcenters.map(s => s.name);
+                    if(validScNames.length > 0) tbQuery = tbQuery.in('sub_center', validScNames);
+                } else if (role !== 'admin' && role !== 'taluka_admin' && role !== 'phc_admin') {
+                    tbQuery = tbQuery.eq('staff_name', loggedInUser.full_name);
                 }
-            } catch(tbErr) {
-                console.warn("TB Table missing or access denied.");
-            }
+                const statRes = await tbQuery;
+                if (statRes && statRes.count !== null) document.getElementById('todayCountBadge').innerText = statRes.count;
+            } catch(tbErr) { console.warn("TB Stats error:", tbErr); }
 
-            // Fill Dropdowns
             let scSelect = document.getElementById('subcenter');
             scSelect.innerHTML = '<option value="">Select Subcenter...</option>';
             dbSubcenters.forEach(sc => { scSelect.innerHTML += `<option value="${sc.id}">${sc.name}</option>`; });
@@ -275,7 +259,7 @@
             addRow();
         } catch (error) {
             console.error(error);
-            alert("डेटा लोड करताना त्रुटी आली: " + error.message + "\n\nकृपया SQL मध्ये tb_entries टेबल बनवले आहे का ते तपासा.");
+            alert("डेटा लोड करताना त्रुटी आली: " + error.message);
         } finally {
             showLoading(false);
         }
@@ -456,7 +440,7 @@
         }
     }
 
-    // --- PDF PRINT REPORT (Summary) ---
+    // --- 🟢 PDF PRINT REPORT (Summary with Role Check and Zero Filling) ---
     async function downloadSummaryReport() {
         let sDateStr = document.getElementById('summaryDate').value;
         if(!sDateStr) { alert("कृपया तारीख निवडा!"); return; }
@@ -467,128 +451,205 @@
 
         showLoading(true, "गोषवारा PDF तयार होत आहे...");
         try {
+            const role = String(loggedInUser.role || '').toLowerCase().trim();
+            let isAdmin = (role === 'admin' || role === 'taluka_admin');
+
             let tbQuery = supabaseClient.from('tb_entries')
                 .select('*')
                 .gte('sample_date', `${year}-01-01`)
                 .lte('sample_date', sDateStr);
 
-            const role = String(loggedInUser.role || '').toLowerCase().trim();
             if (role === 'phc_admin') {
                 let validScNames = dbSubcenters.map(s => s.name);
-                tbQuery = tbQuery.in('sub_center', validScNames);
-            } else if (role !== 'admin' && role !== 'taluka_admin' && role !== 'phc_admin') {
+                if(validScNames.length > 0) tbQuery = tbQuery.in('sub_center', validScNames);
+            } else if (!isAdmin) {
                 let mySc = dbSubcenters.find(s => s.id === loggedInUser.sub_center_id);
                 if (mySc) tbQuery = tbQuery.eq('sub_center', mySc.name);
+                tbQuery = tbQuery.eq('staff_name', loggedInUser.full_name);
             }
 
             const { data, error } = await tbQuery;
             if (error) throw error;
 
-            let empStats = {};
-            let ashaStats = { dS:0, mS:0, yS:0, dX:0, mX:0, yX:0 };
+            let html = "";
             let grandTotal = { dS:0, mS:0, yS:0, dX:0, mX:0, yX:0 };
-
-            data.forEach(row => {
-                let rDate = new Date(row.sample_date);
-                let isDaily = (row.sample_date === sDateStr);
-                let isMonthly = (rDate.getMonth() + 1 === month);
-                let isYearly = true; 
-
-                let cat = "";
-                let t = String(row.test_type).toLowerCase();
-                if(t.includes('spu') || t.includes('spo') || t.includes('lpa') || t.includes('truanaat') || t.includes('food')) cat = "S";
-                else if(t.includes('x-ray') || t.includes('xray')) cat = "X";
-                
-                if(!cat) return;
-
-                let empName = row.staff_name || 'अज्ञात';
-                let sc = row.sub_center || '-';
-                
-                let empObj = dbEmployees.find(e => e.full_name === empName);
-                let isAsha = empObj && (String(empObj.role).toLowerCase().includes('asha') || String(empObj.role).includes('आशा'));
-
-                let targetStat = isAsha ? ashaStats : empStats[empName];
-                
-                if(!isAsha && !empStats[empName]) {
-                    empStats[empName] = { sc: sc, dS:0, mS:0, yS:0, dX:0, mX:0, yX:0 };
-                    targetStat = empStats[empName];
-                }
-
-                if(cat === 'S') {
-                    if(isDaily) targetStat.dS++;
-                    if(isMonthly) targetStat.mS++;
-                    if(isYearly) targetStat.yS++;
-                } else {
-                    if(isDaily) targetStat.dX++;
-                    if(isMonthly) targetStat.mX++;
-                    if(isYearly) targetStat.yX++;
-                }
-            });
-
-            for(let key in empStats) {
-                grandTotal.dS += empStats[key].dS; grandTotal.mS += empStats[key].mS; grandTotal.yS += empStats[key].yS;
-                grandTotal.dX += empStats[key].dX; grandTotal.mX += empStats[key].mX; grandTotal.yX += empStats[key].yX;
-            }
-            grandTotal.dS += ashaStats.dS; grandTotal.mS += ashaStats.mS; grandTotal.yS += ashaStats.yS;
-            grandTotal.dX += ashaStats.dX; grandTotal.mX += ashaStats.mX; grandTotal.yX += ashaStats.yX;
-
             let reportDateParts = sDateStr.split('-');
             let printDate = `${reportDateParts[2]}/${reportDateParts[1]}/${reportDateParts[0]}`;
 
-            let html = `<html><head><title>TB Report - ${printDate}</title></head>
-            <body style='font-family: Arial, sans-serif; color: #333; padding: 20px;'>
-            
-            <div style='text-align:center; border-bottom: 2px solid #2c3e50; padding-bottom: 10px; margin-bottom: 20px;'>
-                <h1 style='margin:0; color: #2c3e50; font-size: 22px;'>PRIMARY HEALTH CENTER BHADA</h1>
-                <h2 style='margin:5px 0; font-size: 16px; color: #34495e;'>दैनिक बेडका नमुना व एक्स-रे संदर्भ अहवाल</h2>
-                <p style='margin:0; font-weight: bold;'>दिनांक: ${printDate}</p>
-            </div>
-            
-            <table border='1' cellpadding='6' style='width:100%; border-collapse:collapse; text-align:center; font-size:13px;'>
-                <tr style='background-color: #2c3e50; color: #ffffff;'>
-                    <th rowspan='2'>अ.क्र.</th>
-                    <th rowspan='2'>उपकेंद्र</th>
-                    <th rowspan='2'>कर्मचाऱ्याचे नाव</th>
-                    <th colspan='3'>Sputum (बेडका नमुना)</th>
-                    <th colspan='3'>X-Ray (क्ष-किरण)</th>
-                </tr>
-                <tr style='background-color: #34495e; color: #ffffff;'>
-                    <th>Daily</th><th>Monthly</th><th>Yearly</th>
-                    <th>Daily</th><th>Monthly</th><th>Yearly</th>
-                </tr>`;
+            if (isAdmin) {
+                // 🟢 1. तालुका ॲडमिन व्ह्यू (PHC आणि उपकेंद्र निहाय)
+                let scStats = {};
+                
+                // प्री-फिल (सर्वांचे शून्य दिसावे म्हणून)
+                dbSubcenters.forEach(sc => {
+                    let phc = dbPhcs.find(p => p.id === sc.phc_id);
+                    let phcName = phc ? phc.name : 'इतर';
+                    scStats[sc.name] = { phc: phcName, sc: sc.name, dS:0, mS:0, yS:0, dX:0, mX:0, yX:0 };
+                });
 
-            let idx = 1;
-            for(let name in empStats) {
-                let s = empStats[name];
-                let bg = (idx % 2 === 0) ? "#ffffff" : "#f9f9f9";
-                html += `<tr style='background-color:${bg};'>
-                    <td>${idx++}</td>
-                    <td>${s.sc}</td>
-                    <td style='text-align:left; padding-left:10px;'>${name}</td>
-                    <td>${s.dS}</td><td>${s.mS}</td><td>${s.yS}</td>
-                    <td>${s.dX}</td><td>${s.mX}</td><td>${s.yX}</td>
-                </tr>`;
+                data.forEach(row => {
+                    let rDate = new Date(row.sample_date);
+                    let isDaily = (row.sample_date === sDateStr);
+                    let isMonthly = (rDate.getMonth() + 1 === month);
+                    
+                    let t = String(row.test_type).toLowerCase();
+                    let cat = (t.includes('spu') || t.includes('spo') || t.includes('lpa') || t.includes('truanaat') || t.includes('food')) ? "S" : (t.includes('x-ray') || t.includes('xray') ? "X" : "");
+                    
+                    if(cat) {
+                        let scName = row.sub_center || '-';
+                        if (!scStats[scName]) scStats[scName] = { phc: 'इतर', sc: scName, dS:0, mS:0, yS:0, dX:0, mX:0, yX:0 };
+
+                        if(cat === 'S') {
+                            if(isDaily) scStats[scName].dS++; if(isMonthly) scStats[scName].mS++; scStats[scName].yS++;
+                        } else {
+                            if(isDaily) scStats[scName].dX++; if(isMonthly) scStats[scName].mX++; scStats[scName].yX++;
+                        }
+                    }
+                });
+
+                html = `<html><head><title>TB Report - ${printDate}</title></head>
+                <body style='font-family: Arial, sans-serif; color: #333; padding: 20px;'>
+                <div style='text-align:center; border-bottom: 2px solid #2c3e50; padding-bottom: 10px; margin-bottom: 20px;'>
+                    <h1 style='margin:0; color: #2c3e50; font-size: 22px;'>TALUKA HEALTH OFFICE</h1>
+                    <h2 style='margin:5px 0; font-size: 16px; color: #34495e;'>तालुकास्तरीय क्षयरोग नियंत्रण - गोषवारा अहवाल</h2>
+                    <p style='margin:0; font-weight: bold;'>दिनांक: ${printDate}</p>
+                </div>
+                <table border='1' cellpadding='6' style='width:100%; border-collapse:collapse; text-align:center; font-size:13px;'>
+                    <tr style='background-color: #2c3e50; color: #ffffff;'>
+                        <th rowspan='2'>अ.क्र.</th>
+                        <th rowspan='2'>प्राथमिक आरोग्य केंद्र (PHC)</th>
+                        <th rowspan='2'>उपकेंद्र</th>
+                        <th colspan='3'>Sputum (बेडका नमुना)</th>
+                        <th colspan='3'>X-Ray (क्ष-किरण)</th>
+                    </tr>
+                    <tr style='background-color: #34495e; color: #ffffff;'>
+                        <th>Daily</th><th>Monthly</th><th>Yearly</th><th>Daily</th><th>Monthly</th><th>Yearly</th>
+                    </tr>`;
+
+                let sortedSc = Object.values(scStats).sort((a,b) => a.phc.localeCompare(b.phc) || a.sc.localeCompare(b.sc));
+                let idx = 1;
+                
+                sortedSc.forEach(s => {
+                    html += `<tr>
+                        <td>${idx++}</td>
+                        <td style='text-align:left; padding-left:10px; font-weight:bold;'>${s.phc}</td>
+                        <td style='text-align:left; padding-left:10px;'>${s.sc}</td>
+                        <td>${s.dS}</td><td>${s.mS}</td><td>${s.yS}</td>
+                        <td>${s.dX}</td><td>${s.mX}</td><td>${s.yX}</td>
+                    </tr>`;
+                    grandTotal.dS += s.dS; grandTotal.mS += s.mS; grandTotal.yS += s.yS;
+                    grandTotal.dX += s.dX; grandTotal.mX += s.mX; grandTotal.yX += s.yX;
+                });
+
+            } else {
+                // 🟢 2. PHC ॲडमिन व कर्मचारी व्ह्यू (कर्मचारी निहाय शून्य सह)
+                let empStats = {};
+                let ashaStats = { dS:0, mS:0, yS:0, dX:0, mX:0, yX:0 };
+
+                // प्री-फिल (सर्वांचे शून्य दिसावे म्हणून)
+                dbEmployees.forEach(e => {
+                    if (role === 'employee' && e.full_name !== loggedInUser.full_name) return;
+                    let sc = dbSubcenters.find(s => s.id === e.sub_center_id);
+                    let scName = sc ? sc.name : '-';
+                    let isAsha = (String(e.role).toLowerCase().includes('asha') || String(e.role).includes('आशा'));
+                    
+                    if(!isAsha) empStats[e.full_name] = { sc: scName, dS:0, mS:0, yS:0, dX:0, mX:0, yX:0 };
+                });
+
+                data.forEach(row => {
+                    let rDate = new Date(row.sample_date);
+                    let isDaily = (row.sample_date === sDateStr);
+                    let isMonthly = (rDate.getMonth() + 1 === month);
+                    
+                    let t = String(row.test_type).toLowerCase();
+                    let cat = (t.includes('spu') || t.includes('spo') || t.includes('lpa') || t.includes('truanaat') || t.includes('food')) ? "S" : (t.includes('x-ray') || t.includes('xray') ? "X" : "");
+                    
+                    if(cat) {
+                        let empName = row.staff_name || 'अज्ञात';
+                        let scName = row.sub_center || '-';
+                        let empObj = dbEmployees.find(e => e.full_name === empName);
+                        let isAsha = empObj && (String(empObj.role).toLowerCase().includes('asha') || String(empObj.role).includes('आशा'));
+
+                        let targetStat = isAsha ? ashaStats : empStats[empName];
+                        if(!isAsha && !empStats[empName]) {
+                            empStats[empName] = { sc: scName, dS:0, mS:0, yS:0, dX:0, mX:0, yX:0 };
+                            targetStat = empStats[empName];
+                        }
+
+                        if(cat === 'S') {
+                            if(isDaily) targetStat.dS++; if(isMonthly) targetStat.mS++; targetStat.yS++;
+                        } else {
+                            if(isDaily) targetStat.dX++; if(isMonthly) targetStat.mX++; targetStat.yX++;
+                        }
+                    }
+                });
+
+                let phcNameHeader = "PRIMARY HEALTH CENTER";
+                if (role === 'phc_admin') {
+                    let p = dbPhcs.find(x => x.id === loggedInUser.phc_id);
+                    if(p) phcNameHeader = p.name.toUpperCase();
+                }
+
+                html = `<html><head><title>TB Report - ${printDate}</title></head>
+                <body style='font-family: Arial, sans-serif; color: #333; padding: 20px;'>
+                <div style='text-align:center; border-bottom: 2px solid #2c3e50; padding-bottom: 10px; margin-bottom: 20px;'>
+                    <h1 style='margin:0; color: #2c3e50; font-size: 22px;'>${phcNameHeader}</h1>
+                    <h2 style='margin:5px 0; font-size: 16px; color: #34495e;'>दैनिक बेडका नमुना व एक्स-रे संदर्भ अहवाल</h2>
+                    <p style='margin:0; font-weight: bold;'>दिनांक: ${printDate}</p>
+                </div>
+                <table border='1' cellpadding='6' style='width:100%; border-collapse:collapse; text-align:center; font-size:13px;'>
+                    <tr style='background-color: #2c3e50; color: #ffffff;'>
+                        <th rowspan='2'>अ.क्र.</th>
+                        <th rowspan='2'>उपकेंद्र</th>
+                        <th rowspan='2'>कर्मचाऱ्याचे नाव</th>
+                        <th colspan='3'>Sputum (बेडका नमुना)</th>
+                        <th colspan='3'>X-Ray (क्ष-किरण)</th>
+                    </tr>
+                    <tr style='background-color: #34495e; color: #ffffff;'>
+                        <th>Daily</th><th>Monthly</th><th>Yearly</th><th>Daily</th><th>Monthly</th><th>Yearly</th>
+                    </tr>`;
+
+                let idx = 1;
+                let sortedEmps = Object.keys(empStats).sort((a,b) => empStats[a].sc.localeCompare(empStats[b].sc) || a.localeCompare(b));
+
+                sortedEmps.forEach(name => {
+                    let s = empStats[name];
+                    let bg = (idx % 2 === 0) ? "#ffffff" : "#f9f9f9";
+                    html += `<tr style='background-color:${bg};'>
+                        <td>${idx++}</td>
+                        <td>${s.sc}</td>
+                        <td style='text-align:left; padding-left:10px;'>${name}</td>
+                        <td>${s.dS}</td><td>${s.mS}</td><td>${s.yS}</td>
+                        <td>${s.dX}</td><td>${s.mX}</td><td>${s.yX}</td>
+                    </tr>`;
+                    grandTotal.dS += s.dS; grandTotal.mS += s.mS; grandTotal.yS += s.yS;
+                    grandTotal.dX += s.dX; grandTotal.mX += s.mX; grandTotal.yX += s.yX;
+                });
+
+                if(role !== 'employee') {
+                    html += `<tr style='font-weight:bold; background-color: #ecf0f1;'>
+                        <td>-</td><td>-</td>
+                        <td style='text-align:left; padding-left:10px;'>इतर (सर्व आशा कर्मचारी एकत्रित)</td>
+                        <td>${ashaStats.dS}</td><td>${ashaStats.mS}</td><td>${ashaStats.yS}</td>
+                        <td>${ashaStats.dX}</td><td>${ashaStats.mX}</td><td>${ashaStats.yX}</td>
+                    </tr>`;
+                    grandTotal.dS += ashaStats.dS; grandTotal.mS += ashaStats.mS; grandTotal.yS += ashaStats.yS;
+                    grandTotal.dX += ashaStats.dX; grandTotal.mX += ashaStats.mX; grandTotal.yX += ashaStats.yX;
+                }
             }
 
-            html += `<tr style='font-weight:bold; background-color: #ecf0f1;'>
-                <td>-</td><td>-</td>
-                <td style='text-align:left; padding-left:10px;'>इतर (सर्व आशा कर्मचारी एकत्रित)</td>
-                <td>${ashaStats.dS}</td><td>${ashaStats.mS}</td><td>${ashaStats.yS}</td>
-                <td>${ashaStats.dX}</td><td>${ashaStats.mX}</td><td>${ashaStats.yX}</td>
-            </tr>`;
+            html += `<tr style='font-weight:bold; background-color: #d4edda; color:#155724;'>
+                <td colspan='3' style='text-align:right; padding-right:15px;'>एकूण बेरीज (Grand Total)</td>
+                <td>${grandTotal.dS}</td><td>${grandTotal.mS}</td><td>${grandTotal.yS}</td>
+                <td>${grandTotal.dX}</td><td>${grandTotal.mX}</td><td>${grandTotal.yX}</td>
+            </tr></table>`;
 
-            html += `</table>
-            <div style='margin-top:30px; border-left: 5px solid #2c3e50; padding-left: 15px;'>
+            html += `<div style='margin-top:30px; border-left: 5px solid #2c3e50; padding-left: 15px;'>
                 <h3 style='margin: 0 0 10px 0; text-decoration: underline; font-size: 16px;'>एकत्रित गोषवारा (Consolidated Summary)</h3>
                 <p style='margin:5px 0;'><strong>1. Sputum Collection:</strong><br>&bull; Daily: ${grandTotal.dS} &nbsp;&bull; Monthly: ${grandTotal.mS} &nbsp;&bull; Yearly: ${grandTotal.yS}</p>
                 <p style='margin:5px 0;'><strong>2. X-Ray Referrals:</strong><br>&bull; Daily: ${grandTotal.dX} &nbsp;&bull; Monthly: ${grandTotal.mX} &nbsp;&bull; Yearly: ${grandTotal.yX}</p>
             </div>
-            
-            <script>
-                window.onload = function() { 
-                    setTimeout(function() { window.print(); }, 500);
-                }
-            <\/script>
+            <script>window.onload = function() { setTimeout(function() { window.print(); }, 500); }<\/script>
             </body></html>`;
 
             let printWindow = window.open('', '_blank');
@@ -624,10 +685,9 @@
             const role = String(loggedInUser.role || '').toLowerCase().trim();
             if (role === 'phc_admin') {
                 let validScNames = dbSubcenters.map(s => s.name);
-                tbQuery = tbQuery.in('sub_center', validScNames);
+                if(validScNames.length > 0) tbQuery = tbQuery.in('sub_center', validScNames);
             } else if (role !== 'admin' && role !== 'taluka_admin' && role !== 'phc_admin') {
-                let mySc = dbSubcenters.find(s => s.id === loggedInUser.sub_center_id);
-                if (mySc) tbQuery = tbQuery.eq('sub_center', mySc.name);
+                tbQuery = tbQuery.eq('staff_name', loggedInUser.full_name);
             }
 
             const { data, error } = await tbQuery;
