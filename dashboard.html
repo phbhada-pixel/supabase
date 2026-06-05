@@ -51,19 +51,22 @@
                     <p class="text-sm text-gray-600 font-medium">जुने CSV अहवाल एका क्लिकमध्ये सिस्टीममध्ये आणा.</p>
                 </div>
 
-            </div>
-
-            <!-- इतर कार्यक्रम (Special Programs) -->
-            <h2 class="text-lg font-extrabold mb-4 text-gray-800 border-b-2 border-gray-200 pb-2">🎯 इतर आरोग्य कार्यक्रम (Special Programs)</h2>
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-5 mb-8">
-                <div onclick="window.location.href='tb-program.html'" class="bg-white p-6 rounded-xl shadow-md border-t-4 border-red-500 cursor-pointer hover:bg-red-50 transition transform hover:-translate-y-1">
-                    <h3 class="font-bold text-lg mb-2 text-red-800">🩺 क्षयरोग (TB) नियंत्रण</h3>
-                    <p class="text-sm text-gray-600 font-medium">बेडका नमुना व इतर TB विषयक माहिती नोंदणी.</p>
+                <!-- 🟢 नवीन: सक्रिय फॉर्म्स पाहण्यासाठी स्वतंत्र टॅब/कार्ड -->
+                <div id="manageFormsCard" onclick="toggleFormsList()" class="hidden bg-white p-6 rounded-xl shadow-md border-t-4 border-gray-500 cursor-pointer hover:bg-gray-50 transition transform hover:-translate-y-1">
+                    <h3 class="font-bold text-lg mb-2 text-gray-800">📝 सक्रिय फॉर्म्स</h3>
+                    <p class="text-sm text-gray-600 font-medium">तालुक्यातील सर्व सक्रिय फॉर्म्स पहा व सुधारा.</p>
                 </div>
+
             </div>
 
-            <div id="activeFormsListContainer" class="hidden bg-white p-6 rounded-xl shadow-md border-t-4 border-gray-500 mb-8">
-                <h2 class="text-lg font-extrabold mb-4 text-gray-800 border-b pb-2">📝 तालुक्यातील सक्रिय फॉर्म्स (Manage Forms)</h2>
+            <!-- 🟢 क्लिक केल्यानंतर उघडणारा फॉर्म्सचा ब्लॉक -->
+            <div id="activeFormsListContainer" class="hidden bg-white p-6 rounded-xl shadow-md border-t-4 border-gray-500 mb-8 transition-all">
+                <div class="flex flex-wrap justify-between items-center border-b pb-3 mb-4 gap-2">
+                    <h2 class="text-lg font-extrabold text-gray-800">📝 तालुक्यातील सक्रिय फॉर्म्स (Manage Forms)</h2>
+                    <button onclick="toggleFormsList()" class="bg-gray-200 text-gray-800 px-3 py-1 rounded text-sm font-bold hover:bg-red-500 hover:text-white transition">
+                        ✖ बंद करा
+                    </button>
+                </div>
                 <div class="overflow-x-auto rounded-lg border border-gray-200">
                     <table class="w-full text-left border-collapse">
                         <thead>
@@ -77,6 +80,15 @@
                             <tr><td colspan="3" class="p-6 text-center text-gray-500 font-bold">फॉर्म लोड होत आहेत...</td></tr>
                         </tbody>
                     </table>
+                </div>
+            </div>
+
+            <!-- इतर कार्यक्रम (Special Programs) -->
+            <h2 class="text-lg font-extrabold mb-4 text-gray-800 border-b-2 border-gray-200 pb-2">🎯 इतर आरोग्य कार्यक्रम (Special Programs)</h2>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-5 mb-8">
+                <div onclick="window.location.href='tb-program.html'" class="bg-white p-6 rounded-xl shadow-md border-t-4 border-red-500 cursor-pointer hover:bg-red-50 transition transform hover:-translate-y-1">
+                    <h3 class="font-bold text-lg mb-2 text-red-800">🩺 क्षयरोग (TB) नियंत्रण</h3>
+                    <p class="text-sm text-gray-600 font-medium">बेडका नमुना व इतर TB विषयक माहिती नोंदणी.</p>
                 </div>
             </div>
         </div>
@@ -155,7 +167,10 @@
 
                 document.getElementById('formBuilderCard').classList.remove('hidden');
                 document.getElementById('migrationCard').classList.remove('hidden'); 
-                document.getElementById('activeFormsListContainer').classList.remove('hidden');
+                
+                // 🟢 येथे 'सक्रिय फॉर्म्स' चे कार्ड दाखवत आहोत (टेबल लपलेले राहील)
+                document.getElementById('manageFormsCard').classList.remove('hidden'); 
+                
                 document.getElementById('masterDataDesc').innerText = "नवीन PHC, उपकेंद्रे आणि PHC ॲडमिन तयार करा.";
 
                 loadActiveForms(); 
@@ -182,6 +197,18 @@
                 }
             }
         };
+
+        // 🟢 क्लिक केल्यावर फॉर्म्सचा टेबल उघडणे व बंद करणे
+        function toggleFormsList() {
+            const container = document.getElementById('activeFormsListContainer');
+            if (container.classList.contains('hidden')) {
+                container.classList.remove('hidden');
+                // हळूवारपणे खाली स्क्रोल करण्यासाठी
+                setTimeout(() => container.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+            } else {
+                container.classList.add('hidden');
+            }
+        }
 
         async function loadActiveForms() {
             const { data, error } = await supabaseClient.from('dynamic_forms').select('id, form_name, form_type').eq('is_active', true);
