@@ -32,8 +32,10 @@
 
     <div class="max-w-7xl mx-auto bg-white p-6 rounded-lg shadow-md mb-6 no-print">
 
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+        <!-- 🟢 Updated Grid to accommodate Custom Dates -->
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4 items-end">
 
+            <!-- १. फॉर्म निवडा -->
             <div class="relative" id="multiSelectContainer">
                 <label class="block text-gray-700 text-xs font-bold mb-1">अहवाल / फॉर्म निवडा</label>
                 <button onclick="toggleMultiSelect()" class="w-full p-2 border border-gray-300 rounded bg-white text-left text-sm font-medium flex justify-between items-center min-h-[38px] hover:border-green-500">
@@ -52,23 +54,46 @@
                 <select id="reportFormSelect" class="hidden"></select>
             </div>
 
+            <!-- २. कालावधी प्रकार (नवीन) -->
             <div>
-                <label class="block text-gray-700 text-xs font-bold mb-1">अहवाल महिना</label>
-                <select id="reportMonth" class="w-full p-2 border border-gray-300 rounded bg-white text-sm font-bold">
-                    <option value="जानेवारी">जानेवारी</option><option value="फेब्रुवारी">फेब्रुवारी</option>
-                    <option value="मार्च">मार्च</option><option value="एप्रिल">एप्रिल</option>
-                    <option value="मे">मे</option><option value="जून">जून</option>
-                    <option value="जुलै">जुलै</option><option value="ऑगस्ट">ऑगस्ट</option>
-                    <option value="सप्टेंबर">सप्टेंबर</option><option value="ऑक्टोबर">ऑक्टोबर</option>
-                    <option value="नोव्हेंबर">नोव्हेंबर</option><option value="डिसेंबर">डिसेंबर</option>
+                <label class="block text-gray-700 text-xs font-bold mb-1">कालावधी प्रकार</label>
+                <select id="periodType" onchange="togglePeriodInputs()" class="w-full p-2 border border-gray-300 rounded bg-white text-sm font-bold text-blue-700">
+                    <option value="monthly">महिन्यानुसार</option>
+                    <option value="custom">तारखेनुसार (फक्त यादी)</option>
                 </select>
             </div>
 
-            <div>
-                <label class="block text-gray-700 text-xs font-bold mb-1">अहवाल वर्ष</label>
-                <input type="number" id="reportYear" class="w-full p-2 border border-gray-300 rounded text-sm font-bold text-center" value="2026">
+            <!-- ३. महिना आणि वर्ष (किंवा तारखा) -->
+            <div id="monthlyInputs" class="col-span-2 flex gap-2">
+                <div class="flex-1">
+                    <label class="block text-gray-700 text-xs font-bold mb-1">अहवाल महिना</label>
+                    <select id="reportMonth" class="w-full p-2 border border-gray-300 rounded bg-white text-sm font-bold">
+                        <option value="जानेवारी">जानेवारी</option><option value="फेब्रुवारी">फेब्रुवारी</option>
+                        <option value="मार्च">मार्च</option><option value="एप्रिल">एप्रिल</option>
+                        <option value="मे">मे</option><option value="जून">जून</option>
+                        <option value="जुलै">जुलै</option><option value="ऑगस्ट">ऑगस्ट</option>
+                        <option value="सप्टेंबर">सप्टेंबर</option><option value="ऑक्टोबर">ऑक्टोबर</option>
+                        <option value="नोव्हेंबर">नोव्हेंबर</option><option value="डिसेंबर">डिसेंबर</option>
+                    </select>
+                </div>
+                <div class="flex-1">
+                    <label class="block text-gray-700 text-xs font-bold mb-1">अहवाल वर्ष</label>
+                    <input type="number" id="reportYear" class="w-full p-2 border border-gray-300 rounded text-sm font-bold text-center" value="2026">
+                </div>
             </div>
 
+            <div id="customDateInputs" class="col-span-2 hidden flex gap-2">
+                <div class="flex-1">
+                    <label class="block text-gray-700 text-xs font-bold mb-1">पासून (Start Date)</label>
+                    <input type="date" id="startDate" class="w-full p-2 border border-gray-300 rounded text-sm font-bold text-indigo-700">
+                </div>
+                <div class="flex-1">
+                    <label class="block text-gray-700 text-xs font-bold mb-1">पर्यंत (End Date)</label>
+                    <input type="date" id="endDate" class="w-full p-2 border border-gray-300 rounded text-sm font-bold text-indigo-700">
+                </div>
+            </div>
+
+            <!-- ४. उपकेंद्र -->
             <div id="subcenterFilterDiv">
                 <label class="block text-gray-700 text-xs font-bold mb-1">उपकेंद्र फिल्टर</label>
                 <select id="reportSubCenterFilter" class="w-full p-2 border border-gray-300 rounded bg-white text-sm font-bold">
@@ -154,8 +179,28 @@
             document.getElementById('reportMonth').value = monthNamesNumeric[mIdx];
             document.getElementById('reportYear').value = new Date().getFullYear();
 
+            // Set default dates
+            let today = new Date();
+            let dd = String(today.getDate()).padStart(2, '0');
+            let mm = String(today.getMonth() + 1).padStart(2, '0');
+            let yyyy = today.getFullYear();
+            let todayFormatted = yyyy + '-' + mm + '-' + dd;
+            document.getElementById('startDate').value = todayFormatted;
+            document.getElementById('endDate').value = todayFormatted;
+
             await loadInitialMasterData();
         };
+
+        function togglePeriodInputs() {
+            let val = document.getElementById('periodType').value;
+            if (val === 'custom') {
+                document.getElementById('monthlyInputs').classList.add('hidden');
+                document.getElementById('customDateInputs').classList.remove('hidden');
+            } else {
+                document.getElementById('monthlyInputs').classList.remove('hidden');
+                document.getElementById('customDateInputs').classList.add('hidden');
+            }
+        }
 
         async function loadInitialMasterData() {
             document.getElementById('reportLoader').classList.remove('hidden');
@@ -201,8 +246,9 @@
                 masterData.forms.forEach(f => {
                     let opt = document.createElement('option'); opt.value = f.id; opt.text = f.form_name; select.appendChild(opt);
                     let div = document.createElement('div');
+                    let formTypeTag = f.form_type === 'list' ? `<span class="bg-indigo-100 text-indigo-700 text-[10px] px-1 ml-2 rounded">यादी फॉर्म</span>` : '';
                     div.className = "hover:bg-gray-100 transition"; div.style.padding = "10px"; div.style.borderBottom = "1px solid #eee"; div.style.cursor = "pointer";
-                    div.innerHTML = `<label style="cursor:pointer; display:flex; align-items:center; gap:8px; font-weight:600;"><input type="checkbox" class="report-chk w-4 h-4" value="${f.id}" checked onchange="checkIndividualReport()"> ${f.form_name}</label>`;
+                    div.innerHTML = `<label style="cursor:pointer; display:flex; align-items:center; gap:8px; font-weight:600;"><input type="checkbox" class="report-chk w-4 h-4" value="${f.id}" checked onchange="checkIndividualReport()"> ${f.form_name} ${formTypeTag}</label>`;
                     optionsDiv.appendChild(div);
                 });
 
@@ -253,14 +299,13 @@
             let selected = []; document.querySelectorAll('.report-chk:checked').forEach(chk => selected.push(chk.value)); return selected;
         }
 
-        // 🟢 Date Formatter Helper
         function formatDateToDDMMYYYY(dateString) {
             if (!dateString) return "";
             try {
                 let dStr = String(dateString).split('T')[0];
                 let parts = dStr.split('-');
                 if(parts.length === 3 && parts[0].length === 4) {
-                    return `${parts[2]}-${parts[1]}-${parts[0]}`; // DD-MM-YYYY
+                    return `${parts[2]}-${parts[1]}-${parts[0]}`; 
                 }
             } catch(e) {}
             return dateString;
@@ -269,9 +314,29 @@
         async function fetchReportData() {
             let selectedIDs = getSelectedReportIDs(); if(selectedIDs.length === 0) { alert("कृपया किमान एक अहवाल निवडा!"); return; }
 
-            const selMonth = document.getElementById('reportMonth').value; 
-            const selMonthNum = monthNamesMarathi[selMonth]; 
-            const selYear = document.getElementById('reportYear').value;
+            let periodType = document.getElementById('periodType').value;
+            let query = supabaseClient.from('form_responses').select('*');
+            
+            let periodText = "";
+            let selMonthNum = 0, selYear = 0;
+
+            if (periodType === 'monthly') {
+                const selMonth = document.getElementById('reportMonth').value; 
+                selMonthNum = monthNamesMarathi[selMonth]; 
+                selYear = document.getElementById('reportYear').value;
+                
+                query = query.eq('report_year', parseInt(selYear));
+                if (selMonthNum < 4) query = query.or(`and(report_year.eq.${parseInt(selYear)}),and(report_year.eq.${parseInt(selYear-1)},report_month.gte.4)`);
+                periodText = `${selMonth} ${selYear}`;
+            } else {
+                // 🟢 Custom Dates Logic
+                let sDate = document.getElementById('startDate').value;
+                let eDate = document.getElementById('endDate').value;
+                if(!sDate || !eDate) { alert("कृपया सुरुवातीची व शेवटची तारीख निवडा!"); return; }
+                
+                query = query.gte('created_at', sDate + 'T00:00:00.000Z').lte('created_at', eDate + 'T23:59:59.999Z');
+                periodText = `${formatDateToDDMMYYYY(sDate)} ते ${formatDateToDDMMYYYY(eDate)}`;
+            }
 
             let filterSubCenter = document.getElementById('reportSubCenterFilter').value; 
             let groupType = document.getElementById('reportGroupFilter').value;
@@ -280,21 +345,32 @@
                 groupType = 'Village';
             }
 
+            // 🟢 Verify list forms for custom dates
+            let formsToProcess = selectedIDs.includes("ALL") ? masterData.forms : masterData.forms.filter(f => selectedIDs.includes(f.id));
+            if (periodType === 'custom') {
+                let nonListForms = formsToProcess.filter(f => f.form_type !== 'list');
+                if (nonListForms.length > 0 && !selectedIDs.includes("ALL")) {
+                    alert("⚠️ 'कस्टम तारीख' फिल्टर फक्त 'यादी (List)' प्रकारच्या फॉर्मसाठीच लागू आहे. कृपया इतर फॉर्म्स निवडू नका.");
+                    return;
+                }
+                formsToProcess = formsToProcess.filter(f => f.form_type === 'list');
+                if(formsToProcess.length === 0) {
+                    alert("सध्या तुम्ही निवडलेल्यांमध्ये कोणतेही 'यादी (List)' प्रकारचे फॉर्म उपलब्ध नाहीत."); return;
+                }
+            }
+
             document.getElementById('reportLoader').classList.remove('hidden'); 
             document.getElementById('reportContentArea').classList.add('hidden'); 
             document.getElementById('reportTableContainer').innerHTML = "";
 
             try {
-                let query = supabaseClient.from('form_responses').select('*').eq('report_year', parseInt(selYear));
-                if (selMonthNum < 4) query = supabaseClient.from('form_responses').select('*').or(`and(report_year.eq.${parseInt(selYear)}),and(report_year.eq.${parseInt(selYear-1)},report_month.gte.4)`);
-                if(!selectedIDs.includes("ALL")) query = query.in('form_id', selectedIDs);
+                if(!selectedIDs.includes("ALL")) query = query.in('form_id', formsToProcess.map(f=>f.id));
 
                 const { data: dbData, error } = await query; 
                 document.getElementById('reportLoader').classList.add('hidden');
-                if (error || !dbData || dbData.length === 0) { alert("डेटाबेसमध्ये माहिती उपलब्ध नाही."); return; }
+                if (error || !dbData || dbData.length === 0) { alert("या कालावधीत किंवा निवडलेल्या फिल्टरमध्ये कोणताही डेटा उपलब्ध नाही."); return; }
 
                 let finalReports = [];
-                let formsToProcess = selectedIDs.includes("ALL") ? masterData.forms : masterData.forms.filter(f => selectedIDs.includes(f.id));
 
                 formsToProcess.forEach(formObj => {
                     let formResp = dbData.filter(r => r.form_id === formObj.id); if(formResp.length === 0) return;
@@ -308,7 +384,13 @@
                     });
 
                     let fData = [];
-                    let currentMonthResp = formResp.filter(r => r.report_month === parseInt(selMonthNum) && r.report_year === parseInt(selYear));
+                    
+                    let currentMonthResp = [];
+                    if (periodType === 'monthly') {
+                        currentMonthResp = formResp.filter(r => r.report_month === parseInt(selMonthNum) && r.report_year === parseInt(selYear));
+                    } else {
+                        currentMonthResp = formResp; // Already filtered by date in Supabase query
+                    }
 
                     currentMonthResp.forEach(res => {
                         if (res.response_data && res.response_data.is_nil === true) return;
@@ -339,14 +421,13 @@
                         let scName = scObj ? scObj.name : '-';
                         if(user.role !== 'employee' && filterSubCenter !== "सर्व" && scName !== filterSubCenter) return;
 
-                        let row = { month: selMonth, year: selYear, subcenter: scName, village: villageObj?villageObj.name:'-', employee: empObj?empObj.full_name:'-', values: {} };
+                        let row = { month: periodText, year: '', subcenter: scName, village: villageObj?villageObj.name:'-', employee: empObj?empObj.full_name:'-', values: {} };
 
                         // Pass 1: Raw Inputs Fetching
                         validDataFields.forEach(f => {
                             if (!f.formula || String(f.formula).trim() === "") {
                                 let monthlyVal = res.response_data[f.id] ? res.response_data[f.id].value : '';
 
-                                // 🟢 Date Formatter Applied Here
                                 if (f.type === 'date' && monthlyVal && String(monthlyVal).trim() !== '') {
                                     monthlyVal = formatDateToDDMMYYYY(monthlyVal);
                                 }
@@ -403,15 +484,18 @@
                         fData.push(row);
                     });
 
-                    if(fData.length > 0) finalReports.push({ formName: formObj.form_name, fields: fieldMetaList, rows: fData, isProg: isProgressive });
+                    if(fData.length > 0) {
+                        // 🟢 Passed formType and periodText
+                        finalReports.push({ formName: formObj.form_name, formType: formObj.form_type, fields: fieldMetaList, rows: fData, isProg: isProgressive, periodText: periodText });
+                    }
                 });
 
                 if(finalReports.length > 0) { 
                     currentReports = finalReports; 
-                    renderMultipleTables(finalReports, selMonth, selYear, groupType); 
+                    renderMultipleTables(finalReports, groupType); 
                     document.getElementById('reportContentArea').classList.remove('hidden'); 
                 } else { 
-                    alert("या महिन्यासाठी तुमच्या अधिकारात किंवा निवडलेल्या फिल्टरमध्ये कोणताही डेटा उपलब्ध नाही."); 
+                    alert("या कालावधीसाठी तुमच्या अधिकारात किंवा निवडलेल्या फिल्टरमध्ये कोणताही डेटा उपलब्ध नाही."); 
                 }
             } catch(e) { alert("एरर: " + e.message); }
         }
@@ -487,7 +571,7 @@
             return results;
         }
 
-        function renderMultipleTables(reports, month, year, groupType) {
+        function renderMultipleTables(reports, groupType) {
             let container = document.getElementById('reportTableContainer');
             let downArea = document.getElementById('downloadButtonsArea');
 
@@ -500,7 +584,7 @@
             let html = '';
             reports.forEach(rep => {
                 let columns = rep.fields; let rows = rep.rows;
-                html += `<div class="mb-8 p-4 border border-gray-300 rounded-xl bg-white shadow-sm overflow-hidden"><div class="text-center border-b pb-2 mb-4 bg-purple-50 p-3 rounded-t-lg"><h2 class="text-lg font-extrabold text-purple-800">📋 अहवाल: ${rep.formName}</h2><p class="text-sm font-bold text-gray-600">कालावधी: ${month} ${year}</p></div>`;
+                html += `<div class="mb-8 p-4 border border-gray-300 rounded-xl bg-white shadow-sm overflow-hidden"><div class="text-center border-b pb-2 mb-4 bg-purple-50 p-3 rounded-t-lg"><h2 class="text-lg font-extrabold text-purple-800">📋 अहवाल: ${rep.formName}</h2><p class="text-sm font-bold text-gray-600">कालावधी: ${rep.periodText}</p></div>`;
 
                 if(groupType === "SubCenterConsolidated") {
                     let phcTotals = calculateSmartTotals(rows, columns, rep.isProg);
@@ -512,8 +596,14 @@
                         l1Row += `<th colspan="${rep.isProg ? 2 : 1}" class="border p-2 bg-purple-100">${vName}</th>`;
                         if (rep.isProg) { l2Row += `<th class="border p-1 bg-yellow-50 text-[10px]">मासिक</th><th class="border p-1 bg-orange-50 text-[10px]">प्रगत</th>`; }
                     });
-                    l1Row += `<th colspan="${rep.isProg ? 2 : 1}" class="border p-2 bg-green-200">एकूण PHC Total</th></tr>`;
-                    if (rep.isProg) { l2Row += `<th class="border p-1 bg-green-100 text-[10px]">मासिक</th><th class="border p-1 bg-green-100 text-[10px]">प्रगत</th></tr>`; }
+                    
+                    // 🟢 Hide Total Column if List Form
+                    if(rep.formType !== 'list') {
+                        l1Row += `<th colspan="${rep.isProg ? 2 : 1}" class="border p-2 bg-green-200">एकूण PHC Total</th></tr>`;
+                        if (rep.isProg) { l2Row += `<th class="border p-1 bg-green-100 text-[10px]">मासिक</th><th class="border p-1 bg-green-100 text-[10px]">प्रगत</th></tr>`; }
+                    } else {
+                        l1Row += `</tr>`;
+                    }
 
                     let tbodyHtml = '';
                     columns.forEach((c, vIndex) => {
@@ -524,10 +614,14 @@
                             if(typeof val === 'object' && val !== null) { tbodyHtml += `<td class="border p-2 text-center text-blue-700">${val.M}</td><td class="border p-2 font-medium bg-orange-50/30 text-center text-orange-700">${val.P}</td>`; } 
                             else { tbodyHtml += `<td class="border p-2 text-center">${val !== '' ? val : '-'}</td>`; }
                         });
-                        let smartM = phcTotals[c.id].isNum ? formatNumberDecimals(phcTotals[c.id].M) : "-";
-                        let smartP = rep.isProg && phcTotals[c.id].isNum ? formatNumberDecimals(phcTotals[c.id].P) : "-";
-                        tbodyHtml += `<td class="border p-2 font-extrabold bg-green-50 text-green-900 text-center">${smartM}</td>`;
-                        if (rep.isProg) tbodyHtml += `<td class="border p-2 font-extrabold bg-green-50 text-green-900 text-center">${smartP}</td>`;
+                        
+                        // 🟢 Hide Total Values if List Form
+                        if(rep.formType !== 'list') {
+                            let smartM = phcTotals[c.id].isNum ? formatNumberDecimals(phcTotals[c.id].M) : "-";
+                            let smartP = rep.isProg && phcTotals[c.id].isNum ? formatNumberDecimals(phcTotals[c.id].P) : "-";
+                            tbodyHtml += `<td class="border p-2 font-extrabold bg-green-50 text-green-900 text-center">${smartM}</td>`;
+                            if (rep.isProg) tbodyHtml += `<td class="border p-2 font-extrabold bg-green-50 text-green-900 text-center">${smartP}</td>`;
+                        }
                         tbodyHtml += `</tr>`;
                     });
 
@@ -610,7 +704,8 @@
                             tbodyHtml += `</tr>`;
                         });
 
-                        if (user.role === 'admin' || user.role === 'taluka_admin' || user.role === 'phc_admin') {
+                        // 🟢 Hide Totals if List Form
+                        if ((user.role === 'admin' || user.role === 'taluka_admin' || user.role === 'phc_admin') && rep.formType !== 'list') {
                             let phcTotals = calculateSmartTotals(dataRowsToRender, columns, rep.isProg);
                             let colspanTotal = groupType === 'SubCenterFlat' ? 3 : 2;
                             tbodyHtml += `<tr class="bg-green-100 font-extrabold text-green-900 text-sm"><td class="border p-2 text-left" colspan="${colspanTotal}">एकूण Total</td>`;
@@ -685,19 +780,23 @@
                                 tbodyHtml += `</tr>`;
                             });
 
-                            let groupTotals = calculateSmartTotals(subRows, columns, rep.isProg);
-                            tbodyHtml += `<tr class="bg-blue-50 font-bold text-blue-900 text-xs"><td class="border p-2 text-left" colspan="2">गटाची एकूण बेरीज</td>`;
-                            columns.forEach(c => {
-                                let gVal = groupTotals[c.id];
-                                if(rep.isProg && c.type === 'number') { tbodyHtml += `<td class="border p-2 text-center">${gVal.isNum ? formatNumberDecimals(gVal.M) : '-'}</td><td class="border p-2 text-center">${gVal.isNum ? formatNumberDecimals(gVal.P) : '-'}</td>`; }
-                                else { tbodyHtml += `<td class="border p-2 text-center">${gVal.isNum ? formatNumberDecimals(gVal.M) : '-'}</td>`; }
-                            });
-                            tbodyHtml += `</tr>`;
+                            // 🟢 Hide Group Totals if List Form
+                            if(rep.formType !== 'list') {
+                                let groupTotals = calculateSmartTotals(subRows, columns, rep.isProg);
+                                tbodyHtml += `<tr class="bg-blue-50 font-bold text-blue-900 text-xs"><td class="border p-2 text-left" colspan="2">गटाची एकूण बेरीज</td>`;
+                                columns.forEach(c => {
+                                    let gVal = groupTotals[c.id];
+                                    if(rep.isProg && c.type === 'number') { tbodyHtml += `<td class="border p-2 text-center">${gVal.isNum ? formatNumberDecimals(gVal.M) : '-'}</td><td class="border p-2 text-center">${gVal.isNum ? formatNumberDecimals(gVal.P) : '-'}</td>`; }
+                                    else { tbodyHtml += `<td class="border p-2 text-center">${gVal.isNum ? formatNumberDecimals(gVal.M) : '-'}</td>`; }
+                                });
+                                tbodyHtml += `</tr>`;
+                            }
 
                             html += `<div class="table-responsive"><table class="report-table"><thead>${l1Row + l2Row + l3Row + l4Row}</thead><tbody>${tbodyHtml}</tbody></table></div>`;
                         });
 
-                        if (user.role === 'admin' || user.role === 'taluka_admin' || user.role === 'phc_admin') {
+                        // 🟢 Hide Main Totals if List Form
+                        if ((user.role === 'admin' || user.role === 'taluka_admin' || user.role === 'phc_admin') && rep.formType !== 'list') {
                             let phcTotals = calculateSmartTotals(rows, columns, rep.isProg);
                             html += `<div class="table-responsive"><table class="report-table"><tbody><tr class="bg-green-100 font-extrabold text-green-900 text-sm"><td class="border p-2" style="width:200px;" colspan="2">एकूण Total</td>`;
                             columns.forEach(c => {
@@ -721,8 +820,6 @@
             if (user.role !== 'admin' && user.role !== 'taluka_admin' && user.role !== 'phc_admin') groupType = 'Village';
 
             let wb = XLSX.utils.book_new();
-            let monthStr = document.getElementById('reportMonth').value;
-            let yearStr = document.getElementById('reportYear').value;
 
             currentReports.forEach((rep) => {
                 let columns = rep.fields; let rows = rep.rows;
@@ -731,7 +828,7 @@
                 if (groupType === "SubCenterConsolidated") {
                     let verticalColCount = 2 + (rows.length * (rep.isProg ? 2 : 1)) + (rep.isProg ? 2 : 1);
                     sheetData.push(["तालुका आरोग्य प्रणाली अहवाल"]);
-                    sheetData.push([`व्यावसायिक अहवाल: ${rep.formName} | कालावधी: ${monthStr} ${yearStr}`]);
+                    sheetData.push([`व्यावसायिक अहवाल: ${rep.formName} | कालावधी: ${rep.periodText}`]);
                     sheetData.push([]);
                     merges.push({ s: { r: 0, c: 0 }, e: { r: 0, c: verticalColCount - 1 } });
                     merges.push({ s: { r: 1, c: 0 }, e: { r: 1, c: verticalColCount - 1 } });
@@ -746,8 +843,11 @@
                         r1.push(vName); if(rep.isProg) r1.push("");
                         if(rep.isProg) { merges.push({ s: { r: 3, c: ccIdx }, e: { r: 3, c: ccIdx + 1 } }); r2.push("मासिक"); r2.push("प्रगत"); ccIdx += 2; } else { ccIdx += 1; }
                     });
-                    r1.push("एकूण Total"); if(rep.isProg) r1.push("");
-                    if(rep.isProg) { merges.push({ s: { r: 3, c: ccIdx }, e: { r: 3, c: ccIdx + 1 } }); r2.push("मासिक"); r2.push("प्रगत"); }
+                    
+                    if(rep.formType !== 'list') {
+                        r1.push("एकूण Total"); if(rep.isProg) r1.push("");
+                        if(rep.isProg) { merges.push({ s: { r: 3, c: ccIdx }, e: { r: 3, c: ccIdx + 1 } }); r2.push("मासिक"); r2.push("प्रगत"); }
+                    }
 
                     sheetData.push(r1); subTitleHeaderRows.push(3);
                     if(rep.isProg) { sheetData.push(r2); subTitleHeaderRows.push(4); }
@@ -759,10 +859,7 @@
                         let rowData = [vIndex + 1, fLabel];
                         rows.forEach(r => {
                             let val = r.values[c.id]; let mObj = (typeof val === 'object' && val !== null) ? val.M : val;
-                            
-                            // 🟢 Date Formatter in Excel Download (Consolidated)
                             if(c.type === 'date') mObj = formatDateToDDMMYYYY(mObj);
-
                             rowData.push(mObj !== undefined && mObj !== "" ? (isNaN(Number(mObj)) ? String(mObj) : Number(mObj)) : 0);
                             
                             if(rep.isProg) { 
@@ -772,9 +869,11 @@
                             }
                         });
 
-                        let tM = phcTotals[c.id].isNum ? Number(phcTotals[c.id].M) : "-";
-                        let tP = phcTotals[c.id].isNum ? Number(phcTotals[c.id].P) : "-";
-                        rowData.push(tM); if(rep.isProg) rowData.push(tP);
+                        if(rep.formType !== 'list') {
+                            let tM = phcTotals[c.id].isNum ? Number(phcTotals[c.id].M) : "-";
+                            let tP = phcTotals[c.id].isNum ? Number(phcTotals[c.id].P) : "-";
+                            rowData.push(tM); if(rep.isProg) rowData.push(tP);
+                        }
                         sheetData.push(rowData); 
                     });
 
@@ -802,7 +901,7 @@
                     }
 
                     sheetData.push(["तालुका आरोग्य प्रणाली अहवाल"]);
-                    sheetData.push([`सलग अहवाल: ${rep.formName} | कालावधी: ${monthStr} ${yearStr}`]);
+                    sheetData.push([`सलग अहवाल: ${rep.formName} | कालावधी: ${rep.periodText}`]);
                     sheetData.push([]); 
 
                     let totalBaseCols = groupType === 'SubCenterFlat' ? 3 : 2;
@@ -885,8 +984,6 @@
                         if(groupType === 'SubCenterFlat') rowData.push(r.village);
                         columns.forEach(c => {
                             let val = r.values[c.id];
-                            
-                            // 🟢 Date Formatter in Excel Download (Flat)
                             if(typeof val === 'object' && val !== null) { 
                                 let mM = c.type === 'date' ? formatDateToDDMMYYYY(val.M) : val.M;
                                 let mP = c.type === 'date' ? formatDateToDDMMYYYY(val.P) : val.P;
@@ -900,7 +997,7 @@
                         sheetData.push(rowData);
                     });
 
-                    if (user.role === 'admin' || user.role === 'taluka_admin' || user.role === 'phc_admin') {
+                    if ((user.role === 'admin' || user.role === 'taluka_admin' || user.role === 'phc_admin') && rep.formType !== 'list') {
                         let phcTotals = calculateSmartTotals(dataRowsToRender, columns, rep.isProg);
                         let pRow = ["एकूण Total"];
                         for(let x=1; x<totalBaseCols; x++) pRow.push("");
@@ -925,7 +1022,7 @@
                         let [scName, empName] = empKey.split("###"); let subRows = employeeGroups[empKey];
 
                         let currentMetaIndex = sheetData.length;
-                        sheetData.push([`📋 अहवाल: ${rep.formName} | कालावधी: ${monthStr} ${yearStr} | 🏢 उपकेंद्र: ${scName} | 🧑‍⚕️ कर्मचारी: ${empName}`]);
+                        sheetData.push([`📋 अहवाल: ${rep.formName} | कालावधी: ${rep.periodText} | 🏢 उपकेंद्र: ${scName} | 🧑‍⚕️ कर्मचारी: ${empName}`]);
                         masterHeaderRows.push(currentMetaIndex); merges.push({ s: { r: currentMetaIndex, c: 0 }, e: { r: currentMetaIndex, c: totalColumnsCount - 1 } });
 
                         let startR = sheetData.length;
@@ -1002,7 +1099,6 @@
                             let rowData = [rIdx + 1, r.village];
                             columns.forEach(c => {
                                 let val = r.values[c.id];
-                                // 🟢 Date Formatter in Excel Download (Village Grouped)
                                 if(typeof val === 'object' && val !== null) { 
                                     let mM = c.type === 'date' ? formatDateToDDMMYYYY(val.M) : val.M;
                                     let mP = c.type === 'date' ? formatDateToDDMMYYYY(val.P) : val.P;
@@ -1016,21 +1112,23 @@
                             sheetData.push(rowData);
                         });
 
-                        let groupTotals = calculateSmartTotals(subRows, columns, rep.isProg);
-                        let gRow = ["गटाची एकूण बेरीज", ""];
-                        columns.forEach(c => {
-                            let gVal = groupTotals[c.id];
-                            if(rep.isProg && c.type === 'number') { gRow.push(gVal.isNum ? Number(gVal.M) : '-'); gRow.push(gVal.isNum ? Number(gVal.P) : '-'); }
-                            else { gRow.push(gVal.isNum ? Number(gVal.M) : '-'); }
-                        });
-                        let gRowIdx = sheetData.length;
-                        sheetData.push(gRow); groupTotalRows.push(gRowIdx);
-                        merges.push({ s: { r: gRowIdx, c: 0 }, e: { r: gRowIdx, c: 1 } });
+                        if(rep.formType !== 'list') {
+                            let groupTotals = calculateSmartTotals(subRows, columns, rep.isProg);
+                            let gRow = ["गटाची एकूण बेरीज", ""];
+                            columns.forEach(c => {
+                                let gVal = groupTotals[c.id];
+                                if(rep.isProg && c.type === 'number') { gRow.push(gVal.isNum ? Number(gVal.M) : '-'); gRow.push(gVal.isNum ? Number(gVal.P) : '-'); }
+                                else { gRow.push(gVal.isNum ? Number(gVal.M) : '-'); }
+                            });
+                            let gRowIdx = sheetData.length;
+                            sheetData.push(gRow); groupTotalRows.push(gRowIdx);
+                            merges.push({ s: { r: gRowIdx, c: 0 }, e: { r: gRowIdx, c: 1 } });
+                        }
 
                         sheetData.push(Array(totalColumnsCount).fill(""));
                     });
 
-                    if (user.role === 'admin' || user.role === 'taluka_admin' || user.role === 'phc_admin') {
+                    if ((user.role === 'admin' || user.role === 'taluka_admin' || user.role === 'phc_admin') && rep.formType !== 'list') {
                         let phcTotals = calculateSmartTotals(rows, columns, rep.isProg);
                         let pRow = ["एकूण Total", ""];
                         columns.forEach(c => {
@@ -1047,15 +1145,13 @@
                 let ws = XLSX.utils.aoa_to_sheet(sheetData); ws["!merges"] = merges;
                 let finalColLimit = sheetData[3] ? sheetData[3].length : 60;
 
-                // 🟢 Excel Style (Keep Dates as Strings to avoid Number formatting)
                 for(let R=0; R<sheetData.length; R++) {
                     for(let C=0; C<finalColLimit; C++) { 
                         let cellRef = XLSX.utils.encode_cell({r: R, c: C}); if(!ws[cellRef]) ws[cellRef] = { t: "s", v: "" }; 
                         let style = { font: { name: "Arial", sz: 10 }, alignment: { vertical: "center", horizontal: "center", wrapText: true }, border: { top:{style:"thin",color:{rgb:"000000"}}, bottom:{style:"thin",color:{rgb:"000000"}}, left:{style:"thin",color:{rgb:"000000"}}, right:{style:"thin",color:{rgb:"000000"}} } };
 
-                        // Force String type for actual data cells to prevent auto-conversion to Serial Date
                         if (R > 4 && typeof ws[cellRef].v === 'string' && ws[cellRef].v.match(/^\d{2}-\d{2}-\d{4}$/)) {
-                            ws[cellRef].t = "s"; // 's' means String
+                            ws[cellRef].t = "s"; 
                         }
 
                         if(masterHeaderRows.includes(R)) { 
@@ -1093,10 +1189,17 @@
                 XLSX.utils.book_append_sheet(wb, ws, rep.formName.substring(0, 30));
             });
 
-            XLSX.writeFile(wb, `अहवाल_${groupType}_${monthStr}_${yearStr}.xlsx`);
+            let dlName = `अहवाल_${document.getElementById('periodType').value === 'custom' ? 'Custom' : monthStr}_${yearStr}.xlsx`;
+            XLSX.writeFile(wb, dlName);
         }
 
         function generatePendingReport() {
+            let periodType = document.getElementById('periodType').value;
+            if (periodType === 'custom') {
+                alert("अपूर्ण यादी (Pending Report) शोधण्यासाठी कृपया 'महिन्यानुसार' कालावधी निवडा. कस्टम तारखांसाठी हे उपलब्ध नाही.");
+                return;
+            }
+
             const selMonth = document.getElementById('reportMonth').value;
             const selMonthNum = monthNamesMarathi[selMonth];
             const selYear = document.getElementById('reportYear').value;
