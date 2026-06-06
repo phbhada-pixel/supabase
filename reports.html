@@ -33,7 +33,7 @@
     <div class="max-w-7xl mx-auto bg-white p-6 rounded-lg shadow-md mb-6 no-print">
 
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-            
+
             <div class="relative" id="multiSelectContainer">
                 <label class="block text-gray-700 text-xs font-bold mb-1">अहवाल / फॉर्म निवडा</label>
                 <button onclick="toggleMultiSelect()" class="w-full p-2 border border-gray-300 rounded bg-white text-left text-sm font-medium flex justify-between items-center min-h-[38px] hover:border-green-500">
@@ -129,7 +129,7 @@
             const userDataString = localStorage.getItem('loggedInUser');
             if (!userDataString) { window.location.href = "index.html"; return; }
             const sessionUser = JSON.parse(userDataString);
-            
+
             let roleStr = String(sessionUser.role || '').toLowerCase().trim();
             user.role = roleStr;
             user.mobile = sessionUser.mobile_number || '';
@@ -153,7 +153,7 @@
             const mIdx = new Date().getMonth() + 1;
             document.getElementById('reportMonth').value = monthNamesNumeric[mIdx];
             document.getElementById('reportYear').value = new Date().getFullYear();
-            
+
             await loadInitialMasterData();
         };
 
@@ -213,7 +213,7 @@
                 updateMultiSelectText();
 
             } catch(e) { console.error(e); alert("माहिती लोड करण्यात त्रुटी: " + e.message); }
-            
+
             document.getElementById('reportLoader').classList.add('hidden');
         }
 
@@ -253,13 +253,26 @@
             let selected = []; document.querySelectorAll('.report-chk:checked').forEach(chk => selected.push(chk.value)); return selected;
         }
 
+        // 🟢 Date Formatter Helper
+        function formatDateToDDMMYYYY(dateString) {
+            if (!dateString) return "";
+            try {
+                let dStr = String(dateString).split('T')[0];
+                let parts = dStr.split('-');
+                if(parts.length === 3 && parts[0].length === 4) {
+                    return `${parts[2]}-${parts[1]}-${parts[0]}`; // DD-MM-YYYY
+                }
+            } catch(e) {}
+            return dateString;
+        }
+
         async function fetchReportData() {
             let selectedIDs = getSelectedReportIDs(); if(selectedIDs.length === 0) { alert("कृपया किमान एक अहवाल निवडा!"); return; }
 
             const selMonth = document.getElementById('reportMonth').value; 
             const selMonthNum = monthNamesMarathi[selMonth]; 
             const selYear = document.getElementById('reportYear').value;
-            
+
             let filterSubCenter = document.getElementById('reportSubCenterFilter').value; 
             let groupType = document.getElementById('reportGroupFilter').value;
 
@@ -270,12 +283,12 @@
             document.getElementById('reportLoader').classList.remove('hidden'); 
             document.getElementById('reportContentArea').classList.add('hidden'); 
             document.getElementById('reportTableContainer').innerHTML = "";
-            
+
             try {
                 let query = supabaseClient.from('form_responses').select('*').eq('report_year', parseInt(selYear));
                 if (selMonthNum < 4) query = supabaseClient.from('form_responses').select('*').or(`and(report_year.eq.${parseInt(selYear)}),and(report_year.eq.${parseInt(selYear-1)},report_month.gte.4)`);
                 if(!selectedIDs.includes("ALL")) query = query.in('form_id', selectedIDs);
-                
+
                 const { data: dbData, error } = await query; 
                 document.getElementById('reportLoader').classList.add('hidden');
                 if (error || !dbData || dbData.length === 0) { alert("डेटाबेसमध्ये माहिती उपलब्ध नाही."); return; }
@@ -299,7 +312,7 @@
 
                     currentMonthResp.forEach(res => {
                         if (res.response_data && res.response_data.is_nil === true) return;
-                        
+
                         let isStringNil = false;
                         for (let key in res.response_data) {
                             if (res.response_data[key] && typeof res.response_data[key].value === 'string') {
@@ -318,7 +331,7 @@
                         let villageObj = masterData.villages.find(v => v.id === res.village_id);
                         let empObj = masterData.employees.find(e => e.id === res.employee_id);
                         let scObj = villageObj ? masterData.subCenters.find(s => s.id === villageObj.sub_center_id) : null;
-                        
+
                         if (user.role === 'phc_admin') {
                             if (!scObj || scObj.phc_id !== user.phc_id) return;
                         }
@@ -327,18 +340,15 @@
                         if(user.role !== 'employee' && filterSubCenter !== "सर्व" && scName !== filterSubCenter) return;
 
                         let row = { month: selMonth, year: selYear, subcenter: scName, village: villageObj?villageObj.name:'-', employee: empObj?empObj.full_name:'-', values: {} };
-                        
+
                         // Pass 1: Raw Inputs Fetching
                         validDataFields.forEach(f => {
                             if (!f.formula || String(f.formula).trim() === "") {
                                 let monthlyVal = res.response_data[f.id] ? res.response_data[f.id].value : '';
-                                
+
+                                // 🟢 Date Formatter Applied Here
                                 if (f.type === 'date' && monthlyVal && String(monthlyVal).trim() !== '') {
-                                    let dStr = String(monthlyVal).split('T')[0];
-                                    let parts = dStr.split('-');
-                                    if(parts.length === 3 && parts[0].length === 4) {
-                                        monthlyVal = `${parts[2]}-${parts[1]}-${parts[0]}`;
-                                    }
+                                    monthlyVal = formatDateToDDMMYYYY(monthlyVal);
                                 }
 
                                 if (isProgressive && f.type === 'number') {
@@ -480,7 +490,7 @@
         function renderMultipleTables(reports, month, year, groupType) {
             let container = document.getElementById('reportTableContainer');
             let downArea = document.getElementById('downloadButtonsArea');
-            
+
             let phcHeaderTxt = "माझे अहवाल";
             if (user.role === 'admin' || user.role === 'taluka_admin') phcHeaderTxt = "तालुका अहवाल - संपूर्ण डेटा";
             if (user.role === 'phc_admin') phcHeaderTxt = "तुमच्या PHC चा अहवाल";
@@ -707,7 +717,7 @@
         function downloadConsolidatedExcel() {
             if(currentReports.length === 0) return;
             let groupType = document.getElementById('reportGroupFilter').value;
-            
+
             if (user.role !== 'admin' && user.role !== 'taluka_admin' && user.role !== 'phc_admin') groupType = 'Village';
 
             let wb = XLSX.utils.book_new();
@@ -749,8 +759,17 @@
                         let rowData = [vIndex + 1, fLabel];
                         rows.forEach(r => {
                             let val = r.values[c.id]; let mObj = (typeof val === 'object' && val !== null) ? val.M : val;
-                            rowData.push(mObj !== undefined && mObj !== "" ? (isNaN(Number(mObj)) ? mObj : Number(mObj)) : 0);
-                            if(rep.isProg) { let pObj = (typeof val === 'object' && val !== null) ? val.P : val; rowData.push(pObj !== undefined && pObj !== "" ? (isNaN(Number(pObj)) ? pObj : Number(pObj)) : 0); }
+                            
+                            // 🟢 Date Formatter in Excel Download (Consolidated)
+                            if(c.type === 'date') mObj = formatDateToDDMMYYYY(mObj);
+
+                            rowData.push(mObj !== undefined && mObj !== "" ? (isNaN(Number(mObj)) ? String(mObj) : Number(mObj)) : 0);
+                            
+                            if(rep.isProg) { 
+                                let pObj = (typeof val === 'object' && val !== null) ? val.P : val; 
+                                if(c.type === 'date') pObj = formatDateToDDMMYYYY(pObj);
+                                rowData.push(pObj !== undefined && pObj !== "" ? (isNaN(Number(pObj)) ? String(pObj) : Number(pObj)) : 0); 
+                            }
                         });
 
                         let tM = phcTotals[c.id].isNum ? Number(phcTotals[c.id].M) : "-";
@@ -866,8 +885,17 @@
                         if(groupType === 'SubCenterFlat') rowData.push(r.village);
                         columns.forEach(c => {
                             let val = r.values[c.id];
-                            if(typeof val === 'object' && val !== null) { rowData.push(val.M !== '' ? Number(val.M) : 0); rowData.push(val.P !== '' ? Number(val.P) : 0); } 
-                            else { rowData.push(val !== '' ? (isNaN(Number(val)) ? val : Number(val)) : ''); }
+                            
+                            // 🟢 Date Formatter in Excel Download (Flat)
+                            if(typeof val === 'object' && val !== null) { 
+                                let mM = c.type === 'date' ? formatDateToDDMMYYYY(val.M) : val.M;
+                                let mP = c.type === 'date' ? formatDateToDDMMYYYY(val.P) : val.P;
+                                rowData.push(mM !== '' ? (isNaN(Number(mM)) ? String(mM) : Number(mM)) : 0); 
+                                rowData.push(mP !== '' ? (isNaN(Number(mP)) ? String(mP) : Number(mP)) : 0); 
+                            } else { 
+                                let sV = c.type === 'date' ? formatDateToDDMMYYYY(val) : val;
+                                rowData.push(sV !== '' ? (isNaN(Number(sV)) ? String(sV) : Number(sV)) : ''); 
+                            }
                         });
                         sheetData.push(rowData);
                     });
@@ -974,8 +1002,16 @@
                             let rowData = [rIdx + 1, r.village];
                             columns.forEach(c => {
                                 let val = r.values[c.id];
-                                if(typeof val === 'object' && val !== null) { rowData.push(val.M !== '' ? Number(val.M) : 0); rowData.push(val.P !== '' ? Number(val.P) : 0); } 
-                                else { rowData.push(val !== '' ? (isNaN(Number(val)) ? val : Number(val)) : ''); }
+                                // 🟢 Date Formatter in Excel Download (Village Grouped)
+                                if(typeof val === 'object' && val !== null) { 
+                                    let mM = c.type === 'date' ? formatDateToDDMMYYYY(val.M) : val.M;
+                                    let mP = c.type === 'date' ? formatDateToDDMMYYYY(val.P) : val.P;
+                                    rowData.push(mM !== '' ? (isNaN(Number(mM)) ? String(mM) : Number(mM)) : 0); 
+                                    rowData.push(mP !== '' ? (isNaN(Number(mP)) ? String(mP) : Number(mP)) : 0); 
+                                } else { 
+                                    let sV = c.type === 'date' ? formatDateToDDMMYYYY(val) : val;
+                                    rowData.push(sV !== '' ? (isNaN(Number(sV)) ? String(sV) : Number(sV)) : ''); 
+                                }
                             });
                             sheetData.push(rowData);
                         });
@@ -1011,10 +1047,16 @@
                 let ws = XLSX.utils.aoa_to_sheet(sheetData); ws["!merges"] = merges;
                 let finalColLimit = sheetData[3] ? sheetData[3].length : 60;
 
+                // 🟢 Excel Style (Keep Dates as Strings to avoid Number formatting)
                 for(let R=0; R<sheetData.length; R++) {
                     for(let C=0; C<finalColLimit; C++) { 
                         let cellRef = XLSX.utils.encode_cell({r: R, c: C}); if(!ws[cellRef]) ws[cellRef] = { t: "s", v: "" }; 
                         let style = { font: { name: "Arial", sz: 10 }, alignment: { vertical: "center", horizontal: "center", wrapText: true }, border: { top:{style:"thin",color:{rgb:"000000"}}, bottom:{style:"thin",color:{rgb:"000000"}}, left:{style:"thin",color:{rgb:"000000"}}, right:{style:"thin",color:{rgb:"000000"}} } };
+
+                        // Force String type for actual data cells to prevent auto-conversion to Serial Date
+                        if (R > 4 && typeof ws[cellRef].v === 'string' && ws[cellRef].v.match(/^\d{2}-\d{2}-\d{4}$/)) {
+                            ws[cellRef].t = "s"; // 's' means String
+                        }
 
                         if(masterHeaderRows.includes(R)) { 
                             style.fill = { fgColor: { rgb: "00705A" } }; style.font = { sz: 12, bold: true, color: { rgb: "FFFFFF" } }; style.alignment.horizontal = "left"; 
@@ -1069,24 +1111,20 @@
             formsToCheck.forEach(f => {
                 groupedData[f.form_name] = [];
                 masterData.employees.forEach(u => {
-                    
+
                     let empRole = String(u.role).toUpperCase().trim();
 
-                    // 🚫 1. ॲडमिन लोकांना अपूर्ण यादीत कधीही दाखवू नका
                     if (['ADMIN', 'TALUKA_ADMIN', 'PHC_ADMIN'].includes(empRole)) return;
-                    
-                    // 🚫 2. ज्या कर्मचाऱ्यांना उपकेंद्र दिले नाही, त्यांना वगळा
                     if (!u.sub_center_id || u.sub_center_id === '00000000-0000-0000-0000-000000000000') return;
 
-                    // 🟢 3. Role Filter - कर्मचाऱ्याच्या पदानुसार फॉर्म तपासा
                     if (f.allowed_roles && f.allowed_roles.toUpperCase() !== 'ALL') {
                         let allowedArray = f.allowed_roles.toUpperCase().split(',').map(r => r.trim());
-                        if (!allowedArray.includes(empRole)) return; // जर फॉर्म या पदासाठी नसेल तर सोडून द्या
+                        if (!allowedArray.includes(empRole)) return; 
                     }
 
                     if (user.role === 'phc_admin' && u.phc_id !== user.phc_id) return;
                     if (user.role !== "admin" && user.role !== "taluka_admin" && user.role !== "phc_admin" && String(u.mobile_number).trim() !== String(user.mobile).trim()) return;
-                    
+
                     let scObj = masterData.subCenters.find(s => s.id === u.sub_center_id);
                     let scName = scObj ? scObj.name : "Unknown";
                     if (user.role !== 'employee' && filterSubCenter !== "सर्व" && scName !== filterSubCenter) return;
@@ -1101,7 +1139,7 @@
 
             let container = document.getElementById('reportTableContainer'); let downArea = document.getElementById('downloadButtonsArea');
             downArea.innerHTML = `<div class="no-print flex justify-end gap-2 mb-3"><button onclick="copyPendingListText()" class="bg-gray-600 text-white px-4 py-2 rounded text-xs font-bold shadow">📋 यादी कॉपी करा</button><button onclick="window.print()" class="bg-red-600 text-white px-4 py-2 rounded text-xs font-bold shadow">📥 PDF प्रिंट करा</button></div>`;
-            
+
             let phcHeader = "तालुका आरोग्य प्रणाली";
             if (user.role === 'phc_admin') phcHeader = "तुमची अपूर्ण यादी";
             if (filterSubCenter !== 'सर्व') phcHeader += ` (उपकेंद्र: ${filterSubCenter})`;
