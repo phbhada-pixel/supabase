@@ -144,14 +144,13 @@
         async function fetchVillages() {
             let subCenterId = loggedInUser.sub_center_id;
             if(!subCenterId || subCenterId === '00000000-0000-0000-0000-000000000000') {
-                if(loggedInUser.role === 'बाह्य रुग्ण विभाग सेविका') subCenterId = null; // Fetch from whole PHC if OPD
+                if(loggedInUser.role === 'बाह्य रुग्ण विभाग सेविका') subCenterId = null; 
             }
 
             let query = supabaseClient.from('villages').select('*').order('name');
             
             if (subCenterId) query = query.eq('sub_center_id', subCenterId);
             else if(loggedInUser.phc_id) {
-                // Fetch all villages in the PHC
                 const scRes = await supabaseClient.from('sub_centers').select('id').eq('phc_id', loggedInUser.phc_id);
                 if(scRes.data && scRes.data.length > 0) {
                     query = query.in('sub_center_id', scRes.data.map(s=>s.id));
@@ -201,7 +200,6 @@
             await fetchMonthResponses();
             updateFormDropdown();
             
-            // Re-load schema if form is already selected
             if(document.getElementById('formSelect').value) {
                 loadFormSchema();
             }
@@ -213,13 +211,11 @@
             fSelect.innerHTML = '<option value="">-- फॉर्म निवडा --</option>';
             allFormsMap = {};
 
-            // 🟢 पंधरवाडा ऑप्शन
             let fN = parseInt(document.getElementById('reportFortnight').value) || 1;
 
             allowedForms.forEach(form => {
                 let showForm = true;
                 
-                // मासिक किंवा प्रगत फॉर्म्ससाठी: सर्व गावांचा डेटा भरला असेल तर फॉर्म ड्रॉपडाऊन मधून काढा
                 if (form.form_type !== 'list' && userVillages.length > 0) {
                     let filledCount = 0;
                     userVillages.forEach(v => {
@@ -227,13 +223,12 @@
                             r.form_id === form.id && 
                             r.village_id === v.id && 
                             (form.data_entry_mode === 'shared' ? true : r.employee_id === loggedInUser.id) &&
-                            (form.form_type !== 'fortnightly' || r.report_fortnight === fN) // 🟢 पंधरवाडी चेक
+                            (form.form_type !== 'fortnightly' || r.report_fortnight === fN) 
                         );
                         if (isFilled) filledCount++;
                     });
                     if (filledCount >= userVillages.length) showForm = false; 
                 } else if (form.form_type === 'list' && userVillages.length > 0) {
-                    // List फॉर्म्ससाठी: सर्व गावांचा "NIL" रिपोर्ट असेल तरच फॉर्म ड्रॉपडाऊन मधून काढा
                     let nilCount = 0;
                     userVillages.forEach(v => {
                         let isNil = currentMonthResponses.some(r => 
@@ -258,7 +253,7 @@
 
             if (allFormsMap[currentSelection]) {
                 fSelect.value = currentSelection;
-                loadFormSchema(); // Automatically triggers fortnight hide/show
+                loadFormSchema(); 
             } else {
                 fSelect.value = "";
                 document.getElementById('villageSelect').innerHTML = '<option value="">-- आधी फॉर्म निवडा --</option>';
@@ -268,7 +263,6 @@
             }
         }
 
-        // 🟢 फॉर्म निवडल्यावर गावे फिल्टर करणे (Fortnight & List vs Monthly Logic)
         function loadFormSchema() {
             const formId = document.getElementById('formSelect').value;
             const container = document.getElementById('dynamicFieldsContainer');
@@ -292,7 +286,6 @@
             globalPendingVillages = [];
             let hiddenCount = 0;
             
-            // 🟢 पंधरवाडा ऑप्शन दाखवा किंवा लपवा
             if (currentFormObj.form_type === 'fortnightly') fnDiv.classList.remove('hidden');
             else fnDiv.classList.add('hidden');
 
@@ -302,13 +295,11 @@
                 let isFilled = false;
                 
                 if (currentFormObj.form_type === 'list') {
-                    // List फॉर्म्ससाठी NIL चेक
                     isFilled = currentMonthResponses.some(r => 
                         r.form_id === formId && r.village_id === v.id && 
                         r.response_data && r.response_data.is_nil === true
                     );
                 } else {
-                    // इतर फॉर्म्ससाठी (Fortnightly / Monthly / Prog)
                     isFilled = currentMonthResponses.some(r => 
                         r.form_id === formId && r.village_id === v.id && 
                         (currentFormObj.data_entry_mode === 'shared' ? true : r.employee_id === loggedInUser.id) &&
@@ -339,6 +330,40 @@
             }
         }
 
+        // 🟢 Live Formula Evaluation Engine
+        window.calculateFormulas = function(vid) {
+            if(!currentFormObj) return;
+            const allFields = currentFormObj.schema_json.fields;
+            const formulaFields = allFields.filter(f => f.formula && String(f.formula).trim() !== "");
+            
+            formulaFields.forEach(f => {
+                let formulaStr = String(f.formula).toLowerCase().trim();
+                
+                allFields.forEach(af => {
+                    if (!af.formula || String(af.formula).trim() === "") {
+                        let ph = `[${af.id.toLowerCase()}]`;
+                        if (formulaStr.includes(ph)) {
+                            let el = document.getElementById(`${af.id}_v${vid}`);
+                            let val = el && el.value !== "" ? parseFloat(el.value) : 0;
+                            if (isNaN(val)) val = 0;
+                            formulaStr = formulaStr.split(ph).join(val); // Replace all occurrences
+                        }
+                    }
+                });
+                
+                try {
+                    if (/^[0-9.+\-*/() ]+$/.test(formulaStr)) {
+                        let res = eval(formulaStr);
+                        let finalRes = isNaN(res) || !isFinite(res) ? 0 : res;
+                        let targetEl = document.getElementById(`${f.id}_v${vid}`);
+                        if (targetEl) {
+                            targetEl.value = Number.isInteger(finalRes) ? finalRes : parseFloat(finalRes.toFixed(2));
+                        }
+                    }
+                } catch(e) {}
+            });
+        };
+
         function renderFormFields() {
             const formId = document.getElementById('formSelect').value;
             const vid = document.getElementById('villageSelect').value;
@@ -356,7 +381,8 @@
             }
 
             const allFields = currentFormObj.schema_json.fields;
-            currentDataFields = allFields.filter(f => f.type !== 'group_header' && (!f.formula || f.formula.trim() === ""));
+            // 🟢 आता आपण फॉर्म्युला फिल्ड्स लपवणार नाही, तेही रेंडर करू
+            currentDataFields = allFields.filter(f => f.type !== 'group_header');
 
             if (vid === 'ALL') {
                 currentPendingVillages = globalPendingVillages;
@@ -368,7 +394,8 @@
             html += '<thead class="hidden md:table-header-group bg-gray-200 border-b-4 border-gray-400"><tr>';
             html += '<th class="p-3 border text-center font-extrabold text-gray-800 min-w-[150px]">गाव / कार्यक्षेत्र</th>';
             currentDataFields.forEach(f => {
-                html += `<th class="p-2 border text-xs font-bold text-gray-700 text-center min-w-[130px] leading-tight">${getFullFieldLabel(allFields, f)}</th>`;
+                let formulaBadge = (f.formula && String(f.formula).trim() !== "") ? '<br><span class="text-[9px] bg-green-500 text-white px-1 rounded shadow">ऑटो बेरीज</span>' : '';
+                html += `<th class="p-2 border text-xs font-bold text-gray-700 text-center min-w-[130px] leading-tight">${getFullFieldLabel(allFields, f)} ${formulaBadge}</th>`;
             });
             html += '</tr></thead>';
 
@@ -382,24 +409,34 @@
                          </td>`;
 
                 currentDataFields.forEach(f => {
-                    let reqAttr = f.required ? 'required' : '';
+                    let isFormula = (f.formula && String(f.formula).trim() !== "");
+                    let reqAttr = (f.required && !isFormula) ? 'required' : '';
                     let inputId = `${f.id}_v${v.id}`;
                     let inputHtml = '';
+                    
+                    // 🟢 Oninput event to trigger calculations
+                    let onInputAttr = (f.type === 'number' && !isFormula) ? `oninput="calculateFormulas('${v.id}')"` : '';
 
                     if (f.type === 'number') {
-                        inputHtml = `<input type="number" id="${inputId}" class="w-full md:w-20 p-4 md:p-2 text-2xl md:text-base font-extrabold md:font-bold text-center text-blue-900 bg-blue-50 border-2 border-blue-400 md:border-gray-400 rounded-lg md:rounded outline-none focus:ring-4 focus:ring-blue-600 transition" ${reqAttr} placeholder="0">`;
+                        if (isFormula) {
+                            // हिरवा रीड-ओन्ली बॉक्स
+                            inputHtml = `<input type="number" id="${inputId}" class="w-full md:w-20 p-4 md:p-2 text-2xl md:text-base font-extrabold md:font-bold text-center text-green-900 bg-green-100 border-2 border-green-500 rounded-lg md:rounded outline-none cursor-not-allowed shadow-inner" readonly tabindex="-1" placeholder="0">`;
+                        } else {
+                            // निळा सामान्य इनपुट
+                            inputHtml = `<input type="number" id="${inputId}" class="w-full md:w-20 p-4 md:p-2 text-2xl md:text-base font-extrabold md:font-bold text-center text-blue-900 bg-blue-50 border-2 border-blue-400 md:border-gray-400 rounded-lg md:rounded outline-none focus:ring-4 focus:ring-blue-600 transition" ${reqAttr} placeholder="0" ${onInputAttr}>`;
+                        }
                     } else if (f.type === 'yes_no') {
-                        inputHtml = `<select id="${inputId}" class="w-full md:w-24 p-4 md:p-2 text-xl md:text-sm font-extrabold md:font-bold text-center text-purple-900 bg-purple-50 border-2 border-purple-400 md:border-gray-400 rounded-lg md:rounded outline-none focus:ring-4 focus:ring-purple-600" ${reqAttr}><option value="">- निवडा -</option><option value="होय">होय</option><option value="नाही">नाही</option></select>`;
+                        inputHtml = `<select id="${inputId}" class="w-full md:w-24 p-4 md:p-2 text-xl md:text-sm font-extrabold md:font-bold text-center text-purple-900 bg-purple-50 border-2 border-purple-400 md:border-gray-400 rounded-lg md:rounded outline-none focus:ring-4 focus:ring-purple-600" ${reqAttr} ${onInputAttr}><option value="">- निवडा -</option><option value="होय">होय</option><option value="नाही">नाही</option></select>`;
                     } else if (f.type === 'date') {
-                        inputHtml = `<input type="date" id="${inputId}" class="w-full md:w-32 p-4 md:p-2 text-xl md:text-sm font-bold md:font-semibold text-center text-gray-900 bg-gray-50 border-2 border-gray-400 rounded-lg md:rounded outline-none focus:ring-4 focus:ring-gray-600" ${reqAttr}>`;
+                        inputHtml = `<input type="date" id="${inputId}" class="w-full md:w-32 p-4 md:p-2 text-xl md:text-sm font-bold md:font-semibold text-center text-gray-900 bg-gray-50 border-2 border-gray-400 rounded-lg md:rounded outline-none focus:ring-4 focus:ring-gray-600" ${reqAttr} ${onInputAttr}>`;
                     } else if (f.type === 'dropdown' && f.options) {
                         let optsHtml = `<option value="">- निवडा -</option>`;
                         f.options.forEach(opt => optsHtml += `<option value="${opt}">${opt}</option>`);
-                        inputHtml = `<select id="${inputId}" class="w-full md:w-32 p-4 md:p-2 text-xl md:text-sm font-extrabold md:font-bold text-center text-purple-900 bg-purple-50 border-2 border-purple-400 md:border-gray-400 rounded-lg md:rounded outline-none focus:ring-4 focus:ring-purple-600" ${reqAttr}>${optsHtml}</select>`;
+                        inputHtml = `<select id="${inputId}" class="w-full md:w-32 p-4 md:p-2 text-xl md:text-sm font-extrabold md:font-bold text-center text-purple-900 bg-purple-50 border-2 border-purple-400 md:border-gray-400 rounded-lg md:rounded outline-none focus:ring-4 focus:ring-purple-600" ${reqAttr} ${onInputAttr}>${optsHtml}</select>`;
                     } else {
                         let patt = f.type === 'mobile' ? 'pattern="[0-9]{10}" placeholder="10 अंकी नंबर"' : '';
                         let tType = f.type === 'mobile' ? 'tel' : 'text';
-                        inputHtml = `<input type="${tType}" id="${inputId}" class="w-full md:w-32 p-4 md:p-2 text-xl md:text-sm font-bold md:font-semibold text-center text-gray-900 bg-gray-50 border-2 border-gray-400 rounded-lg md:rounded outline-none focus:ring-4 focus:ring-gray-600" ${reqAttr} ${patt}>`;
+                        inputHtml = `<input type="${tType}" id="${inputId}" class="w-full md:w-32 p-4 md:p-2 text-xl md:text-sm font-bold md:font-semibold text-center text-gray-900 bg-gray-50 border-2 border-gray-400 rounded-lg md:rounded outline-none focus:ring-4 focus:ring-gray-600" ${reqAttr} ${patt} ${onInputAttr}>`;
                     }
 
                     html += `<td class="flex md:table-cell flex-col md:flex-row items-center md:justify-center p-3 md:p-2 border-b-2 border-dashed border-gray-200 md:border-solid md:border-b-0 md:border md:border-gray-300 gap-3 md:gap-0">
@@ -413,8 +450,12 @@
 
             html += '</tbody></table></div>';
             container.innerHTML = html;
+            
+            // 🟢 Render झाल्यावर लगेचच शून्य (0) किंवा डिफाॅल्ट आकडेवारी दाखवण्यासाठी फॉर्म्युले एकदा कॅल्क्युलेट करा
+            setTimeout(() => {
+                currentPendingVillages.forEach(v => calculateFormulas(v.id));
+            }, 100);
 
-            // 🟢 स्मार्ट बटणे (List vs Monthly/Fortnightly)
             submitBtn.classList.remove('hidden');
             
             if (currentFormObj.form_type === 'list' || currentFormObj.form_type === 'fortnightly') {
@@ -428,7 +469,6 @@
             }
         }
 
-        // 🟢 डेटा सबमिट करणे (Fortnightly Database Insert सह)
         async function submitData(isNilReport, isAddMore) {
             const formId = document.getElementById('formSelect').value;
             const repMonth = document.getElementById('reportMonth').value;
@@ -470,7 +510,6 @@
                     response_data: responseDataObj
                 };
                 
-                // 🟢 पंधरवाडी फॉर्म असल्यास फोर्टनाईट सेव्ह करा
                 if (currentFormObj.form_type === 'fortnightly') {
                     pLoad.report_fortnight = parseInt(repFortnight);
                 }
@@ -495,7 +534,11 @@
                         alert("✅ माहिती सेव्ह झाली! तुम्ही या गावासाठी पुढची नोंद करू शकता.");
                         document.getElementById('dynamicDataForm').reset();
                         window.scrollTo({ top: 0, behavior: 'smooth' });
-                        // List/Fortnightly फॉर्ममध्ये 'Add More' असल्यास गाव तसेच राहू द्या
+                        // 🟢 फॉर्म रिसेट झाल्यानंतर पुन्हा फॉर्म्युले 0 करण्यासाठी
+                        setTimeout(() => {
+                            currentPendingVillages.forEach(vill => calculateFormulas(vill.id));
+                        }, 100);
+                        
                         if(currentFormObj.form_type !== 'list') updateFormDropdown(); 
                     } else {
                         alert("✅ माहिती यशस्वीरीत्या सेव्ह झाली!");
