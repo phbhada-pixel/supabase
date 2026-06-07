@@ -62,7 +62,7 @@
 
             <div id="monthlyInputs" class="col-span-2 flex gap-2">
                 <div class="flex-1">
-                    <label class="block text-gray-700 text-xs font-bold mb-1">अहवाल महिना</label>
+                    <label class="block text-gray-700 text-xs font-bold mb-1">महिना</label>
                     <select id="reportMonth" class="w-full p-2 border border-gray-300 rounded bg-white text-sm font-bold">
                         <option value="जानेवारी">जानेवारी</option><option value="फेब्रुवारी">फेब्रुवारी</option>
                         <option value="मार्च">मार्च</option><option value="एप्रिल">एप्रिल</option>
@@ -73,8 +73,15 @@
                     </select>
                 </div>
                 <div class="flex-1">
-                    <label class="block text-gray-700 text-xs font-bold mb-1">अहवाल वर्ष</label>
+                    <label class="block text-gray-700 text-xs font-bold mb-1">वर्ष</label>
                     <input type="number" id="reportYear" class="w-full p-2 border border-gray-300 rounded text-sm font-bold text-center" value="2026">
+                </div>
+                <div id="fortnightInputs" class="flex-1 hidden">
+                    <label class="block text-orange-700 text-xs font-bold mb-1">पंधरवाडा</label>
+                    <select id="reportFortnight" class="w-full p-2 border border-orange-400 rounded bg-orange-50 text-sm font-bold text-orange-900">
+                        <option value="1">१ ते १५ तारीख</option>
+                        <option value="2">१६ ते अखेर</option>
+                    </select>
                 </div>
             </div>
 
@@ -240,13 +247,16 @@
                 masterData.forms.forEach(f => {
                     let opt = document.createElement('option'); opt.value = f.id; opt.text = f.form_name; select.appendChild(opt);
                     let div = document.createElement('div');
-                    let formTypeTag = f.form_type === 'list' ? `<span class="bg-indigo-100 text-indigo-700 text-[10px] px-1 ml-2 rounded">यादी फॉर्म</span>` : '';
+                    let formTypeTag = '';
+                    if(f.form_type === 'list') formTypeTag = `<span class="bg-indigo-100 text-indigo-700 text-[10px] px-1 ml-2 rounded">यादी फॉर्म</span>`;
+                    else if(f.form_type === 'fortnightly') formTypeTag = `<span class="bg-orange-100 text-orange-700 text-[10px] px-1 ml-2 rounded">पंधरवाडी</span>`;
+                    
                     div.className = "hover:bg-gray-100 transition"; div.style.padding = "10px"; div.style.borderBottom = "1px solid #eee"; div.style.cursor = "pointer";
                     div.innerHTML = `<label style="cursor:pointer; display:flex; align-items:center; gap:8px; font-weight:600;"><input type="checkbox" class="report-chk w-4 h-4" value="${f.id}" checked onchange="checkIndividualReport()"> ${f.form_name} ${formTypeTag}</label>`;
                     optionsDiv.appendChild(div);
                 });
 
-                const { data: respData } = await supabaseClient.from('form_responses').select('form_id, village_id, report_month, report_year');
+                const { data: respData } = await supabaseClient.from('form_responses').select('form_id, village_id, report_month, report_year, report_fortnight');
                 masterData.filledStats = respData || [];
 
                 document.getElementById('chkAllReports').checked = true;
@@ -279,6 +289,17 @@
         function updateMultiSelectText() {
             let chkAll = document.getElementById('chkAllReports');
             let textSpan = document.getElementById('multiSelectBtnText');
+            
+            // 🟢 जर पंधरवाडी फॉर्म सिलेक्ट केला असेल, तर पंधरवाडा ऑप्शन दाखवा
+            let hasFortnightly = false;
+            document.querySelectorAll('.report-chk:checked').forEach(chk => {
+                let fObj = masterData.forms.find(f => f.id === chk.value);
+                if(fObj && fObj.form_type === 'fortnightly') hasFortnightly = true;
+            });
+            
+            if (hasFortnightly) document.getElementById('fortnightInputs').classList.remove('hidden');
+            else document.getElementById('fortnightInputs').classList.add('hidden');
+
             if(chkAll && chkAll.checked) { textSpan.innerText = "सर्व अहवाल (All Forms)"; textSpan.style.color = "var(--primary)"; } 
             else {
                 let selected = document.querySelectorAll('.report-chk:checked');
@@ -293,51 +314,40 @@
             let selected = []; document.querySelectorAll('.report-chk:checked').forEach(chk => selected.push(chk.value)); return selected;
         }
 
-        // 🟢 100% BULLETPROOF DATE FORMATTER (Handles Excel Serials & All Dates)
         function formatDateToDDMMYYYY(dateString) {
             if (dateString === null || dateString === undefined || dateString === "") return "";
             let val = String(dateString).trim();
-            
-            // 1. Check if it's an Excel Serial Date (e.g. 45396) from old CSV migration
             let numVal = Number(val);
             if (!isNaN(numVal) && numVal > 30000 && numVal < 60000) {
-                // Convert Excel serial to JS Date
                 let jsDate = new Date(Math.round((numVal - 25569) * 86400 * 1000));
                 if (!isNaN(jsDate.getTime())) {
-                    let d = String(jsDate.getUTCDate()).padStart(2, '0');
-                    let m = String(jsDate.getUTCMonth() + 1).padStart(2, '0');
-                    let y = jsDate.getUTCFullYear();
-                    return `${d}-${m}-${y}`; // Returns DD-MM-YYYY
+                    return `${String(jsDate.getUTCDate()).padStart(2, '0')}-${String(jsDate.getUTCMonth() + 1).padStart(2, '0')}-${jsDate.getUTCFullYear()}`;
                 }
             }
-            
-            // 2. Standard ISO (YYYY-MM-DD) or DD-MM-YYYY
             try {
                 let dStr = val.split('T')[0];
                 let parts = dStr.split(/[-/]/); 
                 if(parts.length === 3) {
-                    if (parts[0].length === 4) { // YYYY-MM-DD
-                        return `${parts[2]}-${parts[1]}-${parts[0]}`;
-                    } else if (parts[2].length === 4) { // DD-MM-YYYY or MM/DD/YYYY
-                        return `${parts[0]}-${parts[1]}-${parts[2]}`; 
-                    }
+                    if (parts[0].length === 4) return `${parts[2]}-${parts[1]}-${parts[0]}`;
+                    else if (parts[2].length === 4) return `${parts[0]}-${parts[1]}-${parts[2]}`; 
                 }
-                
-                // Fallback standard parse
                 let dt = new Date(val);
-                if (!isNaN(dt.getTime())) {
-                    let d = String(dt.getDate()).padStart(2, '0');
-                    let m = String(dt.getMonth() + 1).padStart(2, '0');
-                    let y = dt.getFullYear();
-                    return `${d}-${m}-${y}`;
-                }
+                if (!isNaN(dt.getTime())) return `${String(dt.getDate()).padStart(2, '0')}-${String(dt.getMonth() + 1).padStart(2, '0')}-${dt.getFullYear()}`;
             } catch(e) {}
-            
             return val;
         }
 
         async function fetchReportData() {
             let selectedIDs = getSelectedReportIDs(); if(selectedIDs.length === 0) { alert("कृपया किमान एक अहवाल निवडा!"); return; }
+
+            let formsToProcess = selectedIDs.includes("ALL") ? masterData.forms : masterData.forms.filter(f => selectedIDs.includes(f.id));
+            let mixedTypes = new Set(formsToProcess.map(f => f.form_type));
+            
+            // 🟢 पंधरवाडी आणि इतर फॉर्म्स एकत्र पाहण्यास मनाई
+            if (mixedTypes.has('fortnightly') && (mixedTypes.has('monthly') || mixedTypes.has('progressive') || mixedTypes.has('list'))) {
+                alert("⚠️ पंधरवाडी अहवाल आणि मासिक/प्रगत अहवाल एकत्र पाहता येणार नाहीत. कृपया फक्त 'पंधरवाडी' अहवाल निवडा.");
+                return;
+            }
 
             let periodType = document.getElementById('periodType').value;
             let query = supabaseClient.from('form_responses').select('*');
@@ -353,6 +363,14 @@
                 query = query.eq('report_year', parseInt(selYear));
                 if (selMonthNum < 4) query = query.or(`and(report_year.eq.${parseInt(selYear)}),and(report_year.eq.${parseInt(selYear-1)},report_month.gte.4)`);
                 periodText = `${selMonth} ${selYear}`;
+                
+                // 🟢 जर पंधरवाडी फॉर्म असेल तर क्वेरीमध्ये पंधरवाडा टाका
+                if (mixedTypes.has('fortnightly')) {
+                    let fn = document.getElementById('reportFortnight').value;
+                    query = query.eq('report_fortnight', parseInt(fn));
+                    periodText += ` (पंधरवाडा: ${fn === '1' ? '१ ते १५' : '१६ ते अखेर'})`;
+                }
+
             } else {
                 let sDate = document.getElementById('startDate').value;
                 let eDate = document.getElementById('endDate').value;
@@ -369,7 +387,6 @@
                 groupType = 'Village';
             }
 
-            let formsToProcess = selectedIDs.includes("ALL") ? masterData.forms : masterData.forms.filter(f => selectedIDs.includes(f.id));
             if (periodType === 'custom') {
                 let nonListForms = formsToProcess.filter(f => f.form_type !== 'list');
                 if (nonListForms.length > 0 && !selectedIDs.includes("ALL")) {
@@ -446,12 +463,11 @@
 
                         let row = { month: periodText, year: '', subcenter: scName, village: villageObj?villageObj.name:'-', employee: empObj?empObj.full_name:'-', values: {} };
 
-                        // Pass 1: Raw Inputs Fetching
+                        // Pass 1: Raw Inputs
                         validDataFields.forEach(f => {
                             if (!f.formula || String(f.formula).trim() === "") {
                                 let monthlyVal = res.response_data[f.id] ? res.response_data[f.id].value : '';
 
-                                // 🟢 Date Formatter Applied Safely
                                 if (f.type === 'date' && monthlyVal && String(monthlyVal).trim() !== '') {
                                     monthlyVal = formatDateToDDMMYYYY(monthlyVal);
                                 }
@@ -471,7 +487,7 @@
                             }
                         });
 
-                        // Pass 2: Row Level Formula Evaluation
+                        // Pass 2: Formulas
                         validDataFields.forEach(f => {
                             if (f.formula && String(f.formula).trim() !== "") {
                                 let evalRowFormula = (type) => {
@@ -545,8 +561,6 @@
 
         function formatNumberDecimals(val) {
             if (val === "" || val === null || val === undefined || val === "-" || String(val).trim() === "") return val;
-            
-            // 🟢 Prevent pure DD-MM-YYYY dates from being converted to NaN/Number
             if (typeof val === 'string' && val.match(/^\d{2}-\d{2}-\d{4}$/)) return val;
 
             let n = Number(val);
@@ -747,7 +761,8 @@
                         rows.forEach(r => { let key = `${r.subcenter}###${r.employee}`; if(!employeeGroups[key]) employeeGroups[key] = []; employeeGroups[key].push(r); });
 
                         Object.keys(employeeGroups).sort().forEach(empKey => {
-                            let [scName, empName] = empKey.split("###"); let subRows = employeeGroups[empKey];
+                            let [scName, empName] = empKey.split("###");
+                            let subRows = employeeGroups[empKey];
 
                             html += `<div style="margin-top:20px; margin-bottom:10px; background:#00705a; color:#ffffff; padding:10px; border-radius:4px; font-weight:bold; font-size:14px;">🏢 उपकेंद्र: ${scName} | 🧑‍⚕️ कर्मचारी: ${empName}</div>`;
 
@@ -1054,7 +1069,8 @@
                             if(c.l1 !== "") {
                                 while(j < columns.length && columns[j].l1 === c.l1) { j++; }
                                 let totalL1Span = 0; for(let k=i; k<j; k++) totalL1Span += (rep.isProg && columns[k].type === 'number') ? 2 : 1;
-                                l1Row += `<th colspan="${totalL1Span}" class="border p-2 bg-purple-100 text-purple-900">${c.l1}</th>`;
+                                r1.push(c.l1); for(let s=1; s<totalL1Span; s++) r1.push("");
+                                merges.push({ s: { r: startR, c: r1.length - totalL1Span }, e: { r: startR, c: r1.length - 1 } });
 
                                 let k = i;
                                 while(k < j) {
@@ -1062,31 +1078,54 @@
                                     if(c2.l2 !== "") {
                                         while(m < j && columns[m].l2 === c2.l2) { m++; }
                                         let totalL2Span = 0; for(let n=k; n<m; n++) totalL2Span += (rep.isProg && columns[n].type === 'number') ? 2 : 1;
-                                        l2Row += `<th colspan="${totalL2Span}" class="border p-2 bg-blue-50 text-blue-900">${c2.l2}</th>`;
+                                        r2.push(c2.l2); for(let s=1; s<totalL2Span; s++) r2.push("");
+                                        merges.push({ s: { r: startR+1, c: r2.length - totalL2Span }, e: { r: startR+1, c: r2.length - 1 } });
+
                                         for(let n=k; n<m; n++) {
-                                            let w = (rep.isProg && columns[n].type === 'number') ? 2 : 1;
-                                            if(w===2) { l3Row += `<th colspan="2" class="border p-2 text-xs">${columns[n].l3}</th>`; l4Row += `<th class="border p-1 bg-yellow-50 text-[10px]">मासिक</th><th class="border p-1 bg-orange-50 text-[10px]">प्रगत</th>`; } 
-                                            else { l3Row += `<th rowspan="${rep.isProg?2:1}" class="border p-2 text-xs">${columns[n].l3}</th>`; }
+                                            let cn = columns[n]; let w = (rep.isProg && cn.type === 'number') ? 2 : 1;
+                                            r3.push(cn.l3);
+                                            if(w === 2) {
+                                                r3.push(""); merges.push({ s: { r: startR+2, c: r3.length - 2 }, e: { r: startR+2, c: r3.length - 1 } });
+                                                r4.push("मासिक"); r4.push("प्रगत");
+                                            } else {
+                                                if(rep.isProg) { merges.push({ s: { r: startR+2, c: r3.length - 1 }, e: { r: startR+3, c: r3.length - 1 } }); r4.push(""); }
+                                            }
                                         }
                                         k = m;
                                     } else {
-                                        let mult2 = (rep.isProg && c2.type === 'number') ? 2 : 1;
-                                        if(mult2 === 2) { l2Row += `<th colspan="2" rowspan="2" class="border p-2 text-xs">${c2.l3}</th>`; l4Row += `<th class="border p-1 bg-yellow-50 text-[10px]">मासिक</th><th class="border p-1 bg-orange-50 text-[10px]">प्रगत</th>`; } 
-                                        else { l2Row += `<th rowspan="${rep.isProg?3:2}" class="border p-2 text-xs">${c2.l3}</th>`; }
+                                        let w = (rep.isProg && c2.type === 'number') ? 2 : 1;
+                                        r2.push(c2.l3);
+                                        if(w === 2) {
+                                            r2.push(""); merges.push({ s: { r: startR+1, c: r2.length - 2 }, e: { r: startR+2, c: r2.length - 1 } }); 
+                                            r3.push(""); r3.push(""); r4.push("मासिक"); r4.push("प्रगत");
+                                        } else {
+                                            if(rep.isProg) { merges.push({ s: { r: startR+1, c: r2.length - 1 }, e: { r: startR+3, c: r2.length - 1 } }); r3.push(""); r4.push(""); } 
+                                            else { merges.push({ s: { r: startR+1, c: r2.length - 1 }, e: { r: startR+2, c: r2.length - 1 } }); r3.push(""); }
+                                        }
                                         k++;
                                     }
                                 }
                                 i = j;
                             } else {
-                                let mult = (rep.isProg && c.type === 'number') ? 2 : 1;
-                                if(mult === 2) { l1Row += `<th colspan="2" rowspan="3" class="border p-2 text-xs">${c.l3}</th>`; l4Row += `<th class="border p-1 bg-yellow-50 text-[10px]">मासिक</th><th class="border p-1 bg-orange-50 text-[10px]">प्रगत</th>`; } 
-                                else { l1Row += `<th rowspan="${rep.isProg?4:3}" class="border p-2 text-xs">${c.l3}</th>`; }
+                                let w = (rep.isProg && c.type === 'number') ? 2 : 1;
+                                r1.push(c.l3);
+                                if(w === 2) {
+                                    r1.push(""); merges.push({ s: { r: startR, c: r1.length - 2 }, e: { r: startR+2, c: r1.length - 1 } }); 
+                                    r2.push(""); r2.push(""); r3.push(""); r3.push(""); r4.push("मासिक"); r4.push("प्रगत");
+                                } else {
+                                    let bottomR = rep.isProg ? startR+3 : startR+2;
+                                    merges.push({ s: { r: startR, c: r1.length - 1 }, e: { r: bottomR, c: r1.length - 1 } });
+                                    r2.push(""); r3.push(""); if(rep.isProg) r4.push("");
+                                }
                                 i++;
                             }
                         }
-                        l1Row += `</tr>`; l2Row += `</tr>`; l3Row += `</tr>`; if(rep.isProg) l4Row += `</tr>`;
 
-                        let tbodyHtml = '';
+                        sheetData.push(r1); subTitleHeaderRows.push(startR);
+                        sheetData.push(r2); subTitleHeaderRows.push(startR + 1);
+                        sheetData.push(r3); subTitleHeaderRows.push(startR + 2);
+                        if(rep.isProg) { sheetData.push(r4); subTitleHeaderRows.push(startR + 3); }
+
                         subRows.forEach((r, rIdx) => {
                             let rowData = [rIdx + 1, r.village];
                             columns.forEach(c => {
@@ -1134,7 +1173,6 @@
                 let ws = XLSX.utils.aoa_to_sheet(sheetData); ws["!merges"] = merges;
                 let finalColLimit = sheetData[3] ? sheetData[3].length : 60;
 
-                // 🟢 100% Date Format Safety for Excel Export
                 for(let R=0; R<sheetData.length; R++) {
                     for(let C=0; C<finalColLimit; C++) { 
                         let cellRef = XLSX.utils.encode_cell({r: R, c: C}); if(!ws[cellRef]) ws[cellRef] = { t: "s", v: "" }; 
@@ -1179,7 +1217,7 @@
                 XLSX.utils.book_append_sheet(wb, ws, rep.formName.substring(0, 30));
             });
 
-            let dlName = `अहवाल_${document.getElementById('periodType').value === 'custom' ? 'Custom' : monthStr}_${yearStr}.xlsx`;
+            let dlName = `अहवाल_${document.getElementById('periodType').value === 'custom' ? 'Custom' : document.getElementById('reportMonth').value}_${document.getElementById('reportYear').value}.xlsx`;
             XLSX.writeFile(wb, dlName);
         }
 
@@ -1193,6 +1231,8 @@
             const selMonth = document.getElementById('reportMonth').value;
             const selMonthNum = monthNamesMarathi[selMonth];
             const selYear = document.getElementById('reportYear').value;
+            let selFortnight = document.getElementById('reportFortnight') ? document.getElementById('reportFortnight').value : "1";
+            
             let selectedIDs = getSelectedReportIDs();
             if (selectedIDs.length === 0) { alert("कृपया किमान एक अहवाल निवडा!"); return; }
 
@@ -1224,7 +1264,14 @@
 
                     let userVillages = masterData.villages.filter(v => v.sub_center_id === u.sub_center_id);
                     userVillages.forEach(v => {
-                        let isFilled = masterData.filledStats.some(h => h.form_id === f.id && h.village_id === v.id && h.report_month === parseInt(selMonthNum) && h.report_year === parseInt(selYear));
+                        let isFortnightly = f.form_type === 'fortnightly';
+                        let isFilled = masterData.filledStats.some(h => 
+                            h.form_id === f.id && 
+                            h.village_id === v.id && 
+                            h.report_month === parseInt(selMonthNum) && 
+                            h.report_year === parseInt(selYear) &&
+                            (!isFortnightly || h.report_fortnight === parseInt(selFortnight))
+                        );
                         if (!isFilled) groupedData[f.form_name].push({ sc: scName, name: u.full_name, role: u.role, village: v.name });
                     });
                 });
