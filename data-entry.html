@@ -12,7 +12,7 @@
 </head>
 <body class="bg-gray-100 p-2 md:p-6 min-h-screen">
 
-    <div class="max-w-7xl mx-auto bg-white p-4 rounded-lg shadow-md flex justify-between items-center mb-6 no-print">
+    <div class="max-w-7xl mx-auto bg-white p-4 rounded-lg shadow-md flex justify-between items-center mb-6 no-print border-t-8 border-indigo-600">
         <div>
             <h1 class="text-xl md:text-2xl font-bold text-indigo-700">📝 नवीन माहिती भरा (Data Entry)</h1>
             <p class="text-xs md:text-sm text-gray-500">तुमच्या सोयीनुसार एक गाव किंवा सर्व गावे निवडा</p>
@@ -20,9 +20,9 @@
         <button onclick="window.location.href='dashboard.html'" class="bg-gray-500 text-white px-3 py-2 rounded hover:bg-gray-600 transition text-sm font-bold shadow">डॅशबोर्ड</button>
     </div>
 
-    <div class="max-w-7xl mx-auto bg-white p-3 md:p-6 rounded-lg shadow-md border-t-4 border-indigo-600">
+    <div class="max-w-7xl mx-auto bg-white p-3 md:p-6 rounded-lg shadow-md">
 
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 md:gap-6 mb-6 pb-6 border-b">
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-4 md:gap-6 mb-6 pb-6 border-b">
             <div>
                 <label class="block text-gray-700 font-bold mb-2 text-sm">अहवाल महिना <span class="text-red-500">*</span></label>
                 <select id="reportMonth" onchange="handleMonthYearChange()" class="w-full p-2.5 border-2 border-gray-300 rounded font-bold text-gray-800 text-base">
@@ -34,19 +34,28 @@
                     <option value="11">नोव्हेंबर</option><option value="12">डिसेंबर</option>
                 </select>
             </div>
+            
             <div>
                 <label class="block text-gray-700 font-bold mb-2 text-sm">अहवाल वर्ष <span class="text-red-500">*</span></label>
                 <input type="number" id="reportYear" onchange="handleMonthYearChange()" class="w-full p-2.5 border-2 border-gray-300 rounded text-base font-mono font-bold" value="2026">
             </div>
 
-            <div>
+            <div id="fortnightDiv" class="hidden">
+                <label class="block text-orange-700 font-bold mb-2 text-sm">पंधरवाडा <span class="text-red-500">*</span></label>
+                <select id="reportFortnight" onchange="handleMonthYearChange()" class="w-full p-2.5 border-2 border-orange-400 rounded bg-orange-50 font-bold text-orange-900 text-base shadow-sm">
+                    <option value="1">१ ते १५ तारीख</option>
+                    <option value="2">१६ ते महिनाअखेर</option>
+                </select>
+            </div>
+
+            <div class="md:col-span-2">
                 <label class="block text-gray-700 font-bold mb-2 text-sm">अहवाल / फॉर्म निवडा <span class="text-red-500">*</span></label>
                 <select id="formSelect" onchange="loadFormSchema()" class="w-full p-2.5 border-2 border-indigo-400 rounded bg-indigo-50 font-extrabold text-indigo-900 shadow-sm text-base">
                     <option value="">-- फॉर्म लोड होत आहेत --</option>
                 </select>
             </div>
 
-            <div>
+            <div class="md:col-span-2">
                 <label class="block text-gray-700 font-bold mb-2 text-sm">गाव / कार्यक्षेत्र निवडा <span class="text-red-500">*</span></label>
                 <select id="villageSelect" onchange="renderFormFields()" class="w-full p-2.5 border-2 border-green-400 rounded bg-green-50 font-extrabold text-green-900 shadow-sm text-base disabled:opacity-50">
                     <option value="">-- आधी फॉर्म निवडा --</option>
@@ -133,7 +142,23 @@
         }
 
         async function fetchVillages() {
-            const { data, error } = await supabaseClient.from('villages').select('*').eq('sub_center_id', loggedInUser.sub_center_id).order('name');
+            let subCenterId = loggedInUser.sub_center_id;
+            if(!subCenterId || subCenterId === '00000000-0000-0000-0000-000000000000') {
+                if(loggedInUser.role === 'बाह्य रुग्ण विभाग सेविका') subCenterId = null; // Fetch from whole PHC if OPD
+            }
+
+            let query = supabaseClient.from('villages').select('*').order('name');
+            
+            if (subCenterId) query = query.eq('sub_center_id', subCenterId);
+            else if(loggedInUser.phc_id) {
+                // Fetch all villages in the PHC
+                const scRes = await supabaseClient.from('sub_centers').select('id').eq('phc_id', loggedInUser.phc_id);
+                if(scRes.data && scRes.data.length > 0) {
+                    query = query.in('sub_center_id', scRes.data.map(s=>s.id));
+                }
+            }
+
+            const { data, error } = await query;
             userVillages = data || [];
         }
 
@@ -157,7 +182,7 @@
 
             const { data, error } = await supabaseClient
                 .from('form_responses')
-                .select('form_id, village_id, employee_id, response_data')
+                .select('form_id, village_id, employee_id, response_data, report_fortnight')
                 .eq('report_month', parseInt(m))
                 .eq('report_year', parseInt(y))
                 .in('village_id', villageIds);
@@ -166,7 +191,7 @@
         }
 
         async function handleMonthYearChange() {
-            document.getElementById('dynamicFieldsContainer').innerHTML = '<p class="text-center text-blue-500 font-bold py-10 text-lg">महिना बदलला आहे, डेटा तपासला जात आहे...</p>';
+            document.getElementById('dynamicFieldsContainer').innerHTML = '<p class="text-center text-blue-500 font-bold py-10 text-lg">महिना/पंधरवाडा बदलला आहे, डेटा तपासला जात आहे...</p>';
             document.getElementById('submitBtn').classList.add('hidden');
             document.getElementById('btnNilReport').classList.add('hidden');
             document.getElementById('btnSaveAndAddMore').classList.add('hidden');
@@ -175,6 +200,11 @@
 
             await fetchMonthResponses();
             updateFormDropdown();
+            
+            // Re-load schema if form is already selected
+            if(document.getElementById('formSelect').value) {
+                loadFormSchema();
+            }
         }
 
         function updateFormDropdown() {
@@ -183,6 +213,9 @@
             fSelect.innerHTML = '<option value="">-- फॉर्म निवडा --</option>';
             allFormsMap = {};
 
+            // 🟢 पंधरवाडा ऑप्शन
+            let fN = parseInt(document.getElementById('reportFortnight').value) || 1;
+
             allowedForms.forEach(form => {
                 let showForm = true;
                 
@@ -190,7 +223,12 @@
                 if (form.form_type !== 'list' && userVillages.length > 0) {
                     let filledCount = 0;
                     userVillages.forEach(v => {
-                        let isFilled = currentMonthResponses.some(r => r.form_id === form.id && r.village_id === v.id && (form.data_entry_mode === 'shared' ? true : r.employee_id === loggedInUser.id));
+                        let isFilled = currentMonthResponses.some(r => 
+                            r.form_id === form.id && 
+                            r.village_id === v.id && 
+                            (form.data_entry_mode === 'shared' ? true : r.employee_id === loggedInUser.id) &&
+                            (form.form_type !== 'fortnightly' || r.report_fortnight === fN) // 🟢 पंधरवाडी चेक
+                        );
                         if (isFilled) filledCount++;
                     });
                     if (filledCount >= userVillages.length) showForm = false; 
@@ -198,7 +236,12 @@
                     // List फॉर्म्ससाठी: सर्व गावांचा "NIL" रिपोर्ट असेल तरच फॉर्म ड्रॉपडाऊन मधून काढा
                     let nilCount = 0;
                     userVillages.forEach(v => {
-                        let isNil = currentMonthResponses.some(r => r.form_id === form.id && r.village_id === v.id && r.response_data && r.response_data.is_nil === true);
+                        let isNil = currentMonthResponses.some(r => 
+                            r.form_id === form.id && 
+                            r.village_id === v.id && 
+                            r.response_data && r.response_data.is_nil === true &&
+                            (form.form_type !== 'fortnightly' || r.report_fortnight === fN)
+                        );
                         if (isNil) nilCount++;
                     });
                     if (nilCount >= userVillages.length) showForm = false;
@@ -207,28 +250,31 @@
                 if (showForm) {
                     allFormsMap[form.id] = form;
                     const opt = document.createElement('option');
-                    opt.value = form.id; opt.text = form.form_name;
+                    opt.value = form.id; 
+                    opt.text = form.form_name + (form.form_type==='fortnightly'?" (पंधरवाडी)":"") + (form.form_type==='list'?" (यादी)":"");
                     fSelect.appendChild(opt);
                 }
             });
 
             if (allFormsMap[currentSelection]) {
                 fSelect.value = currentSelection;
-                loadFormSchema();
+                loadFormSchema(); // Automatically triggers fortnight hide/show
             } else {
                 fSelect.value = "";
                 document.getElementById('villageSelect').innerHTML = '<option value="">-- आधी फॉर्म निवडा --</option>';
                 document.getElementById('villageHint').classList.add('hidden');
+                document.getElementById('fortnightDiv').classList.add('hidden');
                 document.getElementById('dynamicFieldsContainer').innerHTML = '<p class="text-center text-gray-400 font-bold py-10 text-lg">कृपया वरून फॉर्म आणि गाव निवडा.</p>';
             }
         }
 
-        // 🟢 फॉर्म निवडल्यावर गावे फिल्टर करणे (List vs Monthly Logic)
+        // 🟢 फॉर्म निवडल्यावर गावे फिल्टर करणे (Fortnight & List vs Monthly Logic)
         function loadFormSchema() {
             const formId = document.getElementById('formSelect').value;
             const container = document.getElementById('dynamicFieldsContainer');
             const vSelect = document.getElementById('villageSelect');
             const vHint = document.getElementById('villageHint');
+            const fnDiv = document.getElementById('fortnightDiv');
 
             document.getElementById('submitBtn').classList.add('hidden');
             document.getElementById('btnNilReport').classList.add('hidden');
@@ -238,37 +284,45 @@
             if (!formId) {
                 vSelect.innerHTML = '<option value="">-- आधी फॉर्म निवडा --</option>';
                 vHint.classList.add('hidden');
+                fnDiv.classList.add('hidden');
                 return;
             }
 
             currentFormObj = allFormsMap[formId];
             globalPendingVillages = [];
             let hiddenCount = 0;
+            
+            // 🟢 पंधरवाडा ऑप्शन दाखवा किंवा लपवा
+            if (currentFormObj.form_type === 'fortnightly') fnDiv.classList.remove('hidden');
+            else fnDiv.classList.add('hidden');
+
+            let fN = parseInt(document.getElementById('reportFortnight').value) || 1;
 
             userVillages.forEach(v => {
+                let isFilled = false;
+                
                 if (currentFormObj.form_type === 'list') {
-                    // List फॉर्म्ससाठी: फक्त तेव्हाच गाव लपवा जेव्हा "NIL" रिपोर्ट भरलेला असेल.
-                    let isNil = currentMonthResponses.some(r => r.form_id === formId && r.village_id === v.id && r.response_data && r.response_data.is_nil === true);
-                    if (!isNil) {
-                        globalPendingVillages.push(v);
-                    } else {
-                        hiddenCount++;
-                    }
+                    // List फॉर्म्ससाठी NIL चेक
+                    isFilled = currentMonthResponses.some(r => 
+                        r.form_id === formId && r.village_id === v.id && 
+                        r.response_data && r.response_data.is_nil === true
+                    );
                 } else {
-                    // Monthly/Progressive फॉर्म्ससाठी: कोणतीही एन्ट्री असल्यास गाव लपवा.
-                    let isFilled = currentMonthResponses.some(r => r.form_id === formId && r.village_id === v.id && (currentFormObj.data_entry_mode === 'shared' ? true : r.employee_id === loggedInUser.id));
-                    if (!isFilled) {
-                        globalPendingVillages.push(v);
-                    } else {
-                        hiddenCount++;
-                    }
+                    // इतर फॉर्म्ससाठी (Fortnightly / Monthly / Prog)
+                    isFilled = currentMonthResponses.some(r => 
+                        r.form_id === formId && r.village_id === v.id && 
+                        (currentFormObj.data_entry_mode === 'shared' ? true : r.employee_id === loggedInUser.id) &&
+                        (currentFormObj.form_type !== 'fortnightly' || r.report_fortnight === fN)
+                    );
                 }
+
+                if (!isFilled) globalPendingVillages.push(v);
+                else hiddenCount++;
             });
 
             vSelect.innerHTML = '<option value="">-- गाव निवडा --</option>';
 
             if (globalPendingVillages.length > 0) {
-                // "ALL" ऑप्शन फक्त तेव्हाच द्या जेव्हा फॉर्म 'List' प्रकारचा नसेल. 'List' फॉर्म्स गाव-निहाय भरावे लागतात.
                 if (globalPendingVillages.length > 1 && currentFormObj.form_type !== 'list') {
                     vSelect.innerHTML += `<option value="ALL" class="bg-yellow-100 text-yellow-900 font-extrabold">🚀 सर्व गावे (एकत्रित भरा)</option>`;
                 }
@@ -360,10 +414,10 @@
             html += '</tbody></table></div>';
             container.innerHTML = html;
 
-            // 🟢 स्मार्ट बटणे (List vs Monthly)
+            // 🟢 स्मार्ट बटणे (List vs Monthly/Fortnightly)
             submitBtn.classList.remove('hidden');
             
-            if (currentFormObj.form_type === 'list') {
+            if (currentFormObj.form_type === 'list' || currentFormObj.form_type === 'fortnightly') {
                 btnNilReport.classList.remove('hidden');
                 btnSaveAndAddMore.classList.remove('hidden');
                 submitBtn.innerHTML = "💾 सेव्ह करा आणि बाहेर पडा";
@@ -374,20 +428,20 @@
             }
         }
 
-        // 🟢 डेटा सबमिट करणे (NIL आणि Multi-Entry)
+        // 🟢 डेटा सबमिट करणे (Fortnightly Database Insert सह)
         async function submitData(isNilReport, isAddMore) {
             const formId = document.getElementById('formSelect').value;
             const repMonth = document.getElementById('reportMonth').value;
             const repYear = document.getElementById('reportYear').value;
+            const repFortnight = document.getElementById('reportFortnight').value || null;
 
             if (!formId || currentPendingVillages.length === 0) return;
 
-            // HTML5 Form Validation (NIL रिपोर्ट नसल्यास)
             if (!isNilReport) {
                 const formEl = document.getElementById('dynamicDataForm');
                 if (!formEl.checkValidity()) { formEl.reportValidity(); return; }
             } else {
-                if(!confirm("तुम्हाला खात्री आहे की या गावासाठी या महिन्याची माहिती 'निरंक (NIL)' आहे?\n(यानंतर या महिन्यात या गावाची नोंद करता येणार नाही)")) return;
+                if(!confirm("तुम्हाला खात्री आहे की या गावासाठी या कालावधीची माहिती 'निरंक (NIL)' आहे?\n(यानंतर या कालावधीत या गावाची नोंद करता येणार नाही)")) return;
             }
 
             document.getElementById('loaderText').innerText = "डेटा सुरक्षित सेव्ह होत आहे...";
@@ -407,14 +461,21 @@
                     });
                 }
 
-                payloads.push({
+                let pLoad = {
                     form_id: formId,
                     village_id: v.id,
                     employee_id: loggedInUser.id,
                     report_month: parseInt(repMonth),
                     report_year: parseInt(repYear),
                     response_data: responseDataObj
-                });
+                };
+                
+                // 🟢 पंधरवाडी फॉर्म असल्यास फोर्टनाईट सेव्ह करा
+                if (currentFormObj.form_type === 'fortnightly') {
+                    pLoad.report_fortnight = parseInt(repFortnight);
+                }
+
+                payloads.push(pLoad);
             });
 
             try {
@@ -425,20 +486,20 @@
                 if (error) {
                     alert("माहिती सेव्ह करताना त्रुटी आली: " + error.message);
                 } else {
-                    // लोकल ॲरे अपडेट करा
                     currentMonthResponses.push(...payloads);
 
                     if (isNilReport) {
                         alert(`✅ उत्कृष्ट! ${currentPendingVillages.map(v=>v.name).join(', ')} चा निरंक (NIL) अहवाल यशस्वीरीत्या सबमिट झाला!`);
-                        updateFormDropdown(); // निरंक असल्याने गाव यादीतून हटेल
+                        updateFormDropdown(); 
                     } else if (isAddMore) {
                         alert("✅ माहिती सेव्ह झाली! तुम्ही या गावासाठी पुढची नोंद करू शकता.");
                         document.getElementById('dynamicDataForm').reset();
                         window.scrollTo({ top: 0, behavior: 'smooth' });
-                        // गाव हटवायचे नाही कारण हा 'यादी' प्रकारचा फॉर्म आहे
+                        // List/Fortnightly फॉर्ममध्ये 'Add More' असल्यास गाव तसेच राहू द्या
+                        if(currentFormObj.form_type !== 'list') updateFormDropdown(); 
                     } else {
                         alert("✅ माहिती यशस्वीरीत्या सेव्ह झाली!");
-                        window.location.href = "dashboard.html"; // बाहेर पडा
+                        window.location.href = "dashboard.html"; 
                     }
                 }
             } catch (err) {
