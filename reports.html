@@ -134,6 +134,23 @@
         <div id="reportTableContainer"></div>
     </div>
 
+    <!-- 🟢 Edit Modal (Hidden by Default) -->
+    <div id="editModal" class="hidden fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-lg shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col border-t-8 border-blue-600">
+            <div class="p-4 border-b flex justify-between items-center bg-blue-50">
+                <h2 class="text-lg font-bold text-blue-900">✏️ माहिती एडिट करा</h2>
+                <button onclick="closeEditModal()" class="text-red-500 font-bold text-2xl hover:text-red-700">&times;</button>
+            </div>
+            <div class="p-6 overflow-y-auto flex-1 bg-gray-50" id="editModalBody">
+                <!-- Inputs generated here -->
+            </div>
+            <div class="p-4 border-t flex justify-end gap-3 bg-white">
+                <button onclick="closeEditModal()" class="bg-gray-500 text-white px-5 py-2 rounded font-bold shadow">रद्द करा</button>
+                <button onclick="saveEditResponse()" class="bg-green-600 text-white px-5 py-2 rounded font-bold shadow hover:bg-green-700">💾 अपडेट करा</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         const SUPABASE_URL = 'https://qbmjsfiievcautxybaai.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_sdgZ9G8ko4H_3Mh9RouYFg_JOQ-4Mdx'; 
@@ -142,6 +159,7 @@
         let masterData = { forms: [], villages: [], employees: [], filledStats: [], subCenters: [], phcs: [] };
         let currentReports = [];
         let user = { role: 'User', subcenter: 'सर्व', mobile: '', phc_id: null, id: null };
+        let windowDbData = []; // 🟢 To hold raw responses for editing
 
         const monthNamesMarathi = {
             "जानेवारी": 1, "फेब्रुवारी": 2, "मार्च": 3, "एप्रिल": 4, "मे": 5, "जून": 6,
@@ -191,6 +209,16 @@
 
             await loadInitialMasterData();
         };
+
+        // 🟢 10 तारखेपर्यंत लॉक करणारी सिस्टीम (Lock Mechanism)
+        function isEditingAllowed(reportMonth, reportYear) {
+            if (!reportMonth || !reportYear) return false;
+            let today = new Date();
+            // JS Date मध्ये महिने 0 ते 11 असतात. 
+            // पुढचा महिना काढण्यासाठी आपण थेट reportMonth पास करतो (कारण तो 1 ते 12 आहे, जो JS मध्ये पुढचा महिना बनतो)
+            let lockDate = new Date(reportYear, reportMonth, 10, 23, 59, 59); 
+            return today <= lockDate;
+        }
 
         function togglePeriodInputs() {
             let val = document.getElementById('periodType').value;
@@ -290,7 +318,6 @@
             let chkAll = document.getElementById('chkAllReports');
             let textSpan = document.getElementById('multiSelectBtnText');
             
-            // 🟢 जर पंधरवाडी फॉर्म सिलेक्ट केला असेल, तर पंधरवाडा ऑप्शन दाखवा
             let hasFortnightly = false;
             document.querySelectorAll('.report-chk:checked').forEach(chk => {
                 let fObj = masterData.forms.find(f => f.id === chk.value);
@@ -343,7 +370,6 @@
             let formsToProcess = selectedIDs.includes("ALL") ? masterData.forms : masterData.forms.filter(f => selectedIDs.includes(f.id));
             let mixedTypes = new Set(formsToProcess.map(f => f.form_type));
             
-            // 🟢 पंधरवाडी आणि इतर फॉर्म्स एकत्र पाहण्यास मनाई
             if (mixedTypes.has('fortnightly') && (mixedTypes.has('monthly') || mixedTypes.has('progressive') || mixedTypes.has('list'))) {
                 alert("⚠️ पंधरवाडी अहवाल आणि मासिक/प्रगत अहवाल एकत्र पाहता येणार नाहीत. कृपया फक्त 'पंधरवाडी' अहवाल निवडा.");
                 return;
@@ -364,7 +390,6 @@
                 if (selMonthNum < 4) query = query.or(`and(report_year.eq.${parseInt(selYear)}),and(report_year.eq.${parseInt(selYear-1)},report_month.gte.4)`);
                 periodText = `${selMonth} ${selYear}`;
                 
-                // 🟢 जर पंधरवाडी फॉर्म असेल तर क्वेरीमध्ये पंधरवाडा टाका
                 if (mixedTypes.has('fortnightly')) {
                     let fn = document.getElementById('reportFortnight').value;
                     query = query.eq('report_fortnight', parseInt(fn));
@@ -409,6 +434,9 @@
                 const { data: dbData, error } = await query; 
                 document.getElementById('reportLoader').classList.add('hidden');
                 if (error || !dbData || dbData.length === 0) { alert("या कालावधीत किंवा निवडलेल्या फिल्टरमध्ये कोणताही डेटा उपलब्ध नाही."); return; }
+
+                // 🟢 Save Raw DB Data for Edit popup
+                windowDbData = dbData; 
 
                 let finalReports = [];
 
@@ -461,9 +489,19 @@
                         let scName = scObj ? scObj.name : '-';
                         if(user.role !== 'employee' && filterSubCenter !== "सर्व" && scName !== filterSubCenter) return;
 
-                        let row = { month: periodText, year: '', subcenter: scName, village: villageObj?villageObj.name:'-', employee: empObj?empObj.full_name:'-', values: {} };
+                        // 🟢 Added response_id, report_month, report_year for Editing
+                        let row = { 
+                            response_id: res.id,
+                            report_month: res.report_month,
+                            report_year: res.report_year,
+                            month: periodText, 
+                            year: '', 
+                            subcenter: scName, 
+                            village: villageObj?villageObj.name:'-', 
+                            employee: empObj?empObj.full_name:'-', 
+                            values: {} 
+                        };
 
-                        // Pass 1: Raw Inputs
                         validDataFields.forEach(f => {
                             if (!f.formula || String(f.formula).trim() === "") {
                                 let monthlyVal = res.response_data[f.id] ? res.response_data[f.id].value : '';
@@ -487,7 +525,6 @@
                             }
                         });
 
-                        // Pass 2: Formulas
                         validDataFields.forEach(f => {
                             if (f.formula && String(f.formula).trim() !== "") {
                                 let evalRowFormula = (type) => {
@@ -733,8 +770,18 @@
 
                         let tbodyHtml = '';
                         dataRowsToRender.forEach((r, rIdx) => {
+                            // 🟢 Action Button Logic
+                            let actionHtml = '';
+                            if (user.role === 'phc_admin' && r.response_id && isEditingAllowed(r.report_month, r.report_year)) {
+                                actionHtml = `<div class="mt-1 flex gap-1 justify-start no-print">
+                                    <button onclick="openEditModal('${r.response_id}')" class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-[10px] font-bold shadow-sm hover:bg-blue-200">✏️</button>
+                                    <button onclick="deleteResponse('${r.response_id}')" class="bg-red-100 text-red-700 px-2 py-0.5 rounded text-[10px] font-bold shadow-sm hover:bg-red-200">🗑️</button>
+                                </div>`;
+                            }
+
                             tbodyHtml += `<tr class="hover:bg-gray-50 text-xs"><td class="border p-2 text-center font-bold">${rIdx+1}</td><td class="border p-2 font-bold text-gray-800 text-left">${r.subcenter}</td>`;
-                            if(groupType === 'SubCenterFlat') tbodyHtml += `<td class="border p-2 font-bold text-gray-800 text-left">${r.village}</td>`;
+                            if(groupType === 'SubCenterFlat') tbodyHtml += `<td class="border p-2 font-bold text-gray-800 text-left">${r.village} ${actionHtml}</td>`;
+                            
                             columns.forEach(c => {
                                 let val = r.values[c.id];
                                 if(typeof val === 'object' && val !== null) { tbodyHtml += `<td class="border p-2 text-blue-800 text-center font-bold">${val.M}</td><td class="border p-2 font-bold bg-orange-50/30 text-orange-800 text-center">${val.P}</td>`; } 
@@ -809,7 +856,16 @@
 
                             let tbodyHtml = '';
                             subRows.forEach((r, rIdx) => {
-                                tbodyHtml += `<tr class="hover:bg-gray-50 text-xs"><td class="border p-2 text-center font-bold">${rIdx+1}</td><td class="border p-2 font-bold text-gray-800 text-left">${r.village}</td>`;
+                                // 🟢 Action Button Logic
+                                let actionHtml = '';
+                                if (user.role === 'phc_admin' && r.response_id && isEditingAllowed(r.report_month, r.report_year)) {
+                                    actionHtml = `<div class="mt-1 flex gap-1 justify-start no-print">
+                                        <button onclick="openEditModal('${r.response_id}')" class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-[10px] font-bold shadow-sm hover:bg-blue-200">✏️</button>
+                                        <button onclick="deleteResponse('${r.response_id}')" class="bg-red-100 text-red-700 px-2 py-0.5 rounded text-[10px] font-bold shadow-sm hover:bg-red-200">🗑️</button>
+                                    </div>`;
+                                }
+
+                                tbodyHtml += `<tr class="hover:bg-gray-50 text-xs"><td class="border p-2 text-center font-bold">${rIdx+1}</td><td class="border p-2 font-bold text-gray-800 text-left">${r.village} ${actionHtml}</td>`;
                                 columns.forEach(c => {
                                     let val = r.values[c.id];
                                     if(typeof val === 'object' && val !== null) { tbodyHtml += `<td class="border p-2 text-blue-800 text-center font-bold">${val.M}</td><td class="border p-2 font-bold bg-orange-50/30 text-orange-800 text-center">${val.P}</td>`; } 
@@ -847,6 +903,91 @@
                 html += `</div>`;
             });
             container.innerHTML = html;
+        }
+
+        // 🟢 Edit / Delete Functions
+        async function deleteResponse(responseId) {
+            if(!confirm("तुम्हाला खात्री आहे का? हा डेटा कायमचा डिलीट होईल!")) return;
+            document.getElementById('reportLoader').classList.remove('hidden');
+            const { error } = await supabaseClient.from('form_responses').delete().eq('id', responseId);
+            document.getElementById('reportLoader').classList.add('hidden');
+            
+            if(error) alert("डिलीट करताना त्रुटी: " + error.message);
+            else { alert("✅ डेटा डिलीट झाला!"); fetchReportData(); }
+        }
+
+        let currentEditResponseId = null;
+        let currentEditFormId = null;
+
+        function openEditModal(respId) {
+            let response = windowDbData.find(r => r.id === respId);
+            if(!response) return;
+            
+            currentEditResponseId = respId;
+            currentEditFormId = response.form_id;
+            
+            let formObj = masterData.forms.find(f => f.id === response.form_id);
+            if(!formObj) return;
+
+            let allFields = formObj.schema_json.fields.filter(f => f.type !== 'group_header');
+            
+            let html = `<div class="space-y-4">`;
+            allFields.forEach(f => {
+                if(f.formula && String(f.formula).trim() !== "") return; // Disable editing formula results directly
+                
+                let val = "";
+                if(response.response_data && response.response_data[f.id]) {
+                    val = response.response_data[f.id].value;
+                }
+                
+                let chain = getFieldHierarchyChain(formObj.schema_json.fields, f);
+                let fullLabel = chain.join(" > ") + (chain.length > 0 ? " > " : "") + f.label;
+                
+                let inputType = f.type === 'number' ? 'number' : 'text';
+                
+                html += `<div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">${fullLabel}</label>
+                    <input type="${inputType}" id="edit_f_${f.id}" value="${val}" class="w-full p-2 border-2 border-gray-300 rounded font-bold text-blue-900 focus:ring focus:ring-blue-200">
+                </div>`;
+            });
+            html += `</div>`;
+            
+            document.getElementById('editModalBody').innerHTML = html;
+            document.getElementById('editModal').classList.remove('hidden');
+        }
+
+        function closeEditModal() {
+            document.getElementById('editModal').classList.add('hidden');
+            currentEditResponseId = null;
+            currentEditFormId = null;
+        }
+
+        async function saveEditResponse() {
+            if(!currentEditResponseId) return;
+            let response = windowDbData.find(r => r.id === currentEditResponseId);
+            let formObj = masterData.forms.find(f => f.id === currentEditFormId);
+            
+            let allFields = formObj.schema_json.fields.filter(f => f.type !== 'group_header' && (!f.formula || String(f.formula).trim() === ""));
+            
+            let newData = { ...response.response_data };
+            allFields.forEach(f => {
+                let el = document.getElementById(`edit_f_${f.id}`);
+                if(el) {
+                    newData[f.id] = { value: el.value };
+                }
+            });
+            
+            document.getElementById('reportLoader').classList.remove('hidden');
+            closeEditModal();
+            
+            const { error } = await supabaseClient.from('form_responses').update({ response_data: newData }).eq('id', currentEditResponseId);
+            
+            if(error) alert("अपडेट करताना त्रुटी: " + error.message);
+            else {
+                alert("✅ डेटा यशस्वीरीत्या अपडेट झाला!");
+                fetchReportData();
+            }
+            document.getElementById('reportLoader').classList.add('hidden');
         }
 
         function downloadConsolidatedExcel() {
@@ -1015,6 +1156,7 @@
 
                     dataRowsToRender.forEach((r, rIdx) => {
                         let rowData = [rIdx + 1, r.subcenter];
+                        // 🟢 Excel export takes raw village name, ignoring HTML buttons.
                         if(groupType === 'SubCenterFlat') rowData.push(r.village);
                         columns.forEach(c => {
                             let val = r.values[c.id];
