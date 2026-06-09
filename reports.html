@@ -1578,7 +1578,7 @@
             navigator.clipboard.writeText(textToCopy).then(() => { alert("✅ यादी व्हॉट्सॲप मेसेजसाठी कॉपी झाली आहे!"); });
         }
 
-        // 🟢 आकर्षक शासकीय नमुन्यातील नोटीस (अहवाल व गावे एकाच ओळीत)
+        // 🟢 आकर्षक शासकीय नमुन्यातील नोटीस (अहवाल व गावे एकाच ओळीत) - अद्ययावत
         function generateNotice(empName, scName, noticeDataStr) {
             const today = new Date().toLocaleDateString('mr-IN');
             const noticeWindow = window.open('', '_blank', 'width=900,height=800');
@@ -1600,7 +1600,6 @@
                     <style>
                         body { font-family: 'Arial', sans-serif; background: #e9ecef; margin: 0; padding: 20px; color: #222;} 
                         .notice-wrapper { background: #fff; padding: 40px 50px; max-width: 800px; margin: auto; border: 4px double #111; outline: 1px solid #111; outline-offset: 4px; box-shadow: 0px 5px 15px rgba(0,0,0,0.3); position: relative; }
-                        .emblem { text-align: center; color: #d32f2f; font-weight: bold; font-size: 16px; margin-bottom: 10px; letter-spacing: 2px;}
                         .title-block { text-align: center; border-bottom: 2px solid #222; padding-bottom: 15px; margin-bottom: 25px; }
                         .title { font-weight: 900; font-size: 26px; color: #000; margin-bottom: 5px; }
                         .subtitle { font-size: 18px; font-weight: bold; color: #333; }
@@ -1611,7 +1610,8 @@
                         .content p { text-indent: 50px; margin-bottom: 8px; }
                         .forms-box { margin: 15px 0 15px 40px; padding: 15px 15px 15px 10px; border: 1px solid #ccc; background-color: #fafafa; border-radius: 5px; box-shadow: inset 0 0 5px rgba(0,0,0,0.05);}
                         .forms-box ul { margin: 0; padding-left: 20px; list-style-type: decimal; }
-                        .sign-block { text-align: right; margin-top: 40px; font-weight: bold; font-size: 16px; line-height: 1.5; }
+                        .sign-block { text-align: right; margin-top: 30px; font-weight: bold; font-size: 16px; line-height: 1.5; }
+                        .copy-to { margin-top: 40px; font-size: 15px; font-weight: bold; line-height: 1.6; }
                         
                         @media print { 
                             body { background: #fff; padding: 0; }
@@ -1622,7 +1622,7 @@
                 </head>
                 <body>
                     <div class="notice-wrapper">
-                             <div class="title-block">
+                        <div class="title-block">
                             <div class="title">महाराष्ट्र शासन</div>
                             <div class="subtitle">कार्यालय: वैद्यकीय अधिकारी, प्राथमिक आरोग्य केंद्र, भादा</div>
                             <div style="font-size: 15px; margin-top: 5px; color: #555;">ता. औसा जि. लातूर</div>
@@ -1643,7 +1643,8 @@
                         <div class="subject-box">
                             <span style="text-decoration: underline;">विषय:</span> प्रलंबित अहवाल विहित वेळेत सादर न केल्याबाबत <strong>कारणे दाखवा नोटीस</strong>.
                         </div>
-                                                <div class="content">
+                        
+                        <div class="content">
                             <p>उपरोक्त विषयान्वये आपणास या नोटीसीद्वारे कळविण्यात येते की, आपल्या कार्यक्षेत्रातील खालील अत्यंत महत्त्वाच्या कार्यक्रमांचे अहवाल आपण अद्यापपर्यंत कार्यालयास सादर केलेले नाहीत.</p>
                         </div>
                         
@@ -1662,7 +1663,17 @@
                         </div>
                         
                         <div class="sign-block">
-                            
+                            <strong>वैद्यकीय अधिकारी</strong>,<br>
+                            प्राथमिक आरोग्य केंद्र, भादा
+                        </div>
+                        
+                        <div class="copy-to">
+                            प्रत माहितीस्तव सविनय सादर,<br>
+                            १. मा. जिल्हा आरोग्य अधिकारी, जिल्हा परिषद, लातूर.<br>
+                            २. मा. तालुका आरोग्य अधिकारी, तालुका कार्यालय, औसा.
+                        </div>
+                        
+                        <div class="sign-block" style="margin-top: 20px;">
                             <strong>वैद्यकीय अधिकारी</strong>,<br>
                             प्राथमिक आरोग्य केंद्र, भादा
                         </div>
