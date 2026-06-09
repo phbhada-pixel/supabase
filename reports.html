@@ -1578,7 +1578,7 @@
             navigator.clipboard.writeText(textToCopy).then(() => { alert("✅ यादी व्हॉट्सॲप मेसेजसाठी कॉपी झाली आहे!"); });
         }
 
-        // 🟢 आकर्षक शासकीय नमुन्यातील नोटीस (अहवाल व गावे एकाच ओळीत) - अद्ययावत
+               // 🟢 आकर्षक शासकीय नमुन्यातील नोटीस (डायरेक्ट PDF डाऊनलोड सुविधेसह)
         function generateNotice(empName, scName, noticeDataStr) {
             const today = new Date().toLocaleDateString('mr-IN');
             const noticeWindow = window.open('', '_blank', 'width=900,height=800');
@@ -1597,9 +1597,10 @@
                 <html lang="mr">
                 <head>
                     <title>कारणे दाखवा नोटीस - ${empName}</title>
+                    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"><\/script>
                     <style>
                         body { font-family: 'Arial', sans-serif; background: #e9ecef; margin: 0; padding: 20px; color: #222;} 
-                        .notice-wrapper { background: #fff; padding: 40px 50px; max-width: 800px; margin: auto; border: 4px double #111; outline: 1px solid #111; outline-offset: 4px; box-shadow: 0px 5px 15px rgba(0,0,0,0.3); position: relative; }
+                        .notice-wrapper { background: #fff; padding: 30px 40px; max-width: 210mm; min-height: 297mm; margin: auto; border: 4px double #111; outline: 1px solid #111; outline-offset: 4px; box-sizing: border-box; position: relative; }
                         .title-block { text-align: center; border-bottom: 2px solid #222; padding-bottom: 15px; margin-bottom: 25px; }
                         .title { font-weight: 900; font-size: 26px; color: #000; margin-bottom: 5px; }
                         .subtitle { font-size: 18px; font-weight: bold; color: #333; }
@@ -1615,13 +1616,13 @@
                         
                         @media print { 
                             body { background: #fff; padding: 0; }
-                            .notice-wrapper { box-shadow: none; border: 3px double #000; outline: none; margin: 0; padding: 30px;}
+                            .notice-wrapper { border: 3px double #000; outline: none; margin: 0; padding: 20px; min-height: auto;}
                             .no-print { display: none; } 
                         }
                     </style>
                 </head>
                 <body>
-                    <div class="notice-wrapper">
+                    <div id="noticeContent" class="notice-wrapper">
                         <div class="title-block">
                             <div class="title">महाराष्ट्र शासन</div>
                             <div class="subtitle">कार्यालय: वैद्यकीय अधिकारी, प्राथमिक आरोग्य केंद्र, भादा</div>
@@ -1679,9 +1680,27 @@
                         </div>
                     </div>
 
-                    <div style="text-align: center; margin-top: 30px;" class="no-print">
-                        <button onclick="window.print()" style="padding: 12px 30px; background-color: #28a745; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 18px; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.2);">🖨️ नोटीस प्रिंट करा</button>
+                    <div style="text-align: center; margin-top: 30px; display: flex; justify-content: center; gap: 15px;" class="no-print">
+                        <button onclick="window.print()" style="padding: 12px 25px; background-color: #007bff; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.2);">🖨️ डायरेक्ट प्रिंट काढा</button>
+                        <button onclick="downloadPDF()" style="padding: 12px 25px; background-color: #dc3545; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.2);">📥 A4 PDF डाऊनलोड करा</button>
                     </div>
+
+                    <script>
+                        function downloadPDF() {
+                            const element = document.getElementById('noticeContent');
+                            const empFileName = '${empName}'.replace(/\\s+/g, '_'); // नावात स्पेस असल्यास _ टाकणे
+                            
+                            const opt = {
+                                margin:       [10, 10, 10, 10], // टॉप, लेफ्ट, बॉटम, राईट मार्जिन
+                                filename:     'कारणे_दाखवा_नोटीस_' + empFileName + '.pdf',
+                                image:        { type: 'jpeg', quality: 0.98 },
+                                html2canvas:  { scale: 2, useCORS: true },
+                                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                            };
+                            
+                            html2pdf().set(opt).from(element).save();
+                        }
+                    <\/script>
                 </body>
                 </html>
             `);
