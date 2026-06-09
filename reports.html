@@ -140,7 +140,8 @@
                 <h2 class="text-lg font-bold text-blue-900">✏️ माहिती एडिट करा</h2>
                 <button onclick="closeEditModal()" class="text-red-500 font-bold text-2xl hover:text-red-700">&times;</button>
             </div>
-            <div class="p-6 overflow-y-auto flex-1 bg-gray-50" id="editModalBody"></div>
+            <div class="p-6 overflow-y-auto flex-1 bg-gray-50" id="editModalBody">
+            </div>
             <div class="p-4 border-t flex justify-end gap-3 bg-white">
                 <button onclick="closeEditModal()" class="bg-gray-500 text-white px-5 py-2 rounded font-bold shadow">रद्द करा</button>
                 <button onclick="saveEditResponse()" class="bg-green-600 text-white px-5 py-2 rounded font-bold shadow hover:bg-green-700">💾 अपडेट करा</button>
@@ -247,28 +248,6 @@
             return isNaN(simpleNum) ? null : simpleNum;
         }
 
-        // 🟢 अनलिमिटेड डेटा फेचर (Pagination Helper) - By-pass 1000 limit
-        async function fetchAllSupabaseData(baseQuery) {
-            let allData = [];
-            let page = 0;
-            const pageSize = 1000;
-            let hasMore = true;
-
-            while(hasMore) {
-                const { data, error } = await baseQuery.range(page * pageSize, (page + 1) * pageSize - 1);
-                if (error) throw error;
-                
-                if (data && data.length > 0) {
-                    allData.push(...data);
-                    page++;
-                    if (data.length < pageSize) hasMore = false;
-                } else {
-                    hasMore = false;
-                }
-            }
-            return allData;
-        }
-
         function togglePeriodInputs() {
             let val = document.getElementById('periodType').value;
             if (val === 'custom') {
@@ -284,34 +263,38 @@
             document.getElementById('reportLoader').classList.remove('hidden');
 
             try {
-                // 🟢 स्मार्ट डेटा कॅशिंग
-                let cachedData = sessionStorage.getItem('phcMasterData');
-                if (cachedData) {
-                    masterData = JSON.parse(cachedData);
-                } else {
-                    const { data: pData } = await supabaseClient.from('phcs').select('*');
-                    masterData.phcs = pData || [];
+                const { data: pData } = await supabaseClient.from('phcs').select('*');
+                masterData.phcs = pData || [];
 
-                    const { data: scData } = await supabaseClient.from('sub_centers').select('*').order('name');
-                    masterData.subCenters = scData || [];
-
-                    const { data: vData } = await supabaseClient.from('villages').select('*').order('name');
-                    masterData.villages = vData || [];
-
-                    const { data: empData } = await supabaseClient.from('employees').select('*').order('full_name');
-                    masterData.employees = empData || [];
-
-                    const { data: formData } = await supabaseClient.from('dynamic_forms').select('*').eq('is_active', true);
-                    masterData.forms = formData || [];
-
-                    sessionStorage.setItem('phcMasterData', JSON.stringify(masterData));
+                let scQuery = supabaseClient.from('sub_centers').select('*').order('name');
+                if (user.role === 'phc_admin' && user.phc_id) {
+                    scQuery = scQuery.eq('phc_id', user.phc_id);
                 }
+                const { data: scData } = await scQuery;
+                masterData.subCenters = scData || [];
 
                 let scFilter = document.getElementById('reportSubCenterFilter');
                 scFilter.innerHTML = '<option value="सर्व">सर्व उपकेंद्र (All Sub-centers)</option>';
                 masterData.subCenters.forEach(sc => { 
                     scFilter.innerHTML += `<option value="${sc.name}">${sc.name}</option>`; 
                 });
+
+                let vQuery = supabaseClient.from('villages').select('*').order('name');
+                if (user.role === 'phc_admin') {
+                    let scIds = masterData.subCenters.map(s => s.id);
+                    if (scIds.length > 0) vQuery = vQuery.in('sub_center_id', scIds);
+                    else vQuery = vQuery.eq('sub_center_id', '00000000-0000-0000-0000-000000000000');
+                }
+                const { data: vData } = await vQuery;
+                masterData.villages = vData || [];
+
+                let eQuery = supabaseClient.from('employees').select('*').order('full_name');
+                if (user.role === 'phc_admin' && user.phc_id) eQuery = eQuery.eq('phc_id', user.phc_id);
+                const { data: empData } = await eQuery;
+                masterData.employees = empData || [];
+
+                const { data: formData } = await supabaseClient.from('dynamic_forms').select('*').eq('is_active', true);
+                masterData.forms = formData || [];
 
                 let select = document.getElementById('reportFormSelect');
                 let optionsDiv = document.getElementById('multiSelectOptions');
@@ -330,9 +313,8 @@
                     optionsDiv.appendChild(div);
                 });
 
-                // Fetching form_responses for filledStats bypasses pagination intentionally if just checking stats, but better to use fetchAllSupabaseData if huge
-                let statsQuery = supabaseClient.from('form_responses').select('form_id, village_id, report_month, report_year, report_fortnight');
-                masterData.filledStats = await fetchAllSupabaseData(statsQuery);
+                const { data: respData } = await supabaseClient.from('form_responses').select('form_id, village_id, report_month, report_year, report_fortnight');
+                masterData.filledStats = respData || [];
 
                 document.getElementById('chkAllReports').checked = true;
                 updateMultiSelectText();
@@ -412,11 +394,9 @@
         }
 
         async function fetchReportData() {
-            // 🟢 जुना डेटा मेमरीमधून पूर्णपणे काढून टाकणे
             windowDbData = []; 
             currentReports = [];
-            document.getElementById('reportTableContainer').innerHTML = "";
-
+            
             let selectedIDs = getSelectedReportIDs(); if(selectedIDs.length === 0) { alert("कृपया किमान एक अहवाल निवडा!"); return; }
 
             let formsToProcess = selectedIDs.includes("ALL") ? masterData.forms : masterData.forms.filter(f => selectedIDs.includes(f.id));
@@ -478,23 +458,21 @@
 
             document.getElementById('reportLoader').classList.remove('hidden'); 
             document.getElementById('reportContentArea').classList.add('hidden'); 
+            document.getElementById('reportTableContainer').innerHTML = "";
 
             try {
                 if(!selectedIDs.includes("ALL")) query = query.in('form_id', formsToProcess.map(f=>f.id));
 
-                // 🟢 Pagination वापरून सर्व डेटा एकत्र फेच करा
-                const dbData = await fetchAllSupabaseData(query); 
+                const { data: dbData, error } = await query; 
                 document.getElementById('reportLoader').classList.add('hidden');
-                
-                if (!dbData || dbData.length === 0) { alert("या कालावधीत किंवा निवडलेल्या फिल्टरमध्ये कोणताही डेटा उपलब्ध नाही."); return; }
+                if (error || !dbData || dbData.length === 0) { alert("या कालावधीत किंवा निवडलेल्या फिल्टरमध्ये कोणताही डेटा उपलब्ध नाही."); return; }
 
                 windowDbData = dbData; 
+
                 let finalReports = [];
 
                 formsToProcess.forEach(formObj => {
-                    let formResp = dbData.filter(r => r.form_id === formObj.id); 
-                    if(formResp.length === 0) return;
-
+                    let formResp = dbData.filter(r => r.form_id === formObj.id); if(formResp.length === 0) return;
                     const allFields = formObj.schema_json.fields;
                     const validDataFields = allFields.filter(f => f.type !== 'group_header');
                     const isProgressive = formObj.form_type === 'progressive';
@@ -570,7 +548,6 @@
                                 if (isProgressive && f.type === 'number') {
                                     let sumProg = 0;
                                     getProgressiveMonthsList(selMonthNum, selYear).forEach(p => {
-                                        // 🟢 Employee-wise Progressive Check
                                         let pastRes = formResp.find(r => 
                                             r.village_id === res.village_id && 
                                             r.employee_id === res.employee_id && 
@@ -833,7 +810,6 @@
 
                         let tbodyHtml = '';
                         dataRowsToRender.forEach((r, rIdx) => {
-                            // 🟢 Action Button Logic with 10th Date Check
                             let actionHtml = '';
                             if (user.role === 'phc_admin' && r.response_id && isEditingAllowed(r.report_month, r.report_year)) {
                                 actionHtml = `<div class="mt-1 flex gap-1 justify-start no-print">
@@ -919,7 +895,6 @@
 
                             let tbodyHtml = '';
                             subRows.forEach((r, rIdx) => {
-                                // 🟢 Action Button Logic with 10th Date Check
                                 let actionHtml = '';
                                 if (user.role === 'phc_admin' && r.response_id && isEditingAllowed(r.report_month, r.report_year)) {
                                     actionHtml = `<div class="mt-1 flex gap-1 justify-start no-print">
@@ -968,7 +943,6 @@
             container.innerHTML = html;
         }
 
-        // 🟢 Edit / Delete Functions
         async function deleteResponse(responseId) {
             if(!confirm("तुम्हाला खात्री आहे का? हा डेटा कायमचा डिलीट होईल!")) return;
             document.getElementById('reportLoader').classList.remove('hidden');
@@ -1448,7 +1422,7 @@
             XLSX.writeFile(wb, dlName);
         }
 
-        // 🟢 Generate Pending Report (With Notice Logic)
+        // 🟢 सुधारित: कर्मचारी निहाय अपूर्ण यादी
         function generatePendingReport() {
             let periodType = document.getElementById('periodType').value;
             if (periodType === 'custom') {
@@ -1464,18 +1438,14 @@
             let selectedIDs = getSelectedReportIDs();
             if (selectedIDs.length === 0) { alert("कृपया किमान एक अहवाल निवडा!"); return; }
 
-            let groupedData = {}; 
-            let employeePendingMap = {}; // 🟢 कर्मचाऱ्याचे सर्व फॉर्म्स साठवण्यासाठी
+            let employeePendingMap = {}; // 🟢 कर्मचारी निहाय डेटा साठवण्यासाठी मॅप
             let filterSubCenter = document.getElementById('reportSubCenterFilter').value;
             let formsToCheck = masterData.forms;
             if(!selectedIDs.includes("ALL")) formsToCheck = formsToCheck.filter(f => selectedIDs.includes(f.id));
 
             formsToCheck.forEach(f => {
-                groupedData[f.form_name] = [];
                 masterData.employees.forEach(u => {
-
                     let empRole = String(u.role).toUpperCase().trim();
-
                     if (['ADMIN', 'TALUKA_ADMIN', 'PHC_ADMIN'].includes(empRole)) return;
                     if (!u.sub_center_id || u.sub_center_id === '00000000-0000-0000-0000-000000000000') return;
 
@@ -1491,6 +1461,8 @@
                     let scName = scObj ? scObj.name : "Unknown";
                     if (user.role !== 'employee' && filterSubCenter !== "सर्व" && scName !== filterSubCenter) return;
 
+                    let empKey = u.full_name + "###" + scName;
+
                     let userVillages = masterData.villages.filter(v => v.sub_center_id === u.sub_center_id);
                     userVillages.forEach(v => {
                         let isFortnightly = f.form_type === 'fortnightly';
@@ -1501,85 +1473,110 @@
                             h.report_year === parseInt(selYear) &&
                             (!isFortnightly || h.report_fortnight === parseInt(selFortnight))
                         );
+                        
                         if (!isFilled) {
-                            groupedData[f.form_name].push({ sc: scName, name: u.full_name, role: u.role, village: v.name });
-                            
-                            // 🟢 कर्मचाऱ्याच्या नावाने अपूर्ण फॉर्म्सची यादी बनवणे
-                            let empKey = u.full_name + "###" + scName;
-                            if (!employeePendingMap[empKey]) employeePendingMap[empKey] = new Set();
-                            employeePendingMap[empKey].add(f.form_name);
+                            if (!employeePendingMap[empKey]) {
+                                employeePendingMap[empKey] = {
+                                    empName: u.full_name,
+                                    scName: scName,
+                                    pendingItems: []
+                                };
+                            }
+                            employeePendingMap[empKey].pendingItems.push({
+                                formName: f.form_name,
+                                villageName: f.form_type === 'subcenter' ? "🏢 संपूर्ण उपकेंद्र" : v.name
+                            });
                         }
                     });
                 });
             });
 
-            let container = document.getElementById('reportTableContainer'); let downArea = document.getElementById('downloadButtonsArea');
-            downArea.innerHTML = `<div class="no-print flex justify-end gap-2 mb-3"><button onclick="copyPendingListText()" class="bg-gray-600 text-white px-4 py-2 rounded text-xs font-bold shadow">📋 यादी कॉपी करा</button><button onclick="window.print()" class="bg-red-600 text-white px-4 py-2 rounded text-xs font-bold shadow">📥 PDF प्रिंट करा</button></div>`;
+            let container = document.getElementById('reportTableContainer'); 
+            let downArea = document.getElementById('downloadButtonsArea');
+            downArea.innerHTML = `<div class="no-print flex justify-end gap-2 mb-3"><button onclick="copyPendingListText()" class="bg-gray-600 text-white px-4 py-2 rounded text-xs font-bold shadow hover:bg-gray-700">📋 यादी कॉपी करा</button><button onclick="window.print()" class="bg-red-600 text-white px-4 py-2 rounded text-xs font-bold shadow hover:bg-red-700">📥 PDF प्रिंट करा</button></div>`;
 
             let phcHeader = "तालुका आरोग्य प्रणाली";
             if (user.role === 'phc_admin') phcHeader = "तुमची अपूर्ण यादी";
             if (filterSubCenter !== 'सर्व') phcHeader += ` (उपकेंद्र: ${filterSubCenter})`;
 
-            let html = `<div id="pdfExportArea" class="pdf-container"><div style="text-align:center; border-bottom: 2px solid var(--primary); padding-bottom:10px; margin-bottom:20px;"><h2 style="margin:0; color:var(--primary); font-size:24px;">${phcHeader}</h2><h3 style="margin:5px 0 0 0; color:#444; font-size:18px;">अपूर्ण अहवाल यादी - कालावधी: ${selMonth} ${selYear}</h3></div>`;
-            let hasData = false; let isFirstPending = true;
-
-            for(let fName in groupedData) {
-                if(groupedData[fName].length > 0) {
-                    hasData = true; let pbClass = isFirstPending ? "" : "page-break"; isFirstPending = false;
-                    html += `<div class="${pbClass}"><div class="pdf-group-header" style="background:#f8f9fa; color:#c0392b; padding:10px; font-weight:bold; font-size:16px; margin-top:10px; border:1px solid #ddd;">📄 फॉर्म: ${fName}</div><table class="report-table pending-data-table" style="width:100%; border-collapse:collapse; margin-bottom:30px;"><thead style="background:#f4f7f6;"><tr><th style="border: 1px solid #ccc; padding: 8px; width:10%; text-align:center;">अ.क्र.</th><th style="border: 1px solid #ccc; padding: 8px; text-align:left;">अहवाल प्रलंबित असणारे कर्मचारी (उपकेंद्र) - अपूर्ण गावे</th></tr></thead><tbody>`;
-                    let empMap = {}; 
-                    groupedData[fName].forEach(p => { 
-                        let key = p.name + "###" + p.sc; 
-                        if(!empMap[key]) empMap[key] = []; 
-                        empMap[key].push(p.village); 
-                    });
+            let html = `<div id="pdfExportArea" class="pdf-container"><div style="text-align:center; border-bottom: 2px solid var(--primary); padding-bottom:10px; margin-bottom:20px;"><h2 style="margin:0; color:var(--primary); font-size:24px;">${phcHeader}</h2><h3 style="margin:5px 0 0 0; color:#444; font-size:18px;">कर्मचारी निहाय अपूर्ण अहवाल यादी - कालावधी: ${selMonth} ${selYear}</h3></div>`;
+            
+            let employeeKeys = Object.keys(employeePendingMap).sort();
+            
+            if (employeeKeys.length > 0) {
+                html += `<table class="report-table pending-data-table" style="width:100%; border-collapse:collapse; margin-bottom:30px;">
+                            <thead style="background:#f4f7f6;">
+                                <tr>
+                                    <th style="border: 1px solid #ccc; padding: 10px; width:8%; text-align:center;">अ.क्र.</th>
+                                    <th style="border: 1px solid #ccc; padding: 10px; text-align:left; width:27%;">कर्मचारी व उपकेंद्र</th>
+                                    <th style="border: 1px solid #ccc; padding: 10px; text-align:left; width:50%;">प्रलंबित अहवाल व गावे</th>
+                                    <th style="border: 1px solid #ccc; padding: 10px; text-align:center; width:15%;" class="no-print">कृती</th>
+                                </tr>
+                            </thead>
+                            <tbody>`;
+                
+                employeeKeys.forEach((key, idx) => {
+                    let empData = employeePendingMap[key];
                     
-                    let sortedKeys = Object.keys(empMap).sort();
-                    sortedKeys.forEach((key, idx) => {
-                        let [empName, scName] = key.split("###"); 
-                        let villagesStr = empMap[key].join(", ");
+                    // अहवाल आणि गावे यांची यादी HTML फॉरमॅटमध्ये
+                    let pendingItemsHTML = empData.pendingItems.map(item => `<li style="margin-bottom:4px;"><span style="font-weight:bold; color:#c0392b;">${item.formName}</span> <span style="font-size:12px; color:#00705a; font-weight:bold;">(गाव: ${item.villageName})</span></li>`).join('');
+                    
+                    // नोटीस फंक्शनला पास करण्यासाठी सुरक्षित स्ट्रिंग
+                    let noticeDataStr = empData.pendingItems.map(item => `${item.formName} (गाव: ${item.villageName})`).join('|||');
+                    let safeNoticeDataStr = noticeDataStr.replace(/'/g, "\\'").replace(/"/g, "&quot;");
 
-                        // 🟢 सर्व अपूर्ण फॉर्म्सची यादी स्ट्रिंगमध्ये तयार करणे
-                        let allPendingForms = Array.from(employeePendingMap[key]).join(",");
-                        let safeForms = allPendingForms.replace(/'/g, "\\'"); // सुरक्षितपणे पास करण्यासाठी
-
-                        html += `<tr>
-                            <td style="border: 1px solid #ccc; padding: 8px; text-align:center; font-weight:bold;">${idx+1}</td>
-                            <td style="border: 1px solid #ccc; padding: 8px; text-align:left; font-size:15px;">
-                                <span style="color:#0056b3; font-weight:bold;">${empName}</span> - 
-                                <span style="color:#d35400; font-weight:bold;">${scName}</span> 
-                                <span style="color:#28a745; font-weight:bold;">(${villagesStr})</span>
-                                <button onclick="generateNotice('${empName}', '${scName}', '${safeForms}')" class="no-print bg-red-500 text-white px-2 py-1 ml-3 rounded text-[11px] font-bold shadow hover:bg-red-600 transition">✉️ एकत्रित नोटीस</button>
-                            </td>
-                        </tr>`;
-                    });
-                    html += `</tbody></table></div>`;
-                }
+                    html += `<tr class="hover:bg-gray-50">
+                        <td style="border: 1px solid #ccc; padding: 10px; text-align:center; font-weight:bold; vertical-align: top;">${idx+1}</td>
+                        <td style="border: 1px solid #ccc; padding: 10px; text-align:left; vertical-align: top;">
+                            <div style="color:#0056b3; font-weight:bold; font-size:15px; margin-bottom:4px;">🧑‍⚕️ ${empData.empName}</div>
+                            <div style="color:#d35400; font-weight:bold; font-size:12px;">🏥 उपकेंद्र: ${empData.scName}</div>
+                        </td>
+                        <td style="border: 1px solid #ccc; padding: 10px; text-align:left; vertical-align: top;">
+                            <ul style="margin:0; padding-left:18px; font-size:13px;">${pendingItemsHTML}</ul>
+                        </td>
+                        <td style="border: 1px solid #ccc; padding: 10px; text-align:center; vertical-align: middle;" class="no-print">
+                            <button onclick="generateNotice('${empData.empName}', '${empData.scName}', '${safeNoticeDataStr}')" class="bg-red-500 text-white px-3 py-2 rounded text-xs font-bold shadow hover:bg-red-600 transition">✉️ नोटीस काढा</button>
+                        </td>
+                    </tr>`;
+                });
+                html += `</tbody></table>`;
+            } else {
+                html += `<h3 style="text-align:center; color:green; padding:30px; font-weight:bold;">🎉 उत्कृष्ट! तुमचे सर्व अहवाल पूर्ण भरले आहेत.</h3>`; 
+                downArea.innerHTML = "";
             }
-            if(!hasData) { html = `<h3 style="text-align:center; color:green; padding:30px; font-weight:bold;">🎉 उत्कृष्ट! तुमचे सर्व अहवाल पूर्ण भरले आहेत.</h3>`; downArea.innerHTML = ""; }
-            container.innerHTML = html + `</div>`; document.getElementById('reportContentArea').classList.remove('hidden');
+            
+            container.innerHTML = html + `</div>`; 
+            document.getElementById('reportContentArea').classList.remove('hidden');
         }
 
+        // 🟢 व्हॉट्सॲप मेसेजसाठी यादी कॉपी करणे
         function copyPendingListText() {
-            let textToCopy = `*अपूर्ण अहवाल यादी*\n\n`;
-            let tables = document.querySelectorAll('.pending-data-table'); if(tables.length === 0) return;
-            let formHeaders = document.querySelectorAll('.pdf-group-header');
-            tables.forEach((table, tableIndex) => {
-                let formName = formHeaders[tableIndex] ? formHeaders[tableIndex].innerText.replace('📄 फॉर्म: ', '').trim() : "अहवाल";
-                textToCopy += `📌 *${formName}*\n`;
-                table.querySelectorAll('tbody tr').forEach((row, rowIndex) => { let cells = row.querySelectorAll('td'); if(cells.length >= 2) textToCopy += `${rowIndex + 1}. ${cells[1].innerText.replace(/\n/g, " ").trim()}\n`; });
-                textToCopy += `\n`;
+            let textToCopy = `*कर्मचारी निहाय अपूर्ण अहवाल यादी*\n\n`;
+            let table = document.querySelector('.pending-data-table'); 
+            if(!table) return;
+
+            table.querySelectorAll('tbody tr').forEach((row, rowIndex) => { 
+                let cells = row.querySelectorAll('td'); 
+                if(cells.length >= 3) {
+                    let empText = cells[1].innerText.replace(/\n/g, " | ").trim();
+                    // <li> मधील डेटा स्वल्पविरामाने जोडून घेणे
+                    let itemsList = Array.from(cells[2].querySelectorAll('li')).map(li => "🔸 " + li.innerText.trim());
+                    let pendingText = itemsList.join('\n   ');
+                    
+                    textToCopy += `*${rowIndex + 1}. ${empText}*\n   ${pendingText}\n\n`; 
+                }
             });
             navigator.clipboard.writeText(textToCopy).then(() => { alert("✅ यादी व्हॉट्सॲप मेसेजसाठी कॉपी झाली आहे!"); });
         }
 
-        // 🟢 एकत्रित कारणे दाखवा नोटीस जनरेट करणारे फंक्शन
-        function generateNotice(empName, scName, formsList) {
+        // 🟢 सुधारित: अहवाल आणि गाव दोन्ही असणारी कारणे दाखवा नोटीस
+        function generateNotice(empName, scName, noticeDataStr) {
             const today = new Date().toLocaleDateString('mr-IN');
             const noticeWindow = window.open('', '_blank', 'width=800,height=800');
             
-            // 🟢 फॉर्म्सची लिस्ट HTML फॉरमॅट मध्ये तयार करणे
-            let formsHtml = formsList.split(',').map((f, i) => `${i+1}. ${f.trim()}`).join('<br>');
+            // 🟢 फॉर्म्स आणि गावांची लिस्ट HTML फॉरमॅट मध्ये तयार करणे
+            let pendingItems = noticeDataStr.split('|||');
+            let formsHtml = pendingItems.map((item, i) => `${i+1}. ${item.trim()}`).join('<br>');
 
             noticeWindow.document.write(`
                 <html lang="mr">
@@ -1594,7 +1591,7 @@
                         .to-address { margin-bottom: 30px; font-weight: bold; }
                         .subject { font-weight: bold; text-decoration: underline; margin-bottom: 20px; padding-left: 50px;}
                         .content { text-align: justify; text-indent: 50px; }
-                        .forms-box { margin: 15px 0 15px 50px; padding: 15px; border: 1px solid #000; background-color: #f9f9f9; font-weight: bold; display: inline-block; min-width: 60%; line-height: 2; }
+                        .forms-box { margin: 15px 0 15px 50px; padding: 15px; border: 1px solid #000; background-color: #f9f9f9; font-weight: bold; display: inline-block; min-width: 60%; line-height: 2; font-size: 14px;}
                         .sign-block { text-align: right; margin-top: 60px; font-weight: bold; }
                         @media print { .no-print { display: none; } }
                     </style>
@@ -1619,7 +1616,7 @@
                     </div>
                     
                     <div class="subject">
-                        विषय: प्रलंबित अहवाल विहित वेळेत सादर न केल्याबाबत एकत्रित कारणे दाखवा नोटीस.
+                        विषय: प्रलंबित अहवाल विहित वेळेत सादर न केल्याबाबत कारणे दाखवा नोटीस.
                     </div>
                     
                     <p>महोदय/महोदया,</p>
@@ -1628,6 +1625,7 @@
                         <p>उपरोक्त विषयान्वये आपणास कळविण्यात येते की, आपल्या कार्यक्षेत्रातील खालील महत्त्वाच्या कार्यक्रमांचे अहवाल आपण अद्यापपर्यंत कार्यालयास सादर केलेले नाहीत.</p>
                     </div>
                     
+                    <!-- 🟢 इथे सर्व अपूर्ण फॉर्म्स आणि गावे यांची यादी दिसेल -->
                     <div class="forms-box">
                         ${formsHtml}
                     </div>
@@ -1637,7 +1635,7 @@
                         
                         <p>तरी, ही नोटीस मिळाल्यापासून <strong>२४ तासांच्या आत</strong> सदर सर्व अहवाल प्रणालीवर अद्ययावत करावेत आणि विहित वेळेत अहवाल न पाठवल्याबाबतचा खुलासा लेखी स्वरूपात कार्यालयास सादर करावा.</p>
                         
-                        <p>खुलासा असमाधानकारक आढळल्यास किंवा मुदतीत प्राप्त न झाल्यास, आपल्यावर महाराष्ट्र नागरी सेवा (शिस्त व अपील) नियमांनुसार योग्य ती प्रशासकीय कारवाई का प्रस्तावित करू नये, याबाबत आपली भूमिका स्पष्ट करावी.</p>
+                        <p>खुलासा असमाधानकारक आढळल्यास किंवा मुदतीत प्राप्त prevailing प्रशासकीय कारवाई का प्रस्तावित करू नये, याबाबत आपली भूमिका स्पष्ट करावी.</p>
                     </div>
                     
                     <div class="sign-block">
