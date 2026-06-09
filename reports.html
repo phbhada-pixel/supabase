@@ -208,7 +208,6 @@
             await loadInitialMasterData();
         };
 
-        // 🟢 10th Date Lock Function
         function isEditingAllowed(reportMonth, reportYear) {
             if (!reportMonth || !reportYear) return false;
             let today = new Date();
@@ -216,7 +215,6 @@
             return today <= lockDate;
         }
 
-        // 🟢 Validation Rule Helper
         function evaluateValidationFormula(formulaStr, fields, isEditMode = false) {
             let fStr = String(formulaStr).toLowerCase().trim();
             if (fStr.includes('[')) {
@@ -1422,7 +1420,7 @@
             XLSX.writeFile(wb, dlName);
         }
 
-        // 🟢 सुधारित: कर्मचारी निहाय आणि गटबद्ध अपूर्ण यादी
+        // 🟢 कर्मचारी निहाय आणि गटबद्ध अपूर्ण यादी
         function generatePendingReport() {
             let periodType = document.getElementById('periodType').value;
             if (periodType === 'custom') {
@@ -1479,11 +1477,10 @@
                                 employeePendingMap[empKey] = {
                                     empName: u.full_name,
                                     scName: scName,
-                                    pendingForms: {} // 🟢 अहवालानुसार गावे गटबद्ध करण्यासाठी
+                                    pendingForms: {} 
                                 };
                             }
                             
-                            // फॉर्मच्या नावानुसार गावांची यादी तयार करणे
                             if (!employeePendingMap[empKey].pendingForms[f.form_name]) {
                                 employeePendingMap[empKey].pendingForms[f.form_name] = [];
                             }
@@ -1525,7 +1522,6 @@
                     let pendingItemsHTML = "";
                     let noticeDataArray = [];
 
-                    // 🟢 अहवाल आणि कंसात गावे अशी मांडणी
                     for (let formName in empData.pendingForms) {
                         let villagesStr = empData.pendingForms[formName].join(', ');
                         
@@ -1564,7 +1560,6 @@
             document.getElementById('reportContentArea').classList.remove('hidden');
         }
 
-        // 🟢 व्हॉट्सॲप मेसेजसाठी यादी कॉपी करणे
         function copyPendingListText() {
             let textToCopy = `*कर्मचारी निहाय अपूर्ण अहवाल यादी*\n\n`;
             let table = document.querySelector('.pending-data-table'); 
@@ -1583,19 +1578,18 @@
             navigator.clipboard.writeText(textToCopy).then(() => { alert("✅ यादी व्हॉट्सॲप मेसेजसाठी कॉपी झाली आहे!"); });
         }
 
-        // 🟢 अतिशय आकर्षक शासकीय नमुन्यातील नोटीस (Attractive Layout)
+        // 🟢 आकर्षक शासकीय नमुन्यातील नोटीस (अहवाल व गावे एकाच ओळीत)
         function generateNotice(empName, scName, noticeDataStr) {
             const today = new Date().toLocaleDateString('mr-IN');
             const noticeWindow = window.open('', '_blank', 'width=900,height=800');
             
             let pendingItems = noticeDataStr.split('|||');
             
-            // अहवाल ठळक आणि गावे कंसात
             let formsHtml = pendingItems.map((item, i) => {
                 let parts = item.split(' (');
-                return `<li style="margin-bottom: 12px; padding-left: 5px;">
-                            <strong style="font-size: 16px; color: #b71c1c;">${parts[0]}</strong><br>
-                            <span style="font-size: 14px; color: #444;">(${parts[1]}</span>
+                return `<li style="margin-bottom: 5px; padding-left: 5px; line-height: 1.4;">
+                            <strong style="font-size: 15px; color: #b71c1c;">${parts[0]}</strong> 
+                            <span style="font-size: 13px; color: #444;">(${parts[1]}</span>
                         </li>`;
             }).join('');
 
@@ -1610,14 +1604,14 @@
                         .title-block { text-align: center; border-bottom: 2px solid #222; padding-bottom: 15px; margin-bottom: 25px; }
                         .title { font-weight: 900; font-size: 26px; color: #000; margin-bottom: 5px; }
                         .subtitle { font-size: 18px; font-weight: bold; color: #333; }
-                        .header-info { display: flex; justify-content: space-between; margin-bottom: 25px; font-weight: bold; font-size: 15px;}
-                        .to-address { margin-bottom: 30px; font-weight: bold; font-size: 16px; line-height: 1.5; padding-left: 10px; border-left: 3px solid #b71c1c;}
-                        .subject-box { background: #f4f4f4; padding: 15px; border: 1px dashed #666; font-weight: bold; margin-bottom: 25px; text-align: center; font-size: 16px;}
-                        .content { text-align: justify; font-size: 16px; line-height: 1.8; margin-bottom: 15px;}
-                        .content p { text-indent: 50px; margin-bottom: 10px; }
-                        .forms-box { margin: 20px 0 20px 40px; padding: 20px; border: 1px solid #ccc; background-color: #fafafa; border-radius: 5px; box-shadow: inset 0 0 5px rgba(0,0,0,0.05);}
+                        .header-info { display: flex; justify-content: space-between; margin-bottom: 20px; font-weight: bold; font-size: 15px;}
+                        .to-address { margin-bottom: 20px; font-weight: bold; font-size: 16px; line-height: 1.5; padding-left: 10px; border-left: 3px solid #b71c1c;}
+                        .subject-box { background: #f4f4f4; padding: 12px; border: 1px dashed #666; font-weight: bold; margin-bottom: 20px; text-align: center; font-size: 16px;}
+                        .content { text-align: justify; font-size: 16px; line-height: 1.6; margin-bottom: 15px;}
+                        .content p { text-indent: 50px; margin-bottom: 8px; }
+                        .forms-box { margin: 15px 0 15px 40px; padding: 15px 15px 15px 10px; border: 1px solid #ccc; background-color: #fafafa; border-radius: 5px; box-shadow: inset 0 0 5px rgba(0,0,0,0.05);}
                         .forms-box ul { margin: 0; padding-left: 20px; list-style-type: decimal; }
-                        .sign-block { text-align: right; margin-top: 60px; font-weight: bold; font-size: 16px; line-height: 1.5; }
+                        .sign-block { text-align: right; margin-top: 40px; font-weight: bold; font-size: 16px; line-height: 1.5; }
                         
                         @media print { 
                             body { background: #fff; padding: 0; }
