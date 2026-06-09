@@ -208,12 +208,32 @@
             await loadInitialMasterData();
         };
 
+        // 🚀 Pagination Helper: 1000 पेक्षा जास्त रेकॉर्ड्ससाठी
+        async function fetchAllSupabaseData(baseQuery) {
+            let allData = [];
+            let page = 0;
+            const pageSize = 1000;
+            let hasMore = true;
+
+            while(hasMore) {
+                const { data, error } = await baseQuery.range(page * pageSize, (page + 1) * pageSize - 1);
+                if (error) throw error;
+                
+                if (data && data.length > 0) {
+                    allData.push(...data);
+                    page++;
+                    if (data.length < pageSize) hasMore = false;
+                } else {
+                    hasMore = false;
+                }
+            }
+            return allData;
+        }
+
         // 🟢 10th Date Lock Function
         function isEditingAllowed(reportMonth, reportYear) {
             if (!reportMonth || !reportYear) return false;
             let today = new Date();
-            // JS Date मध्ये महिने 0 ते 11 असतात. 
-            // पुढचा महिना काढण्यासाठी आपण थेट reportMonth पास करतो (कारण तो 1 ते 12 आहे, जो JS मध्ये पुढचा महिना बनतो)
             let lockDate = new Date(reportYear, reportMonth, 10, 23, 59, 59); 
             return today <= lockDate;
         }
@@ -228,9 +248,6 @@
                         let val = 0;
                         if(isEditMode) {
                             let el = document.getElementById(`edit_f_${af.id}`);
-                            val = el && el.value !== "" ? parseFloat(el.value) : 0;
-                        } else {
-                            let el = document.getElementById(`${af.id}_v${vid}`);
                             val = el && el.value !== "" ? parseFloat(el.value) : 0;
                         }
                         if (isNaN(val)) val = 0;
@@ -265,38 +282,46 @@
             document.getElementById('reportLoader').classList.remove('hidden');
 
             try {
-                const { data: pData } = await supabaseClient.from('phcs').select('*');
-                masterData.phcs = pData || [];
+                // 🚀 Caching Logic: जुना डेटा साठवून ठेवणे (स्पीड वाढवण्यासाठी)
+                let cachedData = sessionStorage.getItem('phcMasterData');
+                if (cachedData) {
+                    masterData = JSON.parse(cachedData);
+                } else {
+                    const { data: pData } = await supabaseClient.from('phcs').select('*');
+                    masterData.phcs = pData || [];
 
-                let scQuery = supabaseClient.from('sub_centers').select('*').order('name');
-                if (user.role === 'phc_admin' && user.phc_id) {
-                    scQuery = scQuery.eq('phc_id', user.phc_id);
+                    let scQuery = supabaseClient.from('sub_centers').select('*').order('name');
+                    if (user.role === 'phc_admin' && user.phc_id) {
+                        scQuery = scQuery.eq('phc_id', user.phc_id);
+                    }
+                    const { data: scData } = await scQuery;
+                    masterData.subCenters = scData || [];
+
+                    let vQuery = supabaseClient.from('villages').select('*').order('name');
+                    if (user.role === 'phc_admin') {
+                        let scIds = masterData.subCenters.map(s => s.id);
+                        if (scIds.length > 0) vQuery = vQuery.in('sub_center_id', scIds);
+                        else vQuery = vQuery.eq('sub_center_id', '00000000-0000-0000-0000-000000000000');
+                    }
+                    const { data: vData } = await vQuery;
+                    masterData.villages = vData || [];
+
+                    let eQuery = supabaseClient.from('employees').select('*').order('full_name');
+                    if (user.role === 'phc_admin' && user.phc_id) eQuery = eQuery.eq('phc_id', user.phc_id);
+                    const { data: empData } = await eQuery;
+                    masterData.employees = empData || [];
+
+                    const { data: formData } = await supabaseClient.from('dynamic_forms').select('*').eq('is_active', true);
+                    masterData.forms = formData || [];
+
+                    sessionStorage.setItem('phcMasterData', JSON.stringify(masterData));
                 }
-                const { data: scData } = await scQuery;
-                masterData.subCenters = scData || [];
 
                 let scFilter = document.getElementById('reportSubCenterFilter');
                 scFilter.innerHTML = '<option value="सर्व">सर्व उपकेंद्र (All Sub-centers)</option>';
                 masterData.subCenters.forEach(sc => { 
                     scFilter.innerHTML += `<option value="${sc.name}">${sc.name}</option>`; 
                 });
-
-                let vQuery = supabaseClient.from('villages').select('*').order('name');
-                if (user.role === 'phc_admin') {
-                    let scIds = masterData.subCenters.map(s => s.id);
-                    if (scIds.length > 0) vQuery = vQuery.in('sub_center_id', scIds);
-                    else vQuery = vQuery.eq('sub_center_id', '00000000-0000-0000-0000-000000000000');
-                }
-                const { data: vData } = await vQuery;
-                masterData.villages = vData || [];
-
-                let eQuery = supabaseClient.from('employees').select('*').order('full_name');
-                if (user.role === 'phc_admin' && user.phc_id) eQuery = eQuery.eq('phc_id', user.phc_id);
-                const { data: empData } = await eQuery;
-                masterData.employees = empData || [];
-
-                const { data: formData } = await supabaseClient.from('dynamic_forms').select('*').eq('is_active', true);
-                masterData.forms = formData || [];
 
                 let select = document.getElementById('reportFormSelect');
                 let optionsDiv = document.getElementById('multiSelectOptions');
@@ -315,8 +340,9 @@
                     optionsDiv.appendChild(div);
                 });
 
-                const { data: respData } = await supabaseClient.from('form_responses').select('form_id, village_id, report_month, report_year, report_fortnight');
-                masterData.filledStats = respData || [];
+                // फेचिंग स्टैट्स
+                let statsQuery = supabaseClient.from('form_responses').select('form_id, village_id, report_month, report_year, report_fortnight');
+                masterData.filledStats = await fetchAllSupabaseData(statsQuery) || [];
 
                 document.getElementById('chkAllReports').checked = true;
                 updateMultiSelectText();
@@ -396,9 +422,11 @@
         }
 
         async function fetchReportData() {
-    // 🟢 ही ओळ जोडल्याने जुना डेटा मेमरीमधून पूर्णपणे काढून टाकला जाईल
-    windowDbData = []; 
-    currentReports = [];
+            // 🟢 जुना डेटा मेमरीमधून पूर्णपणे काढून टाकणे
+            windowDbData = []; 
+            currentReports = [];
+            document.getElementById('reportTableContainer').innerHTML = "";
+
             let selectedIDs = getSelectedReportIDs(); if(selectedIDs.length === 0) { alert("कृपया किमान एक अहवाल निवडा!"); return; }
 
             let formsToProcess = selectedIDs.includes("ALL") ? masterData.forms : masterData.forms.filter(f => selectedIDs.includes(f.id));
@@ -460,17 +488,17 @@
 
             document.getElementById('reportLoader').classList.remove('hidden'); 
             document.getElementById('reportContentArea').classList.add('hidden'); 
-            document.getElementById('reportTableContainer').innerHTML = "";
 
             try {
                 if(!selectedIDs.includes("ALL")) query = query.in('form_id', formsToProcess.map(f=>f.id));
 
-                const { data: dbData, error } = await query; 
+                // 🚀 Paginator चा वापर (१००० पेक्षा जास्त रेकॉर्ड्ससाठी)
+                const dbData = await fetchAllSupabaseData(query);
+                
                 document.getElementById('reportLoader').classList.add('hidden');
-                if (error || !dbData || dbData.length === 0) { alert("या कालावधीत किंवा निवडलेल्या फिल्टरमध्ये कोणताही डेटा उपलब्ध नाही."); return; }
+                if (!dbData || dbData.length === 0) { alert("या कालावधीत किंवा निवडलेल्या फिल्टरमध्ये कोणताही डेटा उपलब्ध नाही."); return; }
 
                 windowDbData = dbData; 
-
                 let finalReports = [];
 
                 formsToProcess.forEach(formObj => {
@@ -550,17 +578,16 @@
                                 if (isProgressive && f.type === 'number') {
                                     let sumProg = 0;
                                     getProgressiveMonthsList(selMonthNum, selYear).forEach(p => {
-                                        // 🟢 दुरुस्त केलेले लॉजिक: कर्मचारी आयडी (employee_id) सह pastRes शोधा
-let pastRes = formResp.find(r => 
-    r.village_id === res.village_id && 
-    r.employee_id === res.employee_id && // 🟢 ही ओळ महत्त्वाची आहे
-    r.report_month === p.month && 
-    r.report_year === p.year
-);
-
-if(pastRes && pastRes.response_data && pastRes.response_data[f.id]) {
-    sumProg += parseFloat(pastRes.response_data[f.id].value) || 0;
-}
+                                        // 🟢 Employee ID Filter applied here
+                                        let pastRes = formResp.find(r => 
+                                            r.village_id === res.village_id && 
+                                            r.employee_id === res.employee_id && 
+                                            r.report_month === p.month && 
+                                            r.report_year === p.year
+                                        );
+                                        if(pastRes && pastRes.response_data && pastRes.response_data[f.id]) {
+                                            sumProg += parseFloat(pastRes.response_data[f.id].value) || 0;
+                                        }
                                     });
                                     row.values[f.id] = { M: formatNumberDecimals(monthlyVal), P: formatNumberDecimals(sumProg) };
                                 } else { 
@@ -1504,7 +1531,16 @@ if(pastRes && pastRes.response_data && pastRes.response_data[f.id]) {
                     let sortedKeys = Object.keys(empMap).sort();
                     sortedKeys.forEach((key, idx) => {
                         let [empName, scName] = key.split("###"); let villagesStr = empMap[key].join(", ");
-                        html += `<tr><td style="border: 1px solid #ccc; padding: 8px; text-align:center; font-weight:bold;">${idx+1}</td><td style="border: 1px solid #ccc; padding: 8px; text-align:left; font-size:15px;"><span style="color:#0056b3; font-weight:bold;">${empName}</span> - <span style="color:#d35400; font-weight:bold;">${scName}</span> <span style="color:#28a745; font-weight:bold;">(${villagesStr})</span></td></tr>`;
+                        // 🟢 नोटीस बटण ऍड केले आहे
+                        html += `<tr>
+                            <td style="border: 1px solid #ccc; padding: 8px; text-align:center; font-weight:bold;">${idx+1}</td>
+                            <td style="border: 1px solid #ccc; padding: 8px; text-align:left; font-size:15px;">
+                                <span style="color:#0056b3; font-weight:bold;">${empName}</span> - 
+                                <span style="color:#d35400; font-weight:bold;">${scName}</span> 
+                                <span style="color:#28a745; font-weight:bold;">(${villagesStr})</span>
+                                <button onclick="generateNotice('${empName}', '${scName}', '${fName}')" class="no-print bg-red-500 text-white px-2 py-1 ml-3 rounded text-xs font-bold shadow hover:bg-red-600 transition">✉️ नोटीस</button>
+                            </td>
+                        </tr>`;
                     });
                     html += `</tbody></table></div>`;
                 }
@@ -1524,6 +1560,75 @@ if(pastRes && pastRes.response_data && pastRes.response_data[f.id]) {
                 textToCopy += `\n`;
             });
             navigator.clipboard.writeText(textToCopy).then(() => { alert("✅ यादी व्हॉट्सॲप मेसेजसाठी कॉपी झाली आहे!"); });
+        }
+
+        // 🟢 कारणे दाखवा नोटीस जनरेट करणारे फंक्शन
+        function generateNotice(empName, scName, formName) {
+            const today = new Date().toLocaleDateString('mr-IN');
+            const noticeWindow = window.open('', '_blank', 'width=800,height=600');
+            
+            noticeWindow.document.write(`
+                <html lang="mr">
+                <head>
+                    <title>कारणे दाखवा नोटीस - ${empName}</title>
+                    <style>
+                        body { font-family: 'Arial', sans-serif; padding: 40px; line-height: 1.8; color: #000; } 
+                        .title-block { text-align: center; margin-bottom: 30px; }
+                        .title { font-weight: bold; font-size: 22px; text-decoration: underline; margin-bottom: 5px; }
+                        .subtitle { font-size: 16px; font-weight: bold; }
+                        .header-info { display: flex; justify-content: space-between; margin-bottom: 20px; font-weight: bold;}
+                        .to-address { margin-bottom: 30px; font-weight: bold; }
+                        .subject { font-weight: bold; text-decoration: underline; margin-bottom: 20px; padding-left: 50px;}
+                        .content { text-align: justify; text-indent: 50px; }
+                        .sign-block { text-align: right; margin-top: 60px; font-weight: bold; }
+                        @media print { .no-print { display: none; } }
+                    </style>
+                </head>
+                <body>
+                    <div class="title-block">
+                        <div class="title">महाराष्ट्र शासन</div>
+                        <div class="subtitle">कार्यालय: वैद्यकीय अधिकारी, प्राथमिक आरोग्य केंद्र, भाडा</div>
+                        <div style="font-size: 14px;">ता. औसा जि. लातूर</div>
+                    </div>
+                    
+                    <div class="header-info">
+                        <div>जावक क्र. प्राआकें/भाडा/नोटीस/ /२०२६</div>
+                        <div>दिनांक: ${today}</div>
+                    </div>
+                    
+                    <div class="to-address">
+                        प्रति,<br>
+                        श्री./सौ. ${empName},<br>
+                        आरोग्य कर्मचारी,<br>
+                        उपकेंद्र: ${scName}.
+                    </div>
+                    
+                    <div class="subject">
+                        विषय: '${formName}' चा अहवाल विहित वेळेत सादर न केल्याबाबत कारणे दाखवा नोटीस.
+                    </div>
+                    
+                    <p>महोदय/महोदया,</p>
+                    
+                    <div class="content">
+                        <p>उपरोक्त विषयान्वये आपणास कळविण्यात येते की, आपल्या कार्यक्षेत्रातील <strong>'${formName}'</strong> या महत्त्वाच्या कार्यक्रमाचा अहवाल आपण अद्यापपर्यंत कार्यालयास सादर केलेला नाही. अहवाल वेळेत सादर न करणे ही अत्यंत गंभीर बाब असून, हे आपल्या कामातील हलगर्जीपणाचे व वरिष्ठांच्या आदेशाचे उल्लंघन केल्याचे स्पष्ट लक्षण आहे.</p>
+                        
+                        <p>तरी, ही नोटीस मिळाल्यापासून <strong>२४ तासांच्या आत</strong> सदर अहवाल प्रणालीवर अद्ययावत करावा आणि विहित वेळेत अहवाल न पाठवल्याबाबतचा खुलासा लेखी स्वरूपात कार्यालयास सादर करावा.</p>
+                        
+                        <p>खुलासा असमाधानकारक आढळल्यास किंवा मुदतीत प्राप्त न झाल्यास, आपल्यावर महाराष्ट्र नागरी सेवा (शिस्त व अपील) नियमांनुसार योग्य ती प्रशासकीय कारवाई का प्रस्तावित करू नये, याबाबत आपली भूमिका स्पष्ट करावी.</p>
+                    </div>
+                    
+                    <div class="sign-block">
+                        वैद्यकीय अधिकारी,<br>
+                        प्राथमिक आरोग्य केंद्र, भाडा
+                    </div>
+
+                    <div style="text-align: center; margin-top: 50px;">
+                        <button class="no-print" onclick="window.print()" style="padding: 10px 20px; background-color: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: bold;">🖨️ नोटीस प्रिंट करा</button>
+                    </div>
+                </body>
+                </html>
+            `);
+            noticeWindow.document.close();
         }
     </script>
 </body>
