@@ -1422,7 +1422,7 @@
             XLSX.writeFile(wb, dlName);
         }
 
-        // 🟢 सुधारित: कर्मचारी निहाय अपूर्ण यादी
+        // 🟢 सुधारित: कर्मचारी निहाय आणि गटबद्ध अपूर्ण यादी
         function generatePendingReport() {
             let periodType = document.getElementById('periodType').value;
             if (periodType === 'custom') {
@@ -1438,7 +1438,7 @@
             let selectedIDs = getSelectedReportIDs();
             if (selectedIDs.length === 0) { alert("कृपया किमान एक अहवाल निवडा!"); return; }
 
-            let employeePendingMap = {}; // 🟢 कर्मचारी निहाय डेटा साठवण्यासाठी मॅप
+            let employeePendingMap = {}; 
             let filterSubCenter = document.getElementById('reportSubCenterFilter').value;
             let formsToCheck = masterData.forms;
             if(!selectedIDs.includes("ALL")) formsToCheck = formsToCheck.filter(f => selectedIDs.includes(f.id));
@@ -1479,13 +1479,17 @@
                                 employeePendingMap[empKey] = {
                                     empName: u.full_name,
                                     scName: scName,
-                                    pendingItems: []
+                                    pendingForms: {} // 🟢 अहवालानुसार गावे गटबद्ध करण्यासाठी
                                 };
                             }
-                            employeePendingMap[empKey].pendingItems.push({
-                                formName: f.form_name,
-                                villageName: f.form_type === 'subcenter' ? "🏢 संपूर्ण उपकेंद्र" : v.name
-                            });
+                            
+                            // फॉर्मच्या नावानुसार गावांची यादी तयार करणे
+                            if (!employeePendingMap[empKey].pendingForms[f.form_name]) {
+                                employeePendingMap[empKey].pendingForms[f.form_name] = [];
+                            }
+                            employeePendingMap[empKey].pendingForms[f.form_name].push(
+                                f.form_type === 'subcenter' ? "संपूर्ण उपकेंद्र" : v.name
+                            );
                         }
                     });
                 });
@@ -1518,11 +1522,22 @@
                 employeeKeys.forEach((key, idx) => {
                     let empData = employeePendingMap[key];
                     
-                    // अहवाल आणि गावे यांची यादी HTML फॉरमॅटमध्ये
-                    let pendingItemsHTML = empData.pendingItems.map(item => `<li style="margin-bottom:4px;"><span style="font-weight:bold; color:#c0392b;">${item.formName}</span> <span style="font-size:12px; color:#00705a; font-weight:bold;">(गाव: ${item.villageName})</span></li>`).join('');
+                    let pendingItemsHTML = "";
+                    let noticeDataArray = [];
+
+                    // 🟢 अहवाल आणि कंसात गावे अशी मांडणी
+                    for (let formName in empData.pendingForms) {
+                        let villagesStr = empData.pendingForms[formName].join(', ');
+                        
+                        pendingItemsHTML += `<li style="margin-bottom:8px; line-height: 1.4;">
+                            <span style="font-weight:bold; color:#c0392b;">${formName}</span> <br>
+                            <span style="font-size:12px; color:#00705a; font-weight:bold;">(गावे: ${villagesStr})</span>
+                        </li>`;
+                        
+                        noticeDataArray.push(`${formName} (गावे: ${villagesStr})`);
+                    }
                     
-                    // नोटीस फंक्शनला पास करण्यासाठी सुरक्षित स्ट्रिंग
-                    let noticeDataStr = empData.pendingItems.map(item => `${item.formName} (गाव: ${item.villageName})`).join('|||');
+                    let noticeDataStr = noticeDataArray.join('|||');
                     let safeNoticeDataStr = noticeDataStr.replace(/'/g, "\\'").replace(/"/g, "&quot;");
 
                     html += `<tr class="hover:bg-gray-50">
@@ -1532,10 +1547,10 @@
                             <div style="color:#d35400; font-weight:bold; font-size:12px;">🏥 उपकेंद्र: ${empData.scName}</div>
                         </td>
                         <td style="border: 1px solid #ccc; padding: 10px; text-align:left; vertical-align: top;">
-                            <ul style="margin:0; padding-left:18px; font-size:13px;">${pendingItemsHTML}</ul>
+                            <ul style="margin:0; padding-left:18px; font-size:14px;">${pendingItemsHTML}</ul>
                         </td>
                         <td style="border: 1px solid #ccc; padding: 10px; text-align:center; vertical-align: middle;" class="no-print">
-                            <button onclick="generateNotice('${empData.empName}', '${empData.scName}', '${safeNoticeDataStr}')" class="bg-red-500 text-white px-3 py-2 rounded text-xs font-bold shadow hover:bg-red-600 transition">✉️ नोटीस काढा</button>
+                            <button onclick="generateNotice('${empData.empName}', '${empData.scName}', '${safeNoticeDataStr}')" class="bg-red-600 text-white px-3 py-2 rounded text-xs font-bold shadow hover:bg-red-700 transition">✉️ नोटीस काढा</button>
                         </td>
                     </tr>`;
                 });
@@ -1559,8 +1574,7 @@
                 let cells = row.querySelectorAll('td'); 
                 if(cells.length >= 3) {
                     let empText = cells[1].innerText.replace(/\n/g, " | ").trim();
-                    // <li> मधील डेटा स्वल्पविरामाने जोडून घेणे
-                    let itemsList = Array.from(cells[2].querySelectorAll('li')).map(li => "🔸 " + li.innerText.trim());
+                    let itemsList = Array.from(cells[2].querySelectorAll('li')).map(li => "🔸 " + li.innerText.replace(/\n/g, " ").trim());
                     let pendingText = itemsList.join('\n   ');
                     
                     textToCopy += `*${rowIndex + 1}. ${empText}*\n   ${pendingText}\n\n`; 
@@ -1569,82 +1583,103 @@
             navigator.clipboard.writeText(textToCopy).then(() => { alert("✅ यादी व्हॉट्सॲप मेसेजसाठी कॉपी झाली आहे!"); });
         }
 
-        // 🟢 सुधारित: अहवाल आणि गाव दोन्ही असणारी कारणे दाखवा नोटीस
+        // 🟢 अतिशय आकर्षक शासकीय नमुन्यातील नोटीस (Attractive Layout)
         function generateNotice(empName, scName, noticeDataStr) {
             const today = new Date().toLocaleDateString('mr-IN');
-            const noticeWindow = window.open('', '_blank', 'width=800,height=800');
+            const noticeWindow = window.open('', '_blank', 'width=900,height=800');
             
-            // 🟢 फॉर्म्स आणि गावांची लिस्ट HTML फॉरमॅट मध्ये तयार करणे
             let pendingItems = noticeDataStr.split('|||');
-            let formsHtml = pendingItems.map((item, i) => `${i+1}. ${item.trim()}`).join('<br>');
+            
+            // अहवाल ठळक आणि गावे कंसात
+            let formsHtml = pendingItems.map((item, i) => {
+                let parts = item.split(' (');
+                return `<li style="margin-bottom: 12px; padding-left: 5px;">
+                            <strong style="font-size: 16px; color: #b71c1c;">${parts[0]}</strong><br>
+                            <span style="font-size: 14px; color: #444;">(${parts[1]}</span>
+                        </li>`;
+            }).join('');
 
             noticeWindow.document.write(`
                 <html lang="mr">
                 <head>
-                    <title>एकत्रित कारणे दाखवा नोटीस - ${empName}</title>
+                    <title>कारणे दाखवा नोटीस - ${empName}</title>
                     <style>
-                        body { font-family: 'Arial', sans-serif; padding: 40px; line-height: 1.8; color: #000; } 
-                        .title-block { text-align: center; margin-bottom: 30px; }
-                        .title { font-weight: bold; font-size: 22px; text-decoration: underline; margin-bottom: 5px; }
-                        .subtitle { font-size: 16px; font-weight: bold; }
-                        .header-info { display: flex; justify-content: space-between; margin-bottom: 20px; font-weight: bold;}
-                        .to-address { margin-bottom: 30px; font-weight: bold; }
-                        .subject { font-weight: bold; text-decoration: underline; margin-bottom: 20px; padding-left: 50px;}
-                        .content { text-align: justify; text-indent: 50px; }
-                        .forms-box { margin: 15px 0 15px 50px; padding: 15px; border: 1px solid #000; background-color: #f9f9f9; font-weight: bold; display: inline-block; min-width: 60%; line-height: 2; font-size: 14px;}
-                        .sign-block { text-align: right; margin-top: 60px; font-weight: bold; }
-                        @media print { .no-print { display: none; } }
+                        body { font-family: 'Arial', sans-serif; background: #e9ecef; margin: 0; padding: 20px; color: #222;} 
+                        .notice-wrapper { background: #fff; padding: 40px 50px; max-width: 800px; margin: auto; border: 4px double #111; outline: 1px solid #111; outline-offset: 4px; box-shadow: 0px 5px 15px rgba(0,0,0,0.3); position: relative; }
+                        .emblem { text-align: center; color: #d32f2f; font-weight: bold; font-size: 16px; margin-bottom: 10px; letter-spacing: 2px;}
+                        .title-block { text-align: center; border-bottom: 2px solid #222; padding-bottom: 15px; margin-bottom: 25px; }
+                        .title { font-weight: 900; font-size: 26px; color: #000; margin-bottom: 5px; }
+                        .subtitle { font-size: 18px; font-weight: bold; color: #333; }
+                        .header-info { display: flex; justify-content: space-between; margin-bottom: 25px; font-weight: bold; font-size: 15px;}
+                        .to-address { margin-bottom: 30px; font-weight: bold; font-size: 16px; line-height: 1.5; padding-left: 10px; border-left: 3px solid #b71c1c;}
+                        .subject-box { background: #f4f4f4; padding: 15px; border: 1px dashed #666; font-weight: bold; margin-bottom: 25px; text-align: center; font-size: 16px;}
+                        .content { text-align: justify; font-size: 16px; line-height: 1.8; margin-bottom: 15px;}
+                        .content p { text-indent: 50px; margin-bottom: 10px; }
+                        .forms-box { margin: 20px 0 20px 40px; padding: 20px; border: 1px solid #ccc; background-color: #fafafa; border-radius: 5px; box-shadow: inset 0 0 5px rgba(0,0,0,0.05);}
+                        .forms-box ul { margin: 0; padding-left: 20px; list-style-type: decimal; }
+                        .sign-block { text-align: right; margin-top: 60px; font-weight: bold; font-size: 16px; line-height: 1.5; }
+                        
+                        @media print { 
+                            body { background: #fff; padding: 0; }
+                            .notice-wrapper { box-shadow: none; border: 3px double #000; outline: none; margin: 0; padding: 30px;}
+                            .no-print { display: none; } 
+                        }
                     </style>
                 </head>
                 <body>
-                    <div class="title-block">
-                        <div class="title">महाराष्ट्र शासन</div>
-                        <div class="subtitle">कार्यालय: वैद्यकीय अधिकारी, प्राथमिक आरोग्य केंद्र, भाडा</div>
-                        <div style="font-size: 14px;">ता. औसा जि. लातूर</div>
-                    </div>
-                    
-                    <div class="header-info">
-                        <div>जावक क्र. प्राआकें/भाडा/नोटीस/ /२०२६</div>
-                        <div>दिनांक: ${today}</div>
-                    </div>
-                    
-                    <div class="to-address">
-                        प्रति,<br>
-                        श्री./सौ. ${empName},<br>
-                        आरोग्य कर्मचारी,<br>
-                        उपकेंद्र: ${scName}.
-                    </div>
-                    
-                    <div class="subject">
-                        विषय: प्रलंबित अहवाल विहित वेळेत सादर न केल्याबाबत कारणे दाखवा नोटीस.
-                    </div>
-                    
-                    <p>महोदय/महोदया,</p>
-                    
-                    <div class="content">
-                        <p>उपरोक्त विषयान्वये आपणास कळविण्यात येते की, आपल्या कार्यक्षेत्रातील खालील महत्त्वाच्या कार्यक्रमांचे अहवाल आपण अद्यापपर्यंत कार्यालयास सादर केलेले नाहीत.</p>
-                    </div>
-                    
-                    <!-- 🟢 इथे सर्व अपूर्ण फॉर्म्स आणि गावे यांची यादी दिसेल -->
-                    <div class="forms-box">
-                        ${formsHtml}
+                    <div class="notice-wrapper">
+                        <div class="emblem">|| सत्यमेव जयते ||</div>
+                        <div class="title-block">
+                            <div class="title">महाराष्ट्र शासन</div>
+                            <div class="subtitle">कार्यालय: वैद्यकीय अधिकारी, प्राथमिक आरोग्य केंद्र, भाडा</div>
+                            <div style="font-size: 15px; margin-top: 5px; color: #555;">ता. औसा जि. लातूर</div>
+                        </div>
+                        
+                        <div class="header-info">
+                            <div>जावक क्र. प्राआकें/भाडा/नोटीस/&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/२०२६</div>
+                            <div>दिनांक: ${today}</div>
+                        </div>
+                        
+                        <div class="to-address">
+                            प्रति,<br>
+                            श्री./सौ. <span style="font-size: 18px; color: #b71c1c;">${empName}</span>,<br>
+                            आरोग्य कर्मचारी,<br>
+                            उपकेंद्र: ${scName}.
+                        </div>
+                        
+                        <div class="subject-box">
+                            <span style="text-decoration: underline;">विषय:</span> प्रलंबित अहवाल विहित वेळेत सादर न केल्याबाबत <strong>कारणे दाखवा नोटीस</strong>.
+                        </div>
+                        
+                        <div style="font-weight:bold; margin-bottom: 10px; font-size: 16px;">महोदय / महोदया,</div>
+                        
+                        <div class="content">
+                            <p>उपरोक्त विषयान्वये आपणास या नोटीसीद्वारे कळविण्यात येते की, आपल्या कार्यक्षेत्रातील खालील अत्यंत महत्त्वाच्या कार्यक्रमांचे अहवाल आपण अद्यापपर्यंत कार्यालयास सादर केलेले नाहीत.</p>
+                        </div>
+                        
+                        <div class="forms-box">
+                            <ul>
+                                ${formsHtml}
+                            </ul>
+                        </div>
+
+                        <div class="content">
+                            <p>शासकीय अहवाल विहित वेळेत सादर न करणे ही अत्यंत गंभीर व प्रशासकीय दृष्ट्या अक्षम्य बाब असून, हे आपल्या कामातील हलगर्जीपणाचे व वरिष्ठांच्या आदेशाचे जाणीवपूर्वक उल्लंघन केल्याचे स्पष्ट लक्षण आहे.</p>
+                            
+                            <p>तरी, ही नोटीस प्राप्त होताच <strong>पुढील २४ तासांच्या आत</strong> सदर सर्व प्रलंबित अहवाल प्रणालीवर अचूकपणे अद्ययावत करावेत आणि विहित वेळेत अहवाल न पाठवल्याबाबतचा आपला खुलासा लेखी स्वरूपात त्वरित या कार्यालयास सादर करावा.</p>
+                            
+                            <p>आपला खुलासा असमाधानकारक आढळल्यास किंवा मुदतीत प्राप्त न झाल्यास, आपल्यावर 'महाराष्ट्र नागरी सेवा (शिस्त व अपील) नियम' नुसार <strong>कठोर प्रशासकीय कारवाई</strong> का प्रस्तावित करू नये, याबाबत आपली भूमिका स्पष्ट करावी.</p>
+                        </div>
+                        
+                        <div class="sign-block">
+                            (स्वाक्षरी)<br><br>
+                            <strong>वैद्यकीय अधिकारी</strong>,<br>
+                            प्राथमिक आरोग्य केंद्र, भाडा
+                        </div>
                     </div>
 
-                    <div class="content">
-                        <p>अहवाल वेळेत सादर न करणे ही अत्यंत गंभीर बाब असून, हे आपल्या कामातील हलगर्जीपणाचे व वरिष्ठांच्या आदेशाचे उल्लंघन केल्याचे स्पष्ट लक्षण आहे.</p>
-                        
-                        <p>तरी, ही नोटीस मिळाल्यापासून <strong>२४ तासांच्या आत</strong> सदर सर्व अहवाल प्रणालीवर अद्ययावत करावेत आणि विहित वेळेत अहवाल न पाठवल्याबाबतचा खुलासा लेखी स्वरूपात कार्यालयास सादर करावा.</p>
-                        
-                        <p>खुलासा असमाधानकारक आढळल्यास किंवा मुदतीत प्राप्त prevailing प्रशासकीय कारवाई का प्रस्तावित करू नये, याबाबत आपली भूमिका स्पष्ट करावी.</p>
-                    </div>
-                    
-                    <div class="sign-block">
-                        वैद्यकीय अधिकारी,<br>
-                        प्राथमिक आरोग्य केंद्र, भाडा
-                    </div>
-
-                    <div style="text-align: center; margin-top: 50px;">
-                        <button class="no-print" onclick="window.print()" style="padding: 10px 20px; background-color: #d32f2f; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: bold;">🖨️ नोटीस प्रिंट करा</button>
+                    <div style="text-align: center; margin-top: 30px;" class="no-print">
+                        <button onclick="window.print()" style="padding: 12px 30px; background-color: #28a745; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 18px; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.2);">🖨️ नोटीस प्रिंट करा</button>
                     </div>
                 </body>
                 </html>
