@@ -128,17 +128,22 @@
             updateFormDropdown(); 
         };
 
-        function getFullFieldLabel(fields, fieldObj) {
-            let fullLabel = fieldObj.label;
-            let currentField = fieldObj;
-            while (currentField && currentField.parent_id) {
-                let parentField = fields.find(f => f.id === currentField.parent_id);
-                if (parentField) {
-                    if (parentField.type === 'group_header') fullLabel = parentField.label + " - " + fullLabel;
-                    currentField = parentField;
-                } else { break; }
+        // 🟢 नवीन: हे फंक्शन गटांची साखळी (Hierarchy) ओळखते
+        function getFieldHierarchyChain(fields, fieldObj) {
+            let chain = [];
+            let current = fieldObj;
+            while (current && current.parent_id) {
+                let parent = fields.find(f => f.id === current.parent_id);
+                if (parent) {
+                    if (parent.type === 'group_header') {
+                        chain.unshift(parent.label);
+                    }
+                    current = parent;
+                } else {
+                    break;
+                }
             }
-            return fullLabel;
+            return chain; 
         }
 
         async function fetchVillages() {
@@ -366,20 +371,17 @@
         // 🟢 Validation Rule Helper
         function evaluateValidationFormula(formulaStr, vid, fields) {
             let fStr = String(formulaStr).toLowerCase().trim();
-            if (!fStr.includes('[')) {
-                let num = parseFloat(fStr);
-                return isNaN(num) ? null : num;
+            if (fStr.includes('[')) {
+                fields.forEach(af => {
+                    let ph = `[${af.id.toLowerCase()}]`;
+                    if (fStr.includes(ph)) {
+                        let el = document.getElementById(`${af.id}_v${vid}`);
+                        let val = el && el.value !== "" ? parseFloat(el.value) : 0;
+                        if (isNaN(val)) val = 0;
+                        fStr = fStr.split(ph).join(val);
+                    }
+                });
             }
-
-            fields.forEach(af => {
-                let ph = `[${af.id.toLowerCase()}]`;
-                if (fStr.includes(ph)) {
-                    let el = document.getElementById(`${af.id}_v${vid}`);
-                    let val = el && el.value !== "" ? parseFloat(el.value) : 0;
-                    if (isNaN(val)) val = 0;
-                    fStr = fStr.split(ph).join(val);
-                }
-            });
 
             try {
                 if (/^[0-9.+\-*/() ]+$/.test(fStr)) {
@@ -387,9 +389,12 @@
                     return isNaN(res) || !isFinite(res) ? null : res;
                 }
             } catch(e) {}
-            return null;
+            
+            let simpleNum = parseFloat(fStr);
+            return isNaN(simpleNum) ? null : simpleNum;
         }
 
+        // 🟢 Group-Wise Render Logic
         function renderFormFields() {
             const formId = document.getElementById('formSelect').value;
             const vid = document.getElementById('villageSelect').value;
@@ -415,15 +420,60 @@
                 currentPendingVillages = globalPendingVillages.filter(v => v.id === parseInt(vid) || v.id === vid);
             }
 
-            let html = '<div class="table-responsive"><table class="w-full border-collapse block md:table">';
-            html += '<thead class="hidden md:table-header-group bg-gray-200 border-b-4 border-gray-400"><tr>';
-            html += '<th class="p-3 border text-center font-extrabold text-gray-800 min-w-[150px]">गाव / कार्यक्षेत्र</th>';
-            currentDataFields.forEach(f => {
-                let formulaBadge = (f.formula && String(f.formula).trim() !== "") ? '<br><span class="text-[9px] bg-green-500 text-white px-1 rounded shadow">ऑटो बेरीज</span>' : '';
-                html += `<th class="p-2 border text-xs font-bold text-gray-700 text-center min-w-[130px] leading-tight">${getFullFieldLabel(allFields, f)} ${formulaBadge}</th>`;
+            // 🟢 Prepare Columns hierarchy for Table Header
+            let columns = currentDataFields.map(f => {
+                let chain = getFieldHierarchyChain(allFields, f);
+                let l1 = "", l2 = "";
+                if (chain.length === 1) { l1 = chain[0]; }
+                else if (chain.length >= 2) { l1 = chain[0]; l2 = chain[1]; }
+                return { ...f, l1, l2, l3: f.label };
             });
-            html += '</tr></thead>';
 
+            let html = '<div class="table-responsive"><table class="w-full border-collapse block md:table">';
+            
+            // 🟢 Desktop: Multi-row Grouped Table Header
+            let l1Row = `<tr><th rowspan="3" class="p-3 border text-center font-extrabold text-gray-800 min-w-[150px] bg-gray-200">गाव / कार्यक्षेत्र</th>`;
+            let l2Row = `<tr>`;
+            let l3Row = `<tr>`;
+
+            let i = 0;
+            while(i < columns.length) {
+                let c = columns[i]; let j = i + 1;
+                let formulaBadge = (c.formula && String(c.formula).trim() !== "") ? '<br><span class="text-[9px] bg-green-500 text-white px-1 rounded shadow mt-1">ऑटो बेरीज</span>' : '';
+                
+                if(c.l1 !== "") {
+                    while(j < columns.length && columns[j].l1 === c.l1) { j++; }
+                    let totalL1Span = j - i;
+                    l1Row += `<th colspan="${totalL1Span}" class="p-2 border text-sm font-extrabold bg-purple-100 text-purple-900 text-center">${c.l1}</th>`;
+
+                    let k = i;
+                    while(k < j) {
+                        let c2 = columns[k]; let m = k + 1;
+                        if(c2.l2 !== "") {
+                            while(m < j && columns[m].l2 === c2.l2) { m++; }
+                            let totalL2Span = m - k;
+                            l2Row += `<th colspan="${totalL2Span}" class="p-2 border text-xs font-bold bg-blue-50 text-blue-900 text-center">${c2.l2}</th>`;
+                            for(let n=k; n<m; n++) {
+                                let fBb = (columns[n].formula && String(columns[n].formula).trim() !== "") ? '<br><span class="text-[9px] bg-green-500 text-white px-1 rounded shadow mt-1 inline-block">ऑटो बेरीज</span>' : '';
+                                l3Row += `<th class="p-2 border text-xs font-bold text-gray-700 text-center leading-tight min-w-[100px]">${columns[n].l3} ${fBb}</th>`;
+                            }
+                            k = m;
+                        } else {
+                            let fBb = (c2.formula && String(c2.formula).trim() !== "") ? '<br><span class="text-[9px] bg-green-500 text-white px-1 rounded shadow mt-1 inline-block">ऑटो बेरीज</span>' : '';
+                            l2Row += `<th rowspan="2" class="p-2 border text-xs font-bold text-gray-700 text-center leading-tight min-w-[100px]">${c2.l3} ${fBb}</th>`;
+                            k++;
+                        }
+                    }
+                    i = j;
+                } else {
+                    l1Row += `<th rowspan="3" class="p-2 border text-xs font-bold text-gray-700 text-center bg-gray-200 leading-tight min-w-[100px]">${c.l3} ${formulaBadge}</th>`;
+                    i++;
+                }
+            }
+            l1Row += `</tr>`; l2Row += `</tr>`; l3Row += `</tr>`;
+            html += `<thead class="hidden md:table-header-group border-b-4 border-gray-400">${l1Row}${l2Row}${l3Row}</thead>`;
+
+            // 🟢 Body Section
             html += '<tbody class="block md:table-row-group">';
 
             currentPendingVillages.forEach((v, index) => {
@@ -433,36 +483,54 @@
                             <span class="text-2xl md:text-sm font-extrabold text-indigo-900 md:text-gray-900">${index+1}. ${v.name}</span>
                          </td>`;
 
-                currentDataFields.forEach(f => {
-                    let isFormula = (f.formula && String(f.formula).trim() !== "");
-                    let reqAttr = (f.required && !isFormula) ? 'required' : '';
-                    let inputId = `${f.id}_v${v.id}`;
+                let prevL1 = null;
+                let prevL2 = null;
+
+                columns.forEach(col => {
+                    let isFormula = (col.formula && String(col.formula).trim() !== "");
+                    let reqAttr = (col.required && !isFormula) ? 'required' : '';
+                    let inputId = `${col.id}_v${v.id}`;
                     let inputHtml = '';
                     
-                    let onInputAttr = (f.type === 'number' && !isFormula) ? `oninput="calculateFormulas('${v.id}')"` : '';
+                    let onInputAttr = (col.type === 'number' && !isFormula) ? `oninput="calculateFormulas('${v.id}')"` : '';
 
-                    if (f.type === 'number') {
+                    if (col.type === 'number') {
                         if (isFormula) {
-                            inputHtml = `<input type="number" id="${inputId}" class="w-full md:w-20 p-4 md:p-2 text-2xl md:text-base font-extrabold md:font-bold text-center text-green-900 bg-green-100 border-2 border-green-500 rounded-lg md:rounded outline-none cursor-not-allowed shadow-inner" readonly tabindex="-1" placeholder="0">`;
+                            inputHtml = `<input type="number" id="${inputId}" class="w-full md:w-20 p-3 md:p-2 text-xl md:text-base font-extrabold md:font-bold text-center text-green-900 bg-green-100 border-2 border-green-500 rounded-lg md:rounded outline-none cursor-not-allowed shadow-inner" readonly tabindex="-1" placeholder="0">`;
                         } else {
-                            inputHtml = `<input type="number" id="${inputId}" class="w-full md:w-20 p-4 md:p-2 text-2xl md:text-base font-extrabold md:font-bold text-center text-blue-900 bg-blue-50 border-2 border-blue-400 md:border-gray-400 rounded-lg md:rounded outline-none focus:ring-4 focus:ring-blue-600 transition" ${reqAttr} placeholder="0" ${onInputAttr}>`;
+                            inputHtml = `<input type="number" id="${inputId}" class="w-full md:w-20 p-3 md:p-2 text-xl md:text-base font-extrabold md:font-bold text-center text-blue-900 bg-blue-50 border-2 border-blue-400 md:border-gray-400 rounded-lg md:rounded outline-none focus:ring-4 focus:ring-blue-600 transition" ${reqAttr} placeholder="0" ${onInputAttr}>`;
                         }
-                    } else if (f.type === 'yes_no') {
-                        inputHtml = `<select id="${inputId}" class="w-full md:w-24 p-4 md:p-2 text-xl md:text-sm font-extrabold md:font-bold text-center text-purple-900 bg-purple-50 border-2 border-purple-400 md:border-gray-400 rounded-lg md:rounded outline-none focus:ring-4 focus:ring-purple-600" ${reqAttr} ${onInputAttr}><option value="">- निवडा -</option><option value="होय">होय</option><option value="नाही">नाही</option></select>`;
-                    } else if (f.type === 'date') {
-                        inputHtml = `<input type="date" id="${inputId}" class="w-full md:w-32 p-4 md:p-2 text-xl md:text-sm font-bold md:font-semibold text-center text-gray-900 bg-gray-50 border-2 border-gray-400 rounded-lg md:rounded outline-none focus:ring-4 focus:ring-gray-600" ${reqAttr} ${onInputAttr}>`;
-                    } else if (f.type === 'dropdown' && f.options) {
+                    } else if (col.type === 'yes_no') {
+                        inputHtml = `<select id="${inputId}" class="w-full md:w-24 p-3 md:p-2 text-lg md:text-sm font-extrabold md:font-bold text-center text-purple-900 bg-purple-50 border-2 border-purple-400 md:border-gray-400 rounded-lg md:rounded outline-none focus:ring-4 focus:ring-purple-600" ${reqAttr} ${onInputAttr}><option value="">- निवडा -</option><option value="होय">होय</option><option value="नाही">नाही</option></select>`;
+                    } else if (col.type === 'date') {
+                        inputHtml = `<input type="date" id="${inputId}" class="w-full md:w-32 p-3 md:p-2 text-lg md:text-sm font-bold md:font-semibold text-center text-gray-900 bg-gray-50 border-2 border-gray-400 rounded-lg md:rounded outline-none focus:ring-4 focus:ring-gray-600" ${reqAttr} ${onInputAttr}>`;
+                    } else if (col.type === 'dropdown' && col.options) {
                         let optsHtml = `<option value="">- निवडा -</option>`;
-                        f.options.forEach(opt => optsHtml += `<option value="${opt}">${opt}</option>`);
-                        inputHtml = `<select id="${inputId}" class="w-full md:w-32 p-4 md:p-2 text-xl md:text-sm font-extrabold md:font-bold text-center text-purple-900 bg-purple-50 border-2 border-purple-400 md:border-gray-400 rounded-lg md:rounded outline-none focus:ring-4 focus:ring-purple-600" ${reqAttr} ${onInputAttr}>${optsHtml}</select>`;
+                        col.options.forEach(opt => optsHtml += `<option value="${opt}">${opt}</option>`);
+                        inputHtml = `<select id="${inputId}" class="w-full md:w-32 p-3 md:p-2 text-lg md:text-sm font-extrabold md:font-bold text-center text-purple-900 bg-purple-50 border-2 border-purple-400 md:border-gray-400 rounded-lg md:rounded outline-none focus:ring-4 focus:ring-purple-600" ${reqAttr} ${onInputAttr}>${optsHtml}</select>`;
                     } else {
-                        let patt = f.type === 'mobile' ? 'pattern="[0-9]{10}" placeholder="10 अंकी नंबर"' : '';
-                        let tType = f.type === 'mobile' ? 'tel' : 'text';
-                        inputHtml = `<input type="${tType}" id="${inputId}" class="w-full md:w-32 p-4 md:p-2 text-xl md:text-sm font-bold md:font-semibold text-center text-gray-900 bg-gray-50 border-2 border-gray-400 rounded-lg md:rounded outline-none focus:ring-4 focus:ring-gray-600" ${reqAttr} ${patt} ${onInputAttr}>`;
+                        let patt = col.type === 'mobile' ? 'pattern="[0-9]{10}" placeholder="10 अंकी नंबर"' : '';
+                        let tType = col.type === 'mobile' ? 'tel' : 'text';
+                        inputHtml = `<input type="${tType}" id="${inputId}" class="w-full md:w-32 p-3 md:p-2 text-lg md:text-sm font-bold md:font-semibold text-center text-gray-900 bg-gray-50 border-2 border-gray-400 rounded-lg md:rounded outline-none focus:ring-4 focus:ring-gray-600" ${reqAttr} ${patt} ${onInputAttr}>`;
                     }
 
-                    html += `<td class="flex md:table-cell flex-col md:flex-row items-center md:justify-center p-3 md:p-2 border-b-2 border-dashed border-gray-200 md:border-solid md:border-b-0 md:border md:border-gray-300 gap-3 md:gap-0">
-                                <label class="md:hidden text-lg font-extrabold text-gray-800 text-center w-full bg-yellow-50 p-2 rounded">${getFullFieldLabel(allFields, f)}</label>
+                    // 🟢 Mobile View: Group Name Banner logic
+                    let mobileHeaderHtml = '';
+                    if (col.l1 && col.l1 !== prevL1) {
+                        mobileHeaderHtml += `<div class="md:hidden w-full bg-purple-100 border border-purple-300 text-purple-900 font-extrabold text-sm p-1.5 mt-2 rounded shadow-sm text-center">${col.l1}</div>`;
+                        prevL1 = col.l1;
+                        prevL2 = null; // Reset L2 when L1 changes
+                    }
+                    if (col.l2 && col.l2 !== prevL2) {
+                        mobileHeaderHtml += `<div class="md:hidden w-full bg-blue-50 border border-blue-200 text-blue-900 font-bold text-xs p-1 mt-1 rounded text-center">${col.l2}</div>`;
+                        prevL2 = col.l2;
+                    }
+                    
+                    let formulaBadgeMobile = isFormula ? '<span class="text-[9px] bg-green-500 text-white px-1 rounded ml-1">ऑटो बेरीज</span>' : '';
+
+                    html += `<td class="flex md:table-cell flex-col md:flex-row items-center md:justify-center p-3 md:p-2 border-b border-dashed border-gray-200 md:border-solid md:border-b-0 md:border md:border-gray-300 gap-1 md:gap-0">
+                                ${mobileHeaderHtml}
+                                <label class="md:hidden text-sm font-bold text-gray-700 text-center w-full">${col.l3} ${formulaBadgeMobile}</label>
                                 ${inputHtml}
                              </td>`;
                 });
@@ -502,7 +570,6 @@
                 const formEl = document.getElementById('dynamicDataForm');
                 if (!formEl.checkValidity()) { formEl.reportValidity(); return; }
 
-                // 🟢 Custom Validation Logic Check (Min / Max)
                 for (let v of currentPendingVillages) {
                     for (let f of currentDataFields) {
                         let el = document.getElementById(`${f.id}_v${v.id}`);
@@ -534,7 +601,7 @@
                 if(!confirm("तुम्हाला खात्री आहे की या गावासाठी या कालावधीची माहिती 'निरंक (NIL)' आहे?\n(यानंतर या कालावधीत या गावाची नोंद करता येणार नाही)")) return;
             }
 
-            document.getElementById('loaderText').innerText = "डेटा सुरक्षित सेव्ह होत approach आहे...";
+            document.getElementById('loaderText').innerText = "डेटा सुरक्षित सेव्ह होत आहे...";
             document.getElementById('loader').classList.remove('hidden');
 
             let payloads = [];
