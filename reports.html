@@ -1578,7 +1578,7 @@
             navigator.clipboard.writeText(textToCopy).then(() => { alert("✅ यादी व्हॉट्सॲप मेसेजसाठी कॉपी झाली आहे!"); });
         }
 
-               // 🟢 आकर्षक शासकीय नमुन्यातील नोटीस (डायरेक्ट PDF डाऊनलोड सुविधेसह)
+               //       // 🟢 आकर्षक शासकीय नमुन्यातील नोटीस (बॉर्डर काढलेली)
         function generateNotice(empName, scName, noticeDataStr) {
             const today = new Date().toLocaleDateString('mr-IN');
             const noticeWindow = window.open('', '_blank', 'width=900,height=800');
@@ -1600,7 +1600,8 @@
                     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"><\/script>
                     <style>
                         body { font-family: 'Arial', sans-serif; background: #e9ecef; margin: 0; padding: 20px; color: #222;} 
-                        .notice-wrapper { background: #fff; padding: 30px 40px; max-width: 210mm; min-height: 297mm; margin: auto; border: 4px double #111; outline: 1px solid #111; outline-offset: 4px; box-sizing: border-box; position: relative; }
+                        /* 🟢 बॉर्डर आणि आउटलाईन काढून टाकली आहे */
+                        .notice-wrapper { background: #fff; padding: 30px 40px; max-width: 210mm; min-height: 297mm; margin: auto; box-sizing: border-box; position: relative; box-shadow: 0px 5px 15px rgba(0,0,0,0.3); border: none; outline: none; }
                         .title-block { text-align: center; border-bottom: 2px solid #222; padding-bottom: 15px; margin-bottom: 25px; }
                         .title { font-weight: 900; font-size: 26px; color: #000; margin-bottom: 5px; }
                         .subtitle { font-size: 18px; font-weight: bold; color: #333; }
@@ -1616,7 +1617,8 @@
                         
                         @media print { 
                             body { background: #fff; padding: 0; }
-                            .notice-wrapper { border: 3px double #000; outline: none; margin: 0; padding: 20px; min-height: auto;}
+                            /* 🟢 प्रिंट करताना सुद्धा बॉर्डर नसावी याची काळजी घेतली आहे */
+                            .notice-wrapper { border: none; outline: none; margin: 0; padding: 20px; min-height: auto; box-shadow: none;}
                             .no-print { display: none; } 
                         }
                     </style>
@@ -1688,10 +1690,10 @@
                     <script>
                         function downloadPDF() {
                             const element = document.getElementById('noticeContent');
-                            const empFileName = '${empName}'.replace(/\\s+/g, '_'); // नावात स्पेस असल्यास _ टाकणे
+                            const empFileName = '${empName}'.replace(/\\s+/g, '_'); 
                             
                             const opt = {
-                                margin:       [10, 10, 10, 10], // टॉप, लेफ्ट, बॉटम, राईट मार्जिन
+                                margin:       [10, 10, 10, 10], 
                                 filename:     'कारणे_दाखवा_नोटीस_' + empFileName + '.pdf',
                                 image:        { type: 'jpeg', quality: 0.98 },
                                 html2canvas:  { scale: 2, useCORS: true },
