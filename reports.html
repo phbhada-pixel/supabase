@@ -1420,6 +1420,16 @@
             XLSX.writeFile(wb, dlName);
         }
 
+        // 🟢 रोलनुसार मराठी पदनाम मिळवणे
+        function getMarathiDesignation(roleStr) {
+            if(!roleStr) return "आरोग्य कर्मचारी";
+            let r = String(roleStr).toLowerCase().trim();
+            if (r === 'mpw' || r.includes('mpw')) return "आरोग्य कर्मचारी पुरुष";
+            if (r === 'anm' || r.includes('anm') || r.includes('fhw')) return "आरोग्य कर्मचारी स्त्री";
+            if (r === 'cho' || r.includes('cho')) return "समुदाय आरोग्य अधिकारी";
+            return "आरोग्य कर्मचारी"; 
+        }
+
         // 🟢 कर्मचारी निहाय आणि गटबद्ध अपूर्ण यादी
         function generatePendingReport() {
             let periodType = document.getElementById('periodType').value;
@@ -1477,6 +1487,7 @@
                                 employeePendingMap[empKey] = {
                                     empName: u.full_name,
                                     scName: scName,
+                                    empRole: u.role, // 🟢 रोल साठवला
                                     pendingForms: {} 
                                 };
                             }
@@ -1518,6 +1529,7 @@
                 
                 employeeKeys.forEach((key, idx) => {
                     let empData = employeePendingMap[key];
+                    let marathiRole = getMarathiDesignation(empData.empRole); // 🟢 मराठी पदनाम मिळवणे
                     
                     let pendingItemsHTML = "";
                     let noticeDataArray = [];
@@ -1540,13 +1552,13 @@
                         <td style="border: 1px solid #ccc; padding: 10px; text-align:center; font-weight:bold; vertical-align: top;">${idx+1}</td>
                         <td style="border: 1px solid #ccc; padding: 10px; text-align:left; vertical-align: top;">
                             <div style="color:#0056b3; font-weight:bold; font-size:15px; margin-bottom:4px;">🧑‍⚕️ ${empData.empName}</div>
-                            <div style="color:#d35400; font-weight:bold; font-size:12px;">🏥 उपकेंद्र: ${empData.scName}</div>
+                            <div style="color:#d35400; font-weight:bold; font-size:12px;">🏥 ${marathiRole}, उपकेंद्र: ${empData.scName}</div> <!-- 🟢 पद आणि उपकेंद्र एकाच ओळीत -->
                         </td>
                         <td style="border: 1px solid #ccc; padding: 10px; text-align:left; vertical-align: top;">
                             <ul style="margin:0; padding-left:18px; font-size:14px;">${pendingItemsHTML}</ul>
                         </td>
                         <td style="border: 1px solid #ccc; padding: 10px; text-align:center; vertical-align: middle;" class="no-print">
-                            <button onclick="generateNotice('${empData.empName}', '${empData.scName}', '${safeNoticeDataStr}')" class="bg-red-600 text-white px-3 py-2 rounded text-xs font-bold shadow hover:bg-red-700 transition">✉️ नोटीस काढा</button>
+                            <button onclick="generateNotice('${empData.empName}', '${marathiRole}', '${empData.scName}', '${safeNoticeDataStr}')" class="bg-red-600 text-white px-3 py-2 rounded text-xs font-bold shadow hover:bg-red-700 transition">✉️ नोटीस काढा</button>
                         </td>
                     </tr>`;
                 });
@@ -1578,8 +1590,8 @@
             navigator.clipboard.writeText(textToCopy).then(() => { alert("✅ यादी व्हॉट्सॲप मेसेजसाठी कॉपी झाली आहे!"); });
         }
 
-               //       // 🟢 आकर्षक शासकीय नमुन्यातील नोटीस (बॉर्डर काढलेली)
-        function generateNotice(empName, scName, noticeDataStr) {
+        // 🟢 आकर्षक शासकीय नमुन्यातील नोटीस
+        function generateNotice(empName, empRole, scName, noticeDataStr) {
             const today = new Date().toLocaleDateString('mr-IN');
             const noticeWindow = window.open('', '_blank', 'width=900,height=800');
             
@@ -1597,10 +1609,10 @@
                 <html lang="mr">
                 <head>
                     <title>कारणे दाखवा नोटीस - ${empName}</title>
+                    <!-- PDF तयार करण्यासाठी आवश्यक लायब्ररी -->
                     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"><\/script>
                     <style>
                         body { font-family: 'Arial', sans-serif; background: #e9ecef; margin: 0; padding: 20px; color: #222;} 
-                        /* 🟢 बॉर्डर आणि आउटलाईन काढून टाकली आहे */
                         .notice-wrapper { background: #fff; padding: 30px 40px; max-width: 210mm; min-height: 297mm; margin: auto; box-sizing: border-box; position: relative; box-shadow: 0px 5px 15px rgba(0,0,0,0.3); border: none; outline: none; }
                         .title-block { text-align: center; border-bottom: 2px solid #222; padding-bottom: 15px; margin-bottom: 25px; }
                         .title { font-weight: 900; font-size: 26px; color: #000; margin-bottom: 5px; }
@@ -1617,7 +1629,6 @@
                         
                         @media print { 
                             body { background: #fff; padding: 0; }
-                            /* 🟢 प्रिंट करताना सुद्धा बॉर्डर नसावी याची काळजी घेतली आहे */
                             .notice-wrapper { border: none; outline: none; margin: 0; padding: 20px; min-height: auto; box-shadow: none;}
                             .no-print { display: none; } 
                         }
@@ -1639,8 +1650,8 @@
                         <div class="to-address">
                             प्रति,<br>
                             श्री./सौ. <span style="font-size: 18px; color: #b71c1c;">${empName}</span>,<br>
-                            आरोग्य कर्मचारी,<br>
-                            उपकेंद्र: ${scName}.
+                            <!-- 🟢 पद आणि उपकेंद्र एकाच ओळीत -->
+                            ${empRole}, उपकेंद्र: ${scName}.
                         </div>
                         
                         <div class="subject-box">
