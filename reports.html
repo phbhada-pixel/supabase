@@ -140,8 +140,7 @@
                 <h2 class="text-lg font-bold text-blue-900">✏️ माहिती एडिट करा</h2>
                 <button onclick="closeEditModal()" class="text-red-500 font-bold text-2xl hover:text-red-700">&times;</button>
             </div>
-            <div class="p-6 overflow-y-auto flex-1 bg-gray-50" id="editModalBody">
-                </div>
+            <div class="p-6 overflow-y-auto flex-1 bg-gray-50" id="editModalBody"></div>
             <div class="p-4 border-t flex justify-end gap-3 bg-white">
                 <button onclick="closeEditModal()" class="bg-gray-500 text-white px-5 py-2 rounded font-bold shadow">रद्द करा</button>
                 <button onclick="saveEditResponse()" class="bg-green-600 text-white px-5 py-2 rounded font-bold shadow hover:bg-green-700">💾 अपडेट करा</button>
@@ -208,7 +207,47 @@
             await loadInitialMasterData();
         };
 
-        // 🚀 Pagination Helper: 1000 पेक्षा जास्त रेकॉर्ड्ससाठी
+        // 🟢 10th Date Lock Function
+        function isEditingAllowed(reportMonth, reportYear) {
+            if (!reportMonth || !reportYear) return false;
+            let today = new Date();
+            let lockDate = new Date(reportYear, reportMonth, 10, 23, 59, 59); 
+            return today <= lockDate;
+        }
+
+        // 🟢 Validation Rule Helper
+        function evaluateValidationFormula(formulaStr, fields, isEditMode = false) {
+            let fStr = String(formulaStr).toLowerCase().trim();
+            if (fStr.includes('[')) {
+                fields.forEach(af => {
+                    let ph = `[${af.id.toLowerCase()}]`;
+                    if (fStr.includes(ph)) {
+                        let val = 0;
+                        if(isEditMode) {
+                            let el = document.getElementById(`edit_f_${af.id}`);
+                            val = el && el.value !== "" ? parseFloat(el.value) : 0;
+                        } else {
+                            let el = document.getElementById(`${af.id}_v${vid}`);
+                            val = el && el.value !== "" ? parseFloat(el.value) : 0;
+                        }
+                        if (isNaN(val)) val = 0;
+                        fStr = fStr.split(ph).join(val);
+                    }
+                });
+            }
+
+            try {
+                if (/^[0-9.+\-*/() ]+$/.test(fStr)) {
+                    let res = eval(fStr);
+                    return isNaN(res) || !isFinite(res) ? null : res;
+                }
+            } catch(e) {}
+            
+            let simpleNum = parseFloat(fStr);
+            return isNaN(simpleNum) ? null : simpleNum;
+        }
+
+        // 🟢 अनलिमिटेड डेटा फेचर (Pagination Helper) - By-pass 1000 limit
         async function fetchAllSupabaseData(baseQuery) {
             let allData = [];
             let page = 0;
@@ -230,43 +269,6 @@
             return allData;
         }
 
-        // 🟢 10th Date Lock Function
-        function isEditingAllowed(reportMonth, reportYear) {
-            if (!reportMonth || !reportYear) return false;
-            let today = new Date();
-            let lockDate = new Date(reportYear, reportMonth, 10, 23, 59, 59); 
-            return today <= lockDate;
-        }
-
-        // 🟢 Validation Rule Helper
-        function evaluateValidationFormula(formulaStr, fields, isEditMode = false) {
-            let fStr = String(formulaStr).toLowerCase().trim();
-            if (fStr.includes('[')) {
-                fields.forEach(af => {
-                    let ph = `[${af.id.toLowerCase()}]`;
-                    if (fStr.includes(ph)) {
-                        let val = 0;
-                        if(isEditMode) {
-                            let el = document.getElementById(`edit_f_${af.id}`);
-                            val = el && el.value !== "" ? parseFloat(el.value) : 0;
-                        }
-                        if (isNaN(val)) val = 0;
-                        fStr = fStr.split(ph).join(val);
-                    }
-                });
-            }
-
-            try {
-                if (/^[0-9.+\-*/() ]+$/.test(fStr)) {
-                    let res = eval(fStr);
-                    return isNaN(res) || !isFinite(res) ? null : res;
-                }
-            } catch(e) {}
-            
-            let simpleNum = parseFloat(fStr);
-            return isNaN(simpleNum) ? null : simpleNum;
-        }
-
         function togglePeriodInputs() {
             let val = document.getElementById('periodType').value;
             if (val === 'custom') {
@@ -282,7 +284,7 @@
             document.getElementById('reportLoader').classList.remove('hidden');
 
             try {
-                // 🚀 Caching Logic: जुना डेटा साठवून ठेवणे (स्पीड वाढवण्यासाठी)
+                // 🟢 स्मार्ट डेटा कॅशिंग
                 let cachedData = sessionStorage.getItem('phcMasterData');
                 if (cachedData) {
                     masterData = JSON.parse(cachedData);
@@ -290,25 +292,13 @@
                     const { data: pData } = await supabaseClient.from('phcs').select('*');
                     masterData.phcs = pData || [];
 
-                    let scQuery = supabaseClient.from('sub_centers').select('*').order('name');
-                    if (user.role === 'phc_admin' && user.phc_id) {
-                        scQuery = scQuery.eq('phc_id', user.phc_id);
-                    }
-                    const { data: scData } = await scQuery;
+                    const { data: scData } = await supabaseClient.from('sub_centers').select('*').order('name');
                     masterData.subCenters = scData || [];
 
-                    let vQuery = supabaseClient.from('villages').select('*').order('name');
-                    if (user.role === 'phc_admin') {
-                        let scIds = masterData.subCenters.map(s => s.id);
-                        if (scIds.length > 0) vQuery = vQuery.in('sub_center_id', scIds);
-                        else vQuery = vQuery.eq('sub_center_id', '00000000-0000-0000-0000-000000000000');
-                    }
-                    const { data: vData } = await vQuery;
+                    const { data: vData } = await supabaseClient.from('villages').select('*').order('name');
                     masterData.villages = vData || [];
 
-                    let eQuery = supabaseClient.from('employees').select('*').order('full_name');
-                    if (user.role === 'phc_admin' && user.phc_id) eQuery = eQuery.eq('phc_id', user.phc_id);
-                    const { data: empData } = await eQuery;
+                    const { data: empData } = await supabaseClient.from('employees').select('*').order('full_name');
                     masterData.employees = empData || [];
 
                     const { data: formData } = await supabaseClient.from('dynamic_forms').select('*').eq('is_active', true);
@@ -340,9 +330,9 @@
                     optionsDiv.appendChild(div);
                 });
 
-                // फेचिंग स्टैट्स
+                // Fetching form_responses for filledStats bypasses pagination intentionally if just checking stats, but better to use fetchAllSupabaseData if huge
                 let statsQuery = supabaseClient.from('form_responses').select('form_id, village_id, report_month, report_year, report_fortnight');
-                masterData.filledStats = await fetchAllSupabaseData(statsQuery) || [];
+                masterData.filledStats = await fetchAllSupabaseData(statsQuery);
 
                 document.getElementById('chkAllReports').checked = true;
                 updateMultiSelectText();
@@ -492,17 +482,19 @@
             try {
                 if(!selectedIDs.includes("ALL")) query = query.in('form_id', formsToProcess.map(f=>f.id));
 
-                // 🚀 Paginator चा वापर (१००० पेक्षा जास्त रेकॉर्ड्ससाठी)
-                const dbData = await fetchAllSupabaseData(query);
-                
+                // 🟢 Pagination वापरून सर्व डेटा एकत्र फेच करा
+                const dbData = await fetchAllSupabaseData(query); 
                 document.getElementById('reportLoader').classList.add('hidden');
+                
                 if (!dbData || dbData.length === 0) { alert("या कालावधीत किंवा निवडलेल्या फिल्टरमध्ये कोणताही डेटा उपलब्ध नाही."); return; }
 
                 windowDbData = dbData; 
                 let finalReports = [];
 
                 formsToProcess.forEach(formObj => {
-                    let formResp = dbData.filter(r => r.form_id === formObj.id); if(formResp.length === 0) return;
+                    let formResp = dbData.filter(r => r.form_id === formObj.id); 
+                    if(formResp.length === 0) return;
+
                     const allFields = formObj.schema_json.fields;
                     const validDataFields = allFields.filter(f => f.type !== 'group_header');
                     const isProgressive = formObj.form_type === 'progressive';
@@ -578,7 +570,7 @@
                                 if (isProgressive && f.type === 'number') {
                                     let sumProg = 0;
                                     getProgressiveMonthsList(selMonthNum, selYear).forEach(p => {
-                                        // 🟢 Employee ID Filter applied here
+                                        // 🟢 Employee-wise Progressive Check
                                         let pastRes = formResp.find(r => 
                                             r.village_id === res.village_id && 
                                             r.employee_id === res.employee_id && 
@@ -1004,7 +996,7 @@
             
             let html = `<div class="space-y-4">`;
             allFields.forEach(f => {
-                if(f.formula && String(f.formula).trim() !== "") return; // Disable editing formula results directly
+                if(f.formula && String(f.formula).trim() !== "") return; 
                 
                 let val = "";
                 if(response.response_data && response.response_data[f.id]) {
@@ -1043,7 +1035,6 @@
             
             let newData = { ...response.response_data };
 
-            // 🟢 Validation Check during Edit
             for (let f of allFields) {
                 let el = document.getElementById(`edit_f_${f.id}`);
                 if (!el || el.value === "") continue;
@@ -1056,7 +1047,7 @@
                         if (maxVal !== null && val > maxVal) {
                             alert(`⚠️ चूक: '${f.label}' मधील आकडा ${maxVal} पेक्षा जास्त असू शकत नाही!`);
                             el.focus();
-                            return; // Stop saving
+                            return; 
                         }
                     }
 
@@ -1065,7 +1056,7 @@
                         if (minVal !== null && val < minVal) {
                             alert(`⚠️ चूक: '${f.label}' मधील आकडा ${minVal} पेक्षा कमी असू शकत नाही!`);
                             el.focus();
-                            return; // Stop saving
+                            return; 
                         }
                     }
                 }
@@ -1080,7 +1071,7 @@
             if(error) alert("अपडेट करताना त्रुटी: " + error.message);
             else {
                 alert("✅ डेटा यशस्वीरीत्या अपडेट झाला!");
-                fetchReportData(); // Refresh the table
+                fetchReportData(); 
             }
             document.getElementById('reportLoader').classList.add('hidden');
         }
@@ -1457,6 +1448,7 @@
             XLSX.writeFile(wb, dlName);
         }
 
+        // 🟢 Generate Pending Report (With Notice Logic)
         function generatePendingReport() {
             let periodType = document.getElementById('periodType').value;
             if (periodType === 'custom') {
@@ -1473,6 +1465,7 @@
             if (selectedIDs.length === 0) { alert("कृपया किमान एक अहवाल निवडा!"); return; }
 
             let groupedData = {}; 
+            let employeePendingMap = {}; // 🟢 कर्मचाऱ्याचे सर्व फॉर्म्स साठवण्यासाठी
             let filterSubCenter = document.getElementById('reportSubCenterFilter').value;
             let formsToCheck = masterData.forms;
             if(!selectedIDs.includes("ALL")) formsToCheck = formsToCheck.filter(f => selectedIDs.includes(f.id));
@@ -1508,7 +1501,14 @@
                             h.report_year === parseInt(selYear) &&
                             (!isFortnightly || h.report_fortnight === parseInt(selFortnight))
                         );
-                        if (!isFilled) groupedData[f.form_name].push({ sc: scName, name: u.full_name, role: u.role, village: v.name });
+                        if (!isFilled) {
+                            groupedData[f.form_name].push({ sc: scName, name: u.full_name, role: u.role, village: v.name });
+                            
+                            // 🟢 कर्मचाऱ्याच्या नावाने अपूर्ण फॉर्म्सची यादी बनवणे
+                            let empKey = u.full_name + "###" + scName;
+                            if (!employeePendingMap[empKey]) employeePendingMap[empKey] = new Set();
+                            employeePendingMap[empKey].add(f.form_name);
+                        }
                     });
                 });
             });
@@ -1527,18 +1527,29 @@
                 if(groupedData[fName].length > 0) {
                     hasData = true; let pbClass = isFirstPending ? "" : "page-break"; isFirstPending = false;
                     html += `<div class="${pbClass}"><div class="pdf-group-header" style="background:#f8f9fa; color:#c0392b; padding:10px; font-weight:bold; font-size:16px; margin-top:10px; border:1px solid #ddd;">📄 फॉर्म: ${fName}</div><table class="report-table pending-data-table" style="width:100%; border-collapse:collapse; margin-bottom:30px;"><thead style="background:#f4f7f6;"><tr><th style="border: 1px solid #ccc; padding: 8px; width:10%; text-align:center;">अ.क्र.</th><th style="border: 1px solid #ccc; padding: 8px; text-align:left;">अहवाल प्रलंबित असणारे कर्मचारी (उपकेंद्र) - अपूर्ण गावे</th></tr></thead><tbody>`;
-                    let empMap = {}; groupedData[fName].forEach(p => { let key = p.name + "###" + p.sc; if(!empMap[key]) empMap[key] = []; empMap[key].push(p.village); });
+                    let empMap = {}; 
+                    groupedData[fName].forEach(p => { 
+                        let key = p.name + "###" + p.sc; 
+                        if(!empMap[key]) empMap[key] = []; 
+                        empMap[key].push(p.village); 
+                    });
+                    
                     let sortedKeys = Object.keys(empMap).sort();
                     sortedKeys.forEach((key, idx) => {
-                        let [empName, scName] = key.split("###"); let villagesStr = empMap[key].join(", ");
-                        // 🟢 नोटीस बटण ऍड केले आहे
+                        let [empName, scName] = key.split("###"); 
+                        let villagesStr = empMap[key].join(", ");
+
+                        // 🟢 सर्व अपूर्ण फॉर्म्सची यादी स्ट्रिंगमध्ये तयार करणे
+                        let allPendingForms = Array.from(employeePendingMap[key]).join(",");
+                        let safeForms = allPendingForms.replace(/'/g, "\\'"); // सुरक्षितपणे पास करण्यासाठी
+
                         html += `<tr>
                             <td style="border: 1px solid #ccc; padding: 8px; text-align:center; font-weight:bold;">${idx+1}</td>
                             <td style="border: 1px solid #ccc; padding: 8px; text-align:left; font-size:15px;">
                                 <span style="color:#0056b3; font-weight:bold;">${empName}</span> - 
                                 <span style="color:#d35400; font-weight:bold;">${scName}</span> 
                                 <span style="color:#28a745; font-weight:bold;">(${villagesStr})</span>
-                                <button onclick="generateNotice('${empName}', '${scName}', '${fName}')" class="no-print bg-red-500 text-white px-2 py-1 ml-3 rounded text-xs font-bold shadow hover:bg-red-600 transition">✉️ नोटीस</button>
+                                <button onclick="generateNotice('${empName}', '${scName}', '${safeForms}')" class="no-print bg-red-500 text-white px-2 py-1 ml-3 rounded text-[11px] font-bold shadow hover:bg-red-600 transition">✉️ एकत्रित नोटीस</button>
                             </td>
                         </tr>`;
                     });
@@ -1562,15 +1573,18 @@
             navigator.clipboard.writeText(textToCopy).then(() => { alert("✅ यादी व्हॉट्सॲप मेसेजसाठी कॉपी झाली आहे!"); });
         }
 
-        // 🟢 कारणे दाखवा नोटीस जनरेट करणारे फंक्शन
-        function generateNotice(empName, scName, formName) {
+        // 🟢 एकत्रित कारणे दाखवा नोटीस जनरेट करणारे फंक्शन
+        function generateNotice(empName, scName, formsList) {
             const today = new Date().toLocaleDateString('mr-IN');
-            const noticeWindow = window.open('', '_blank', 'width=800,height=600');
+            const noticeWindow = window.open('', '_blank', 'width=800,height=800');
             
+            // 🟢 फॉर्म्सची लिस्ट HTML फॉरमॅट मध्ये तयार करणे
+            let formsHtml = formsList.split(',').map((f, i) => `${i+1}. ${f.trim()}`).join('<br>');
+
             noticeWindow.document.write(`
                 <html lang="mr">
                 <head>
-                    <title>कारणे दाखवा नोटीस - ${empName}</title>
+                    <title>एकत्रित कारणे दाखवा नोटीस - ${empName}</title>
                     <style>
                         body { font-family: 'Arial', sans-serif; padding: 40px; line-height: 1.8; color: #000; } 
                         .title-block { text-align: center; margin-bottom: 30px; }
@@ -1580,6 +1594,7 @@
                         .to-address { margin-bottom: 30px; font-weight: bold; }
                         .subject { font-weight: bold; text-decoration: underline; margin-bottom: 20px; padding-left: 50px;}
                         .content { text-align: justify; text-indent: 50px; }
+                        .forms-box { margin: 15px 0 15px 50px; padding: 15px; border: 1px solid #000; background-color: #f9f9f9; font-weight: bold; display: inline-block; min-width: 60%; line-height: 2; }
                         .sign-block { text-align: right; margin-top: 60px; font-weight: bold; }
                         @media print { .no-print { display: none; } }
                     </style>
@@ -1604,15 +1619,23 @@
                     </div>
                     
                     <div class="subject">
-                        विषय: '${formName}' चा अहवाल विहित वेळेत सादर न केल्याबाबत कारणे दाखवा नोटीस.
+                        विषय: प्रलंबित अहवाल विहित वेळेत सादर न केल्याबाबत एकत्रित कारणे दाखवा नोटीस.
                     </div>
                     
                     <p>महोदय/महोदया,</p>
                     
                     <div class="content">
-                        <p>उपरोक्त विषयान्वये आपणास कळविण्यात येते की, आपल्या कार्यक्षेत्रातील <strong>'${formName}'</strong> या महत्त्वाच्या कार्यक्रमाचा अहवाल आपण अद्यापपर्यंत कार्यालयास सादर केलेला नाही. अहवाल वेळेत सादर न करणे ही अत्यंत गंभीर बाब असून, हे आपल्या कामातील हलगर्जीपणाचे व वरिष्ठांच्या आदेशाचे उल्लंघन केल्याचे स्पष्ट लक्षण आहे.</p>
+                        <p>उपरोक्त विषयान्वये आपणास कळविण्यात येते की, आपल्या कार्यक्षेत्रातील खालील महत्त्वाच्या कार्यक्रमांचे अहवाल आपण अद्यापपर्यंत कार्यालयास सादर केलेले नाहीत.</p>
+                    </div>
+                    
+                    <div class="forms-box">
+                        ${formsHtml}
+                    </div>
+
+                    <div class="content">
+                        <p>अहवाल वेळेत सादर न करणे ही अत्यंत गंभीर बाब असून, हे आपल्या कामातील हलगर्जीपणाचे व वरिष्ठांच्या आदेशाचे उल्लंघन केल्याचे स्पष्ट लक्षण आहे.</p>
                         
-                        <p>तरी, ही नोटीस मिळाल्यापासून <strong>२४ तासांच्या आत</strong> सदर अहवाल प्रणालीवर अद्ययावत करावा आणि विहित वेळेत अहवाल न पाठवल्याबाबतचा खुलासा लेखी स्वरूपात कार्यालयास सादर करावा.</p>
+                        <p>तरी, ही नोटीस मिळाल्यापासून <strong>२४ तासांच्या आत</strong> सदर सर्व अहवाल प्रणालीवर अद्ययावत करावेत आणि विहित वेळेत अहवाल न पाठवल्याबाबतचा खुलासा लेखी स्वरूपात कार्यालयास सादर करावा.</p>
                         
                         <p>खुलासा असमाधानकारक आढळल्यास किंवा मुदतीत प्राप्त न झाल्यास, आपल्यावर महाराष्ट्र नागरी सेवा (शिस्त व अपील) नियमांनुसार योग्य ती प्रशासकीय कारवाई का प्रस्तावित करू नये, याबाबत आपली भूमिका स्पष्ट करावी.</p>
                     </div>
@@ -1623,7 +1646,7 @@
                     </div>
 
                     <div style="text-align: center; margin-top: 50px;">
-                        <button class="no-print" onclick="window.print()" style="padding: 10px 20px; background-color: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: bold;">🖨️ नोटीस प्रिंट करा</button>
+                        <button class="no-print" onclick="window.print()" style="padding: 10px 20px; background-color: #d32f2f; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: bold;">🖨️ नोटीस प्रिंट करा</button>
                     </div>
                 </body>
                 </html>
