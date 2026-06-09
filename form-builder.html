@@ -28,9 +28,11 @@
                 <label class="block text-gray-700 font-bold mb-2 text-sm">फॉर्मचा प्रकार</label>
                 <select id="formType" class="w-full p-2 border rounded bg-white font-bold text-blue-700">
                     <option value="list">यादी (List)</option>
-                    <option value="monthly">मासिक अहवाल</option>
-                    <option value="progressive">प्रगत अहवाल</option>
-                    <option value="fortnightly">पंधरवाडी अहवाल</option>
+                    <option value="monthly">मासिक अहवाल (गावनिहाय)</option>
+                    <option value="progressive">प्रगत अहवाल (गावनिहाय)</option>
+                    <option value="fortnightly">पंधरवाडी अहवाल (गावनिहाय)</option>
+                    <!-- 🟢 नवीन प्रकार जोडला -->
+                    <option value="subcenter" class="font-extrabold text-green-700">🏢 उपकेंद्र एकत्रित (Subcenter Level)</option>
                 </select>
             </div>
             <div>
@@ -44,18 +46,10 @@
             <div>
                 <label class="block text-gray-700 font-bold mb-2 text-sm">फॉर्म कोणी भरावा? (Tick करा)</label>
                 <div class="flex items-center gap-3 bg-white p-2 border rounded font-bold text-purple-700 min-h-[42px] overflow-x-auto">
-                    <label class="flex items-center gap-1 cursor-pointer">
-                        <input type="checkbox" class="role-chk w-4 h-4 text-purple-600" value="MPW" checked> MPW
-                    </label>
-                    <label class="flex items-center gap-1 cursor-pointer">
-                        <input type="checkbox" class="role-chk w-4 h-4 text-purple-600" value="ANM" checked> ANM
-                    </label>
-                    <label class="flex items-center gap-1 cursor-pointer">
-                        <input type="checkbox" class="role-chk w-4 h-4 text-purple-600" value="CHO" checked> CHO
-                    </label>
-                    <label class="flex items-center gap-1 cursor-pointer">
-                        <input type="checkbox" class="role-chk w-4 h-4 text-purple-600" value="आशा कार्यकर्ती"> आशा
-                    </label>
+                    <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="role-chk w-4 h-4 text-purple-600" value="MPW" checked> MPW</label>
+                    <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="role-chk w-4 h-4 text-purple-600" value="ANM" checked> ANM</label>
+                    <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="role-chk w-4 h-4 text-purple-600" value="CHO" checked> CHO</label>
+                    <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" class="role-chk w-4 h-4 text-purple-600" value="आशा कार्यकर्ती"> आशा</label>
                 </div>
             </div>
         </div>
@@ -229,8 +223,8 @@
                     <div class="mt-2 grid grid-cols-1 md:grid-cols-3 gap-2 text-xs">
                          <input type="text" id="${fId}_formula" placeholder="फॉर्म्युला उदा. [f1]+[f2]" class="md:col-span-2 p-1 border border-blue-50 bg-blue-50/50 rounded font-mono font-bold text-blue-800">
                          <div class="flex gap-1">
-                             <input type="number" id="${fId}_min" placeholder="Min" class="w-1/2 p-1 border rounded">
-                             <input type="number" id="${fId}_max" placeholder="Max" class="w-1/2 p-1 border rounded">
+                             <input type="text" id="${fId}_min" placeholder="Min (उदा. 0 किंवा [f1])" class="w-1/2 p-1 border rounded font-mono text-red-600 font-bold">
+                             <input type="text" id="${fId}_max" placeholder="Max (उदा. 100 किंवा [f2])" class="w-1/2 p-1 border rounded font-mono text-red-600 font-bold">
                          </div>
                     </div>
 
@@ -300,7 +294,6 @@
                 return alert("कृपया फॉर्म कोणी भरायचा यासाठी किमान एक पद (Role) टिक करा!");
             }
 
-            // 'ALL' सेट करण्याऐवजी निवडलेल्या रोल्सची कॉमा-सेपरेटेड लिस्टच ठेवा, जेणेकरून फिल्टरिंग योग्य होईल
             let allowedRoles = checkedRoles.join(',');
             const selectedMode = document.getElementById('dataEntryMode').value;
 
