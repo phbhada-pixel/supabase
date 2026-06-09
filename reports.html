@@ -550,10 +550,17 @@
                                 if (isProgressive && f.type === 'number') {
                                     let sumProg = 0;
                                     getProgressiveMonthsList(selMonthNum, selYear).forEach(p => {
-                                        let pastRes = formResp.find(r => r.village_id === res.village_id && r.report_month === p.month && r.report_year === p.year);
-                                        if(pastRes && pastRes.response_data && pastRes.response_data[f.id]) {
-                                            sumProg += parseFloat(pastRes.response_data[f.id].value) || 0;
-                                        }
+                                        // 🟢 दुरुस्त केलेले लॉजिक: कर्मचारी आयडी (employee_id) सह pastRes शोधा
+let pastRes = formResp.find(r => 
+    r.village_id === res.village_id && 
+    r.employee_id === res.employee_id && // 🟢 ही ओळ महत्त्वाची आहे
+    r.report_month === p.month && 
+    r.report_year === p.year
+);
+
+if(pastRes && pastRes.response_data && pastRes.response_data[f.id]) {
+    sumProg += parseFloat(pastRes.response_data[f.id].value) || 0;
+}
                                     });
                                     row.values[f.id] = { M: formatNumberDecimals(monthlyVal), P: formatNumberDecimals(sumProg) };
                                 } else { 
