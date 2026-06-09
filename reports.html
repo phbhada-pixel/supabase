@@ -396,6 +396,9 @@
         }
 
         async function fetchReportData() {
+    // 🟢 ही ओळ जोडल्याने जुना डेटा मेमरीमधून पूर्णपणे काढून टाकला जाईल
+    windowDbData = []; 
+    currentReports = [];
             let selectedIDs = getSelectedReportIDs(); if(selectedIDs.length === 0) { alert("कृपया किमान एक अहवाल निवडा!"); return; }
 
             let formsToProcess = selectedIDs.includes("ALL") ? masterData.forms : masterData.forms.filter(f => selectedIDs.includes(f.id));
