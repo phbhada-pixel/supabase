@@ -134,7 +134,6 @@
         <div id="reportTableContainer"></div>
     </div>
 
-    <!-- 🟢 Edit Modal -->
     <div id="editModal" class="hidden fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4">
         <div class="bg-white rounded-lg shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col border-t-8 border-blue-600">
             <div class="p-4 border-b flex justify-between items-center bg-blue-50">
@@ -142,8 +141,7 @@
                 <button onclick="closeEditModal()" class="text-red-500 font-bold text-2xl hover:text-red-700">&times;</button>
             </div>
             <div class="p-6 overflow-y-auto flex-1 bg-gray-50" id="editModalBody">
-                <!-- Inputs will be generated here -->
-            </div>
+                </div>
             <div class="p-4 border-t flex justify-end gap-3 bg-white">
                 <button onclick="closeEditModal()" class="bg-gray-500 text-white px-5 py-2 rounded font-bold shadow">रद्द करा</button>
                 <button onclick="saveEditResponse()" class="bg-green-600 text-white px-5 py-2 rounded font-bold shadow hover:bg-green-700">💾 अपडेट करा</button>
@@ -214,8 +212,42 @@
         function isEditingAllowed(reportMonth, reportYear) {
             if (!reportMonth || !reportYear) return false;
             let today = new Date();
+            // JS Date मध्ये महिने 0 ते 11 असतात. 
+            // पुढचा महिना काढण्यासाठी आपण थेट reportMonth पास करतो (कारण तो 1 ते 12 आहे, जो JS मध्ये पुढचा महिना बनतो)
             let lockDate = new Date(reportYear, reportMonth, 10, 23, 59, 59); 
             return today <= lockDate;
+        }
+
+        // 🟢 Validation Rule Helper
+        function evaluateValidationFormula(formulaStr, fields, isEditMode = false) {
+            let fStr = String(formulaStr).toLowerCase().trim();
+            if (fStr.includes('[')) {
+                fields.forEach(af => {
+                    let ph = `[${af.id.toLowerCase()}]`;
+                    if (fStr.includes(ph)) {
+                        let val = 0;
+                        if(isEditMode) {
+                            let el = document.getElementById(`edit_f_${af.id}`);
+                            val = el && el.value !== "" ? parseFloat(el.value) : 0;
+                        } else {
+                            let el = document.getElementById(`${af.id}_v${vid}`);
+                            val = el && el.value !== "" ? parseFloat(el.value) : 0;
+                        }
+                        if (isNaN(val)) val = 0;
+                        fStr = fStr.split(ph).join(val);
+                    }
+                });
+            }
+
+            try {
+                if (/^[0-9.+\-*/() ]+$/.test(fStr)) {
+                    let res = eval(fStr);
+                    return isNaN(res) || !isFinite(res) ? null : res;
+                }
+            } catch(e) {}
+            
+            let simpleNum = parseFloat(fStr);
+            return isNaN(simpleNum) ? null : simpleNum;
         }
 
         function togglePeriodInputs() {
@@ -446,7 +478,7 @@
 
                     let fieldMetaList = validDataFields.map(f => {
                         let chain = getFieldHierarchyChain(allFields, f);
-                        return { id: f.id, label: f.label, type: f.type, formula: f.formula, l1: chain[0] || "", l2: chain[1] || "", l3: f.label };
+                        return { id: f.id, label: f.label, type: f.type, formula: f.formula, min: f.min, max: f.max, l1: chain[0] || "", l2: chain[1] || "", l3: f.label };
                     });
 
                     let fData = [];
@@ -935,7 +967,7 @@
             
             let html = `<div class="space-y-4">`;
             allFields.forEach(f => {
-                if(f.formula && String(f.formula).trim() !== "") return; 
+                if(f.formula && String(f.formula).trim() !== "") return; // Disable editing formula results directly
                 
                 let val = "";
                 if(response.response_data && response.response_data[f.id]) {
@@ -946,6 +978,7 @@
                 let fullLabel = chain.join(" > ") + (chain.length > 0 ? " > " : "") + f.label;
                 
                 let inputType = f.type === 'number' ? 'number' : 'text';
+                if(f.type === 'date') inputType = 'date';
                 
                 html += `<div>
                     <label class="block text-xs font-bold text-gray-700 mb-1">${fullLabel}</label>
@@ -972,12 +1005,35 @@
             let allFields = formObj.schema_json.fields.filter(f => f.type !== 'group_header' && (!f.formula || String(f.formula).trim() === ""));
             
             let newData = { ...response.response_data };
-            allFields.forEach(f => {
+
+            // 🟢 Validation Check during Edit
+            for (let f of allFields) {
                 let el = document.getElementById(`edit_f_${f.id}`);
-                if(el) {
-                    newData[f.id] = { value: el.value };
+                if (!el || el.value === "") continue;
+
+                let val = parseFloat(el.value);
+
+                if (!isNaN(val)) {
+                    if (f.max && String(f.max).trim() !== "") {
+                        let maxVal = evaluateValidationFormula(f.max, allFields, true);
+                        if (maxVal !== null && val > maxVal) {
+                            alert(`⚠️ चूक: '${f.label}' मधील आकडा ${maxVal} पेक्षा जास्त असू शकत नाही!`);
+                            el.focus();
+                            return; // Stop saving
+                        }
+                    }
+
+                    if (f.min && String(f.min).trim() !== "") {
+                        let minVal = evaluateValidationFormula(f.min, allFields, true);
+                        if (minVal !== null && val < minVal) {
+                            alert(`⚠️ चूक: '${f.label}' मधील आकडा ${minVal} पेक्षा कमी असू शकत नाही!`);
+                            el.focus();
+                            return; // Stop saving
+                        }
+                    }
                 }
-            });
+                newData[f.id] = { value: el.value };
+            }
             
             document.getElementById('reportLoader').classList.remove('hidden');
             closeEditModal();
@@ -987,7 +1043,7 @@
             if(error) alert("अपडेट करताना त्रुटी: " + error.message);
             else {
                 alert("✅ डेटा यशस्वीरीत्या अपडेट झाला!");
-                fetchReportData();
+                fetchReportData(); // Refresh the table
             }
             document.getElementById('reportLoader').classList.add('hidden');
         }
