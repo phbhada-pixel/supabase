@@ -134,7 +134,7 @@
         <div id="reportTableContainer"></div>
     </div>
 
-    <!-- 🟢 Edit Modal (Hidden by Default) -->
+    <!-- 🟢 Edit Modal -->
     <div id="editModal" class="hidden fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4">
         <div class="bg-white rounded-lg shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col border-t-8 border-blue-600">
             <div class="p-4 border-b flex justify-between items-center bg-blue-50">
@@ -142,7 +142,7 @@
                 <button onclick="closeEditModal()" class="text-red-500 font-bold text-2xl hover:text-red-700">&times;</button>
             </div>
             <div class="p-6 overflow-y-auto flex-1 bg-gray-50" id="editModalBody">
-                <!-- Inputs generated here -->
+                <!-- Inputs will be generated here -->
             </div>
             <div class="p-4 border-t flex justify-end gap-3 bg-white">
                 <button onclick="closeEditModal()" class="bg-gray-500 text-white px-5 py-2 rounded font-bold shadow">रद्द करा</button>
@@ -159,7 +159,7 @@
         let masterData = { forms: [], villages: [], employees: [], filledStats: [], subCenters: [], phcs: [] };
         let currentReports = [];
         let user = { role: 'User', subcenter: 'सर्व', mobile: '', phc_id: null, id: null };
-        let windowDbData = []; // 🟢 To hold raw responses for editing
+        let windowDbData = [];
 
         const monthNamesMarathi = {
             "जानेवारी": 1, "फेब्रुवारी": 2, "मार्च": 3, "एप्रिल": 4, "मे": 5, "जून": 6,
@@ -210,12 +210,10 @@
             await loadInitialMasterData();
         };
 
-        // 🟢 10 तारखेपर्यंत लॉक करणारी सिस्टीम (Lock Mechanism)
+        // 🟢 10th Date Lock Function
         function isEditingAllowed(reportMonth, reportYear) {
             if (!reportMonth || !reportYear) return false;
             let today = new Date();
-            // JS Date मध्ये महिने 0 ते 11 असतात. 
-            // पुढचा महिना काढण्यासाठी आपण थेट reportMonth पास करतो (कारण तो 1 ते 12 आहे, जो JS मध्ये पुढचा महिना बनतो)
             let lockDate = new Date(reportYear, reportMonth, 10, 23, 59, 59); 
             return today <= lockDate;
         }
@@ -278,6 +276,7 @@
                     let formTypeTag = '';
                     if(f.form_type === 'list') formTypeTag = `<span class="bg-indigo-100 text-indigo-700 text-[10px] px-1 ml-2 rounded">यादी फॉर्म</span>`;
                     else if(f.form_type === 'fortnightly') formTypeTag = `<span class="bg-orange-100 text-orange-700 text-[10px] px-1 ml-2 rounded">पंधरवाडी</span>`;
+                    else if(f.form_type === 'subcenter') formTypeTag = `<span class="bg-green-100 text-green-700 text-[10px] px-1 ml-2 rounded">उपकेंद्र स्तर</span>`;
                     
                     div.className = "hover:bg-gray-100 transition"; div.style.padding = "10px"; div.style.borderBottom = "1px solid #eee"; div.style.cursor = "pointer";
                     div.innerHTML = `<label style="cursor:pointer; display:flex; align-items:center; gap:8px; font-weight:600;"><input type="checkbox" class="report-chk w-4 h-4" value="${f.id}" checked onchange="checkIndividualReport()"> ${f.form_name} ${formTypeTag}</label>`;
@@ -370,8 +369,8 @@
             let formsToProcess = selectedIDs.includes("ALL") ? masterData.forms : masterData.forms.filter(f => selectedIDs.includes(f.id));
             let mixedTypes = new Set(formsToProcess.map(f => f.form_type));
             
-            if (mixedTypes.has('fortnightly') && (mixedTypes.has('monthly') || mixedTypes.has('progressive') || mixedTypes.has('list'))) {
-                alert("⚠️ पंधरवाडी अहवाल आणि मासिक/प्रगत अहवाल एकत्र पाहता येणार नाहीत. कृपया फक्त 'पंधरवाडी' अहवाल निवडा.");
+            if (mixedTypes.has('fortnightly') && (mixedTypes.has('monthly') || mixedTypes.has('progressive') || mixedTypes.has('list') || mixedTypes.has('subcenter'))) {
+                alert("⚠️ पंधरवाडी अहवाल आणि इतर अहवाल एकत्र पाहता येणार नाहीत. कृपया फक्त 'पंधरवाडी' अहवाल निवडा.");
                 return;
             }
 
@@ -435,7 +434,6 @@
                 document.getElementById('reportLoader').classList.add('hidden');
                 if (error || !dbData || dbData.length === 0) { alert("या कालावधीत किंवा निवडलेल्या फिल्टरमध्ये कोणताही डेटा उपलब्ध नाही."); return; }
 
-                // 🟢 Save Raw DB Data for Edit popup
                 windowDbData = dbData; 
 
                 let finalReports = [];
@@ -489,7 +487,11 @@
                         let scName = scObj ? scObj.name : '-';
                         if(user.role !== 'employee' && filterSubCenter !== "सर्व" && scName !== filterSubCenter) return;
 
-                        // 🟢 Added response_id, report_month, report_year for Editing
+                        let vName = villageObj ? villageObj.name : '-';
+                        if (formObj.form_type === 'subcenter') {
+                            vName = "🏢 संपूर्ण उपकेंद्र (Subcenter Level)";
+                        }
+
                         let row = { 
                             response_id: res.id,
                             report_month: res.report_month,
@@ -497,7 +499,7 @@
                             month: periodText, 
                             year: '', 
                             subcenter: scName, 
-                            village: villageObj?villageObj.name:'-', 
+                            village: vName, 
                             employee: empObj?empObj.full_name:'-', 
                             values: {} 
                         };
@@ -672,7 +674,7 @@
                     rows.forEach((r) => {
                         let vName = r.village ? `${r.village} <br/><span class="text-[10px] text-gray-500">(${r.subcenter})</span>` : "-";
                         l1Row += `<th colspan="${rep.isProg ? 2 : 1}" class="border p-2 bg-purple-100">${vName}</th>`;
-                        if (rep.isProg) { l2Row += `<th class="border p-1 bg-yellow-50 text-[10px]">मासिक</th><th class="border p-1 bg-orange-50 text-[10px]">प्रगत</th>`; }
+                        if (rep.isProg) { l2Row += `<th class="border p-1 bg-yellow-50 text-[10px]">मासिक</th><th class="border p-1 bg-orange-50 text-[10px]">प्रगत</th></tr>`; }
                     });
                     
                     if(rep.formType !== 'list') {
@@ -770,7 +772,7 @@
 
                         let tbodyHtml = '';
                         dataRowsToRender.forEach((r, rIdx) => {
-                            // 🟢 Action Button Logic
+                            // 🟢 Action Button Logic with 10th Date Check
                             let actionHtml = '';
                             if (user.role === 'phc_admin' && r.response_id && isEditingAllowed(r.report_month, r.report_year)) {
                                 actionHtml = `<div class="mt-1 flex gap-1 justify-start no-print">
@@ -856,7 +858,7 @@
 
                             let tbodyHtml = '';
                             subRows.forEach((r, rIdx) => {
-                                // 🟢 Action Button Logic
+                                // 🟢 Action Button Logic with 10th Date Check
                                 let actionHtml = '';
                                 if (user.role === 'phc_admin' && r.response_id && isEditingAllowed(r.report_month, r.report_year)) {
                                     actionHtml = `<div class="mt-1 flex gap-1 justify-start no-print">
@@ -933,7 +935,7 @@
             
             let html = `<div class="space-y-4">`;
             allFields.forEach(f => {
-                if(f.formula && String(f.formula).trim() !== "") return; // Disable editing formula results directly
+                if(f.formula && String(f.formula).trim() !== "") return; 
                 
                 let val = "";
                 if(response.response_data && response.response_data[f.id]) {
@@ -1156,7 +1158,6 @@
 
                     dataRowsToRender.forEach((r, rIdx) => {
                         let rowData = [rIdx + 1, r.subcenter];
-                        // 🟢 Excel export takes raw village name, ignoring HTML buttons.
                         if(groupType === 'SubCenterFlat') rowData.push(r.village);
                         columns.forEach(c => {
                             let val = r.values[c.id];
