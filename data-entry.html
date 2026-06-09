@@ -220,7 +220,14 @@
             allowedForms.forEach(form => {
                 let showForm = true;
                 
-                if (form.form_type !== 'list' && userVillages.length > 0) {
+                // 🟢 Subcenter Level Form Filtering Logic
+                if (form.form_type === 'subcenter' && userVillages.length > 0) {
+                    let isFilled = currentMonthResponses.some(r => 
+                        r.form_id === form.id && 
+                        (form.data_entry_mode === 'shared' ? true : r.employee_id === loggedInUser.id)
+                    );
+                    if (isFilled) showForm = false;
+                } else if (form.form_type !== 'list' && userVillages.length > 0) {
                     let filledCount = 0;
                     userVillages.forEach(v => {
                         let isFilled = currentMonthResponses.some(r => 
@@ -250,7 +257,11 @@
                     allFormsMap[form.id] = form;
                     const opt = document.createElement('option');
                     opt.value = form.id; 
-                    opt.text = form.form_name + (form.form_type==='fortnightly'?" (पंधरवाडी)":"") + (form.form_type==='list'?" (यादी)":"");
+                    let tag = "";
+                    if(form.form_type === 'list') tag = " (यादी)";
+                    else if(form.form_type === 'fortnightly') tag = " (पंधरवाडी)";
+                    else if(form.form_type === 'subcenter') tag = " (उपकेंद्र एकत्रित)";
+                    opt.text = form.form_name + tag;
                     fSelect.appendChild(opt);
                 }
             });
@@ -295,27 +306,41 @@
 
             let fN = parseInt(document.getElementById('reportFortnight').value) || 1;
 
-            userVillages.forEach(v => {
-                let isFilled = false;
+            // 🟢 Subcenter Level Form Processing
+            if (currentFormObj.form_type === 'subcenter') {
+                let isFilled = currentMonthResponses.some(r => 
+                    r.form_id === formId && 
+                    (currentFormObj.data_entry_mode === 'shared' ? true : r.employee_id === loggedInUser.id)
+                );
                 
-                if (currentFormObj.form_type === 'list') {
-                    isFilled = currentMonthResponses.some(r => 
-                        r.form_id === formId && r.village_id === v.id && 
-                        r.response_data && r.response_data.is_nil === true
-                    );
-                } else {
-                    isFilled = currentMonthResponses.some(r => 
-                        r.form_id === formId && r.village_id === v.id && 
-                        (currentFormObj.data_entry_mode === 'shared' ? true : r.employee_id === loggedInUser.id) &&
-                        (currentFormObj.form_type !== 'fortnightly' || r.report_fortnight === fN)
-                    );
+                if (!isFilled && userVillages.length > 0) {
+                    globalPendingVillages.push({ ...userVillages[0], name: "🏢 संपूर्ण उपकेंद्र (Subcenter Level)" });
+                } else if (isFilled) {
+                    hiddenCount++;
                 }
+            } else {
+                userVillages.forEach(v => {
+                    let isFilled = false;
+                    
+                    if (currentFormObj.form_type === 'list') {
+                        isFilled = currentMonthResponses.some(r => 
+                            r.form_id === formId && r.village_id === v.id && 
+                            r.response_data && r.response_data.is_nil === true
+                        );
+                    } else {
+                        isFilled = currentMonthResponses.some(r => 
+                            r.form_id === formId && r.village_id === v.id && 
+                            (currentFormObj.data_entry_mode === 'shared' ? true : r.employee_id === loggedInUser.id) &&
+                            (currentFormObj.form_type !== 'fortnightly' || r.report_fortnight === fN)
+                        );
+                    }
 
-                if (!isFilled) globalPendingVillages.push(v);
-                else hiddenCount++;
-            });
+                    if (!isFilled) globalPendingVillages.push(v);
+                    else hiddenCount++;
+                });
+            }
 
-            vSelect.innerHTML = '<option value="">-- गाव निवडा --</option>';
+            vSelect.innerHTML = '<option value="">-- गाव / कार्यक्षेत्र निवडा --</option>';
 
             if (globalPendingVillages.length > 0) {
                 if (globalPendingVillages.length > 1 && currentFormObj.form_type !== 'list') {
@@ -327,10 +352,16 @@
             }
 
             if (hiddenCount > 0) {
-                vHint.innerText = `✓ ${hiddenCount} गावे भरून झाली आहेत (ती लपवली आहेत).`;
+                vHint.innerText = `✓ ${hiddenCount} अहवाल भरून झाले आहेत (ते लपवले आहेत).`;
                 vHint.classList.remove('hidden');
             } else {
                 vHint.classList.add('hidden');
+            }
+            
+            // 🟢 Auto select if Subcenter
+            if(currentFormObj.form_type === 'subcenter' && globalPendingVillages.length > 0) {
+                vSelect.value = globalPendingVillages[0].id;
+                renderFormFields();
             }
         }
 
@@ -392,7 +423,6 @@
             return isNaN(simpleNum) ? null : simpleNum;
         }
 
-        // 🟢 Group-Wise Render Logic (With Original Large Fonts & Padding)
         function renderFormFields() {
             const formId = document.getElementById('formSelect').value;
             const vid = document.getElementById('villageSelect').value;
@@ -475,7 +505,7 @@
                 html += `<tr class="block md:table-row mb-8 md:mb-0 bg-white border-2 border-indigo-400 md:border-0 rounded-xl md:rounded-none shadow-xl md:shadow-none p-4 md:p-0">`;
 
                 html += `<td class="block md:table-cell p-4 md:p-2 border-b-2 border-indigo-200 md:border md:border-gray-300 text-center md:text-left bg-indigo-100 md:bg-white rounded-t-lg md:rounded-none mb-4 md:mb-0">
-                            <span class="text-2xl md:text-sm font-extrabold text-indigo-900 md:text-gray-900">${index+1}. ${v.name}</span>
+                            <span class="text-2xl md:text-sm font-extrabold text-indigo-900 md:text-gray-900">${currentFormObj.form_type === 'subcenter' ? '🏢 ' : index+1+'. '}${v.name}</span>
                          </td>`;
 
                 let prevL1 = null;
@@ -489,7 +519,6 @@
                     
                     let onInputAttr = (col.type === 'number' && !isFormula) ? `oninput="calculateFormulas('${v.id}')"` : '';
 
-                    // 🟢 Reverted to ORIGINAL Large Font Sizes & Padding (p-4, text-2xl/xl)
                     if (col.type === 'number') {
                         if (isFormula) {
                             inputHtml = `<input type="number" id="${inputId}" class="w-full md:w-20 p-4 md:p-2 text-2xl md:text-base font-extrabold md:font-bold text-center text-green-900 bg-green-100 border-2 border-green-500 rounded-lg md:rounded outline-none cursor-not-allowed shadow-inner" readonly tabindex="-1" placeholder="0">`;
@@ -510,7 +539,6 @@
                         inputHtml = `<input type="${tType}" id="${inputId}" class="w-full md:w-32 p-4 md:p-2 text-xl md:text-sm font-bold md:font-semibold text-center text-gray-900 bg-gray-50 border-2 border-gray-400 rounded-lg md:rounded outline-none focus:ring-4 focus:ring-gray-600" ${reqAttr} ${patt} ${onInputAttr}>`;
                     }
 
-                    // Mobile View: Group Name Banner logic
                     let mobileHeaderHtml = '';
                     if (col.l1 && col.l1 !== prevL1) {
                         mobileHeaderHtml += `<div class="md:hidden w-full bg-purple-100 border border-purple-300 text-purple-900 font-extrabold text-sm p-1.5 mt-2 rounded shadow-sm text-center">${col.l1}</div>`;
@@ -577,7 +605,7 @@
                         if (f.max && String(f.max).trim() !== "") {
                             let maxVal = evaluateValidationFormula(f.max, v.id, currentDataFields);
                             if (maxVal !== null && val > maxVal) {
-                                alert(`⚠️ चूक: ${v.name} गावासाठी '${f.label}' मधील आकडा ${maxVal} पेक्षा जास्त असू शकत नाही!`);
+                                alert(`⚠️ चूक: ${v.name} साठी '${f.label}' मधील आकडा ${maxVal} पेक्षा जास्त असू शकत नाही!`);
                                 el.focus();
                                 return;
                             }
@@ -586,7 +614,7 @@
                         if (f.min && String(f.min).trim() !== "") {
                             let minVal = evaluateValidationFormula(f.min, v.id, currentDataFields);
                             if (minVal !== null && val < minVal) {
-                                alert(`⚠️ चूक: ${v.name} गावासाठी '${f.label}' मधील आकडा ${minVal} पेक्षा कमी असू शकत नाही!`);
+                                alert(`⚠️ चूक: ${v.name} साठी '${f.label}' मधील आकडा ${minVal} पेक्षा कमी असू शकत नाही!`);
                                 el.focus();
                                 return;
                             }
