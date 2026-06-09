@@ -128,7 +128,6 @@
             updateFormDropdown(); 
         };
 
-        // 🟢 नवीन: हे फंक्शन गटांची साखळी (Hierarchy) ओळखते
         function getFieldHierarchyChain(fields, fieldObj) {
             let chain = [];
             let current = fieldObj;
@@ -368,7 +367,6 @@
             });
         };
 
-        // 🟢 Validation Rule Helper
         function evaluateValidationFormula(formulaStr, vid, fields) {
             let fStr = String(formulaStr).toLowerCase().trim();
             if (fStr.includes('[')) {
@@ -394,7 +392,7 @@
             return isNaN(simpleNum) ? null : simpleNum;
         }
 
-        // 🟢 Group-Wise Render Logic
+        // 🟢 Group-Wise Render Logic (With Original Large Fonts & Padding)
         function renderFormFields() {
             const formId = document.getElementById('formSelect').value;
             const vid = document.getElementById('villageSelect').value;
@@ -420,7 +418,6 @@
                 currentPendingVillages = globalPendingVillages.filter(v => v.id === parseInt(vid) || v.id === vid);
             }
 
-            // 🟢 Prepare Columns hierarchy for Table Header
             let columns = currentDataFields.map(f => {
                 let chain = getFieldHierarchyChain(allFields, f);
                 let l1 = "", l2 = "";
@@ -431,7 +428,6 @@
 
             let html = '<div class="table-responsive"><table class="w-full border-collapse block md:table">';
             
-            // 🟢 Desktop: Multi-row Grouped Table Header
             let l1Row = `<tr><th rowspan="3" class="p-3 border text-center font-extrabold text-gray-800 min-w-[150px] bg-gray-200">गाव / कार्यक्षेत्र</th>`;
             let l2Row = `<tr>`;
             let l3Row = `<tr>`;
@@ -473,7 +469,6 @@
             l1Row += `</tr>`; l2Row += `</tr>`; l3Row += `</tr>`;
             html += `<thead class="hidden md:table-header-group border-b-4 border-gray-400">${l1Row}${l2Row}${l3Row}</thead>`;
 
-            // 🟢 Body Section
             html += '<tbody class="block md:table-row-group">';
 
             currentPendingVillages.forEach((v, index) => {
@@ -494,32 +489,33 @@
                     
                     let onInputAttr = (col.type === 'number' && !isFormula) ? `oninput="calculateFormulas('${v.id}')"` : '';
 
+                    // 🟢 Reverted to ORIGINAL Large Font Sizes & Padding (p-4, text-2xl/xl)
                     if (col.type === 'number') {
                         if (isFormula) {
-                            inputHtml = `<input type="number" id="${inputId}" class="w-full md:w-20 p-3 md:p-2 text-xl md:text-base font-extrabold md:font-bold text-center text-green-900 bg-green-100 border-2 border-green-500 rounded-lg md:rounded outline-none cursor-not-allowed shadow-inner" readonly tabindex="-1" placeholder="0">`;
+                            inputHtml = `<input type="number" id="${inputId}" class="w-full md:w-20 p-4 md:p-2 text-2xl md:text-base font-extrabold md:font-bold text-center text-green-900 bg-green-100 border-2 border-green-500 rounded-lg md:rounded outline-none cursor-not-allowed shadow-inner" readonly tabindex="-1" placeholder="0">`;
                         } else {
-                            inputHtml = `<input type="number" id="${inputId}" class="w-full md:w-20 p-3 md:p-2 text-xl md:text-base font-extrabold md:font-bold text-center text-blue-900 bg-blue-50 border-2 border-blue-400 md:border-gray-400 rounded-lg md:rounded outline-none focus:ring-4 focus:ring-blue-600 transition" ${reqAttr} placeholder="0" ${onInputAttr}>`;
+                            inputHtml = `<input type="number" id="${inputId}" class="w-full md:w-20 p-4 md:p-2 text-2xl md:text-base font-extrabold md:font-bold text-center text-blue-900 bg-blue-50 border-2 border-blue-400 md:border-gray-400 rounded-lg md:rounded outline-none focus:ring-4 focus:ring-blue-600 transition" ${reqAttr} placeholder="0" ${onInputAttr}>`;
                         }
                     } else if (col.type === 'yes_no') {
-                        inputHtml = `<select id="${inputId}" class="w-full md:w-24 p-3 md:p-2 text-lg md:text-sm font-extrabold md:font-bold text-center text-purple-900 bg-purple-50 border-2 border-purple-400 md:border-gray-400 rounded-lg md:rounded outline-none focus:ring-4 focus:ring-purple-600" ${reqAttr} ${onInputAttr}><option value="">- निवडा -</option><option value="होय">होय</option><option value="नाही">नाही</option></select>`;
+                        inputHtml = `<select id="${inputId}" class="w-full md:w-24 p-4 md:p-2 text-xl md:text-sm font-extrabold md:font-bold text-center text-purple-900 bg-purple-50 border-2 border-purple-400 md:border-gray-400 rounded-lg md:rounded outline-none focus:ring-4 focus:ring-purple-600" ${reqAttr} ${onInputAttr}><option value="">- निवडा -</option><option value="होय">होय</option><option value="नाही">नाही</option></select>`;
                     } else if (col.type === 'date') {
-                        inputHtml = `<input type="date" id="${inputId}" class="w-full md:w-32 p-3 md:p-2 text-lg md:text-sm font-bold md:font-semibold text-center text-gray-900 bg-gray-50 border-2 border-gray-400 rounded-lg md:rounded outline-none focus:ring-4 focus:ring-gray-600" ${reqAttr} ${onInputAttr}>`;
+                        inputHtml = `<input type="date" id="${inputId}" class="w-full md:w-32 p-4 md:p-2 text-xl md:text-sm font-bold md:font-semibold text-center text-gray-900 bg-gray-50 border-2 border-gray-400 rounded-lg md:rounded outline-none focus:ring-4 focus:ring-gray-600" ${reqAttr} ${onInputAttr}>`;
                     } else if (col.type === 'dropdown' && col.options) {
                         let optsHtml = `<option value="">- निवडा -</option>`;
                         col.options.forEach(opt => optsHtml += `<option value="${opt}">${opt}</option>`);
-                        inputHtml = `<select id="${inputId}" class="w-full md:w-32 p-3 md:p-2 text-lg md:text-sm font-extrabold md:font-bold text-center text-purple-900 bg-purple-50 border-2 border-purple-400 md:border-gray-400 rounded-lg md:rounded outline-none focus:ring-4 focus:ring-purple-600" ${reqAttr} ${onInputAttr}>${optsHtml}</select>`;
+                        inputHtml = `<select id="${inputId}" class="w-full md:w-32 p-4 md:p-2 text-xl md:text-sm font-extrabold md:font-bold text-center text-purple-900 bg-purple-50 border-2 border-purple-400 md:border-gray-400 rounded-lg md:rounded outline-none focus:ring-4 focus:ring-purple-600" ${reqAttr} ${onInputAttr}>${optsHtml}</select>`;
                     } else {
                         let patt = col.type === 'mobile' ? 'pattern="[0-9]{10}" placeholder="10 अंकी नंबर"' : '';
                         let tType = col.type === 'mobile' ? 'tel' : 'text';
-                        inputHtml = `<input type="${tType}" id="${inputId}" class="w-full md:w-32 p-3 md:p-2 text-lg md:text-sm font-bold md:font-semibold text-center text-gray-900 bg-gray-50 border-2 border-gray-400 rounded-lg md:rounded outline-none focus:ring-4 focus:ring-gray-600" ${reqAttr} ${patt} ${onInputAttr}>`;
+                        inputHtml = `<input type="${tType}" id="${inputId}" class="w-full md:w-32 p-4 md:p-2 text-xl md:text-sm font-bold md:font-semibold text-center text-gray-900 bg-gray-50 border-2 border-gray-400 rounded-lg md:rounded outline-none focus:ring-4 focus:ring-gray-600" ${reqAttr} ${patt} ${onInputAttr}>`;
                     }
 
-                    // 🟢 Mobile View: Group Name Banner logic
+                    // Mobile View: Group Name Banner logic
                     let mobileHeaderHtml = '';
                     if (col.l1 && col.l1 !== prevL1) {
                         mobileHeaderHtml += `<div class="md:hidden w-full bg-purple-100 border border-purple-300 text-purple-900 font-extrabold text-sm p-1.5 mt-2 rounded shadow-sm text-center">${col.l1}</div>`;
                         prevL1 = col.l1;
-                        prevL2 = null; // Reset L2 when L1 changes
+                        prevL2 = null; 
                     }
                     if (col.l2 && col.l2 !== prevL2) {
                         mobileHeaderHtml += `<div class="md:hidden w-full bg-blue-50 border border-blue-200 text-blue-900 font-bold text-xs p-1 mt-1 rounded text-center">${col.l2}</div>`;
@@ -528,9 +524,9 @@
                     
                     let formulaBadgeMobile = isFormula ? '<span class="text-[9px] bg-green-500 text-white px-1 rounded ml-1">ऑटो बेरीज</span>' : '';
 
-                    html += `<td class="flex md:table-cell flex-col md:flex-row items-center md:justify-center p-3 md:p-2 border-b border-dashed border-gray-200 md:border-solid md:border-b-0 md:border md:border-gray-300 gap-1 md:gap-0">
+                    html += `<td class="flex md:table-cell flex-col md:flex-row items-center md:justify-center p-3 md:p-2 border-b border-dashed border-gray-200 md:border-solid md:border-b-0 md:border md:border-gray-300 gap-3 md:gap-0">
                                 ${mobileHeaderHtml}
-                                <label class="md:hidden text-sm font-bold text-gray-700 text-center w-full">${col.l3} ${formulaBadgeMobile}</label>
+                                <label class="md:hidden text-lg font-extrabold text-gray-800 text-center w-full bg-yellow-50 p-2 rounded">${col.l3} ${formulaBadgeMobile}</label>
                                 ${inputHtml}
                              </td>`;
                 });
