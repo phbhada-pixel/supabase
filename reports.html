@@ -398,18 +398,13 @@
             let selectedIDs = getSelectedReportIDs(); if(selectedIDs.length === 0) { alert("कृपया किमान एक अहवाल निवडा!"); return; }
 
             let formsToProcess = selectedIDs.includes("ALL") ? masterData.forms : masterData.forms.filter(f => selectedIDs.includes(f.id));
-            let mixedTypes = new Set(formsToProcess.map(f => f.form_type));
-            
-            if (mixedTypes.has('fortnightly') && (mixedTypes.has('monthly') || mixedTypes.has('progressive') || mixedTypes.has('list') || mixedTypes.has('subcenter'))) {
-                alert("⚠️ पंधरवाडी अहवाल आणि इतर अहवाल एकत्र पाहता येणार नाहीत. कृपया फक्त 'पंधरवाडी' अहवाल निवडा.");
-                return;
-            }
 
             let periodType = document.getElementById('periodType').value;
             let query = supabaseClient.from('form_responses').select('*');
             
-            let periodText = "";
+            let basePeriodText = "";
             let selMonthNum = 0, selYear = 0;
+            let fnValue = document.getElementById('reportFortnight') ? document.getElementById('reportFortnight').value : "1";
 
             if (periodType === 'monthly') {
                 const selMonth = document.getElementById('reportMonth').value; 
@@ -418,21 +413,14 @@
                 
                 query = query.eq('report_year', parseInt(selYear));
                 if (selMonthNum < 4) query = query.or(`and(report_year.eq.${parseInt(selYear)}),and(report_year.eq.${parseInt(selYear-1)},report_month.gte.4)`);
-                periodText = `${selMonth} ${selYear}`;
-                
-                if (mixedTypes.has('fortnightly')) {
-                    let fn = document.getElementById('reportFortnight').value;
-                    query = query.eq('report_fortnight', parseInt(fn));
-                    periodText += ` (पंधरवाडा: ${fn === '1' ? '१ ते १५' : '१६ ते अखेर'})`;
-                }
-
+                basePeriodText = `${selMonth} ${selYear}`;
             } else {
                 let sDate = document.getElementById('startDate').value;
                 let eDate = document.getElementById('endDate').value;
                 if(!sDate || !eDate) { alert("कृपया सुरुवातीची व शेवटची तारीख निवडा!"); return; }
                 
                 query = query.gte('created_at', sDate + 'T00:00:00.000Z').lte('created_at', eDate + 'T23:59:59.999Z');
-                periodText = `${formatDateToDDMMYYYY(sDate)} ते ${formatDateToDDMMYYYY(eDate)}`;
+                basePeriodText = `${formatDateToDDMMYYYY(sDate)} ते ${formatDateToDDMMYYYY(eDate)}`;
             }
 
             let filterSubCenter = document.getElementById('reportSubCenterFilter').value; 
@@ -466,11 +454,12 @@
                 if (error || !dbData || dbData.length === 0) { alert("या कालावधीत किंवा निवडलेल्या फिल्टरमध्ये कोणताही डेटा उपलब्ध नाही."); return; }
 
                 windowDbData = dbData; 
-
                 let finalReports = [];
 
                 formsToProcess.forEach(formObj => {
-                    let formResp = dbData.filter(r => r.form_id === formObj.id); if(formResp.length === 0) return;
+                    let formResp = dbData.filter(r => r.form_id === formObj.id); 
+                    if(formResp.length === 0) return;
+
                     const allFields = formObj.schema_json.fields;
                     const validDataFields = allFields.filter(f => f.type !== 'group_header');
                     const isProgressive = formObj.form_type === 'progressive';
@@ -481,10 +470,16 @@
                     });
 
                     let fData = [];
-                    
                     let currentMonthResp = [];
+                    let specificPeriodText = basePeriodText;
+
                     if (periodType === 'monthly') {
                         currentMonthResp = formResp.filter(r => r.report_month === parseInt(selMonthNum) && r.report_year === parseInt(selYear));
+                        
+                        if (formObj.form_type === 'fortnightly') {
+                            currentMonthResp = currentMonthResp.filter(r => r.report_fortnight === parseInt(fnValue));
+                            specificPeriodText += ` (पंधरवाडा: ${fnValue === '1' ? '१ ते १५' : '१६ ते अखेर'})`;
+                        }
                     } else {
                         currentMonthResp = formResp; 
                     }
@@ -527,7 +522,7 @@
                             response_id: res.id,
                             report_month: res.report_month,
                             report_year: res.report_year,
-                            month: periodText, 
+                            month: specificPeriodText, 
                             year: '', 
                             subcenter: scName, 
                             village: vName, 
@@ -600,7 +595,7 @@
                     });
 
                     if(fData.length > 0) {
-                        finalReports.push({ formName: formObj.form_name, formType: formObj.form_type, fields: fieldMetaList, rows: fData, isProg: isProgressive, periodText: periodText });
+                        finalReports.push({ formName: formObj.form_name, formType: formObj.form_type, fields: fieldMetaList, rows: fData, isProg: isProgressive, periodText: specificPeriodText });
                     }
                 });
 
@@ -1420,7 +1415,6 @@
             XLSX.writeFile(wb, dlName);
         }
 
-        // 🟢 रोलनुसार मराठी पदनाम मिळवणे
         function getMarathiDesignation(roleStr) {
             if(!roleStr) return "आरोग्य कर्मचारी";
             let r = String(roleStr).toLowerCase().trim();
@@ -1430,7 +1424,6 @@
             return "आरोग्य कर्मचारी"; 
         }
 
-        // 🟢 कर्मचारी निहाय आणि गटबद्ध अपूर्ण यादी
         function generatePendingReport() {
             let periodType = document.getElementById('periodType').value;
             if (periodType === 'custom') {
@@ -1487,7 +1480,7 @@
                                 employeePendingMap[empKey] = {
                                     empName: u.full_name,
                                     scName: scName,
-                                    empRole: u.role, // 🟢 रोल साठवला
+                                    empRole: u.role, 
                                     pendingForms: {} 
                                 };
                             }
@@ -1529,7 +1522,7 @@
                 
                 employeeKeys.forEach((key, idx) => {
                     let empData = employeePendingMap[key];
-                    let marathiRole = getMarathiDesignation(empData.empRole); // 🟢 मराठी पदनाम मिळवणे
+                    let marathiRole = getMarathiDesignation(empData.empRole); 
                     
                     let pendingItemsHTML = "";
                     let noticeDataArray = [];
@@ -1552,7 +1545,7 @@
                         <td style="border: 1px solid #ccc; padding: 10px; text-align:center; font-weight:bold; vertical-align: top;">${idx+1}</td>
                         <td style="border: 1px solid #ccc; padding: 10px; text-align:left; vertical-align: top;">
                             <div style="color:#0056b3; font-weight:bold; font-size:15px; margin-bottom:4px;">🧑‍⚕️ ${empData.empName}</div>
-                            <div style="color:#d35400; font-weight:bold; font-size:12px;">🏥 ${marathiRole}, उपकेंद्र: ${empData.scName}</div> <!-- 🟢 पद आणि उपकेंद्र एकाच ओळीत -->
+                            <div style="color:#d35400; font-weight:bold; font-size:12px;">🏥 ${marathiRole}, उपकेंद्र: ${empData.scName}</div>
                         </td>
                         <td style="border: 1px solid #ccc; padding: 10px; text-align:left; vertical-align: top;">
                             <ul style="margin:0; padding-left:18px; font-size:14px;">${pendingItemsHTML}</ul>
@@ -1590,7 +1583,6 @@
             navigator.clipboard.writeText(textToCopy).then(() => { alert("✅ यादी व्हॉट्सॲप मेसेजसाठी कॉपी झाली आहे!"); });
         }
 
-        // 🟢 आकर्षक शासकीय नमुन्यातील नोटीस
         function generateNotice(empName, empRole, scName, noticeDataStr) {
             const today = new Date().toLocaleDateString('mr-IN');
             const noticeWindow = window.open('', '_blank', 'width=900,height=800');
@@ -1609,7 +1601,6 @@
                 <html lang="mr">
                 <head>
                     <title>कारणे दाखवा नोटीस - ${empName}</title>
-                    <!-- PDF तयार करण्यासाठी आवश्यक लायब्ररी -->
                     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"><\/script>
                     <style>
                         body { font-family: 'Arial', sans-serif; background: #e9ecef; margin: 0; padding: 20px; color: #222;} 
@@ -1624,7 +1615,7 @@
                         .content p { text-indent: 50px; margin-bottom: 8px; }
                         .forms-box { margin: 15px 0 15px 40px; padding: 15px 15px 15px 10px; border: 1px solid #ccc; background-color: #fafafa; border-radius: 5px; box-shadow: inset 0 0 5px rgba(0,0,0,0.05);}
                         .forms-box ul { margin: 0; padding-left: 20px; list-style-type: decimal; }
-                        .sign-block { text-align: right; margin-top: 30px; font-weight: bold; font-size: 16px; line-height: 1.5; }
+                        .sign-block { text-align: right; margin-top: 40px; font-weight: bold; font-size: 16px; line-height: 1.5; }
                         .copy-to { margin-top: 40px; font-size: 15px; font-weight: bold; line-height: 1.6; }
                         
                         @media print { 
@@ -1650,7 +1641,6 @@
                         <div class="to-address">
                             प्रति,<br>
                             श्री./सौ. <span style="font-size: 18px; color: #b71c1c;">${empName}</span>,<br>
-                            <!-- 🟢 पद आणि उपकेंद्र एकाच ओळीत -->
                             ${empRole}, उपकेंद्र: ${scName}.
                         </div>
                         
