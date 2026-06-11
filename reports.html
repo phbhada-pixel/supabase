@@ -534,6 +534,13 @@
                             vName = "🏢 संपूर्ण उपकेंद्र (Subcenter Level)";
                         }
 
+                        // 🟢 फॉर्मला लोकसंख्या लागू असल्यास ती गावाच्या नावासोबत दिसेल
+                        if (formObj.schema_json && formObj.schema_json.show_village_info && villageObj) {
+                            let pop = villageObj.population || 0;
+                            let houses = villageObj.total_houses || 0;
+                            vName += ` <br/><span style="font-size:10px; font-weight:bold; color:#d32f2f;">(लोकसंख्या: ${pop} | घरे: ${houses})</span>`;
+                        }
+
                         let row = { 
                             response_id: res.id,
                             report_month: res.report_month,
