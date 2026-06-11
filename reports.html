@@ -257,7 +257,7 @@
             }
         }
 
-        async function loadInitialMasterData() {
+       async function loadInitialMasterData() {
             document.getElementById('reportLoader').classList.remove('hidden');
 
             try {
@@ -292,7 +292,19 @@
                 masterData.employees = empData || [];
 
                 const { data: formData } = await supabaseClient.from('dynamic_forms').select('*').eq('is_active', true);
-                masterData.forms = formData || [];
+                
+                // 🟢 नवीन बदल: कर्मचाऱ्याच्या पदानुसार (Role) फॉर्म्स फिल्टर करणे
+                if (user.role !== 'admin' && user.role !== 'taluka_admin' && user.role !== 'phc_admin') {
+                    let currentUserRole = String(user.role).toUpperCase().trim();
+                    masterData.forms = (formData || []).filter(f => {
+                        if (!f.allowed_roles || String(f.allowed_roles).trim() === '' || String(f.allowed_roles).toUpperCase() === 'ALL') return true;
+                        let allowedArray = String(f.allowed_roles).toUpperCase().split(',').map(r => r.trim());
+                        return allowedArray.includes(currentUserRole);
+                    });
+                } else {
+                    // जर ॲडमिन असेल, तर सर्व फॉर्म्स दिसतील
+                    masterData.forms = formData || [];
+                }
 
                 let select = document.getElementById('reportFormSelect');
                 let optionsDiv = document.getElementById('multiSelectOptions');
@@ -321,7 +333,6 @@
 
             document.getElementById('reportLoader').classList.add('hidden');
         }
-
         function toggleMultiSelect() {
             let dropdown = document.getElementById('multiSelectDropdown');
             dropdown.style.display = dropdown.style.display === "block" ? "none" : "block";
