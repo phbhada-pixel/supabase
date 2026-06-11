@@ -61,6 +61,12 @@
                     <option value="">-- आधी फॉर्म निवडा --</option>
                 </select>
                 <p id="villageHint" class="text-[10px] text-green-600 mt-1 hidden font-bold">✓ फक्त राहिलेली गावे दाखवली आहेत.</p>
+
+                <!-- 🟢 लोकसंख्या आणि घरे दाखवण्यासाठी नवीन बॉक्स -->
+                <div id="villageInfoBox" class="hidden mt-2 p-3 bg-blue-100 border border-blue-300 rounded-lg text-sm font-bold text-blue-900 flex justify-between shadow-inner">
+                    <span id="popText" class="text-red-600">📍 लोकसंख्या: 0</span>
+                    <span id="houseText" class="text-indigo-700">🏠 एकूण घरे: 0</span>
+                </div>
             </div>
         </div>
 
@@ -200,6 +206,7 @@
             document.getElementById('btnSaveAndAddMore').classList.add('hidden');
             document.getElementById('villageSelect').innerHTML = '<option value="">-- आधी फॉर्म निवडा --</option>';
             document.getElementById('villageHint').classList.add('hidden');
+            document.getElementById('villageInfoBox').classList.add('hidden'); // 🟢 नवीन: महिना बदलल्यास बॉक्स लपवणे
 
             await fetchMonthResponses();
             updateFormDropdown();
@@ -220,7 +227,6 @@
             allowedForms.forEach(form => {
                 let showForm = true;
                 
-                // 🟢 Subcenter Level Form Filtering Logic
                 if (form.form_type === 'subcenter' && userVillages.length > 0) {
                     let isFilled = currentMonthResponses.some(r => 
                         r.form_id === form.id && 
@@ -273,6 +279,7 @@
                 fSelect.value = "";
                 document.getElementById('villageSelect').innerHTML = '<option value="">-- आधी फॉर्म निवडा --</option>';
                 document.getElementById('villageHint').classList.add('hidden');
+                document.getElementById('villageInfoBox').classList.add('hidden'); // 🟢 लपवणे
                 document.getElementById('fortnightDiv').classList.add('hidden');
                 document.getElementById('dynamicFieldsContainer').innerHTML = '<p class="text-center text-gray-400 font-bold py-10 text-lg">कृपया वरून फॉर्म आणि गाव निवडा.</p>';
             }
@@ -284,11 +291,13 @@
             const vSelect = document.getElementById('villageSelect');
             const vHint = document.getElementById('villageHint');
             const fnDiv = document.getElementById('fortnightDiv');
+            const infoBox = document.getElementById('villageInfoBox'); // 🟢 नवीन
 
             document.getElementById('submitBtn').classList.add('hidden');
             document.getElementById('btnNilReport').classList.add('hidden');
             document.getElementById('btnSaveAndAddMore').classList.add('hidden');
             container.innerHTML = '<p class="text-center text-gray-400 font-bold py-10 text-lg">कृपया गाव / कार्यक्षेत्र निवडा.</p>';
+            infoBox.classList.add('hidden'); // 🟢 फॉर्म बदलल्यास बॉक्स लपवणे
 
             if (!formId) {
                 vSelect.innerHTML = '<option value="">-- आधी फॉर्म निवडा --</option>';
@@ -306,7 +315,6 @@
 
             let fN = parseInt(document.getElementById('reportFortnight').value) || 1;
 
-            // 🟢 Subcenter Level Form Processing
             if (currentFormObj.form_type === 'subcenter') {
                 let isFilled = currentMonthResponses.some(r => 
                     r.form_id === formId && 
@@ -314,7 +322,7 @@
                 );
                 
                 if (!isFilled && userVillages.length > 0) {
-                    globalPendingVillages.push({ ...userVillages[0], name: "🏢 संपूर्ण उपकेंद्र (Subcenter Level)" });
+                    globalPendingVillages.push({ ...userVillages[0], name: "🏢 संपूर्ण उपकेंद्र (Subcenter Level)", id: 'subcenter_all' });
                 } else if (isFilled) {
                     hiddenCount++;
                 }
@@ -358,7 +366,6 @@
                 vHint.classList.add('hidden');
             }
             
-            // 🟢 Auto select if Subcenter
             if(currentFormObj.form_type === 'subcenter' && globalPendingVillages.length > 0) {
                 vSelect.value = globalPendingVillages[0].id;
                 renderFormFields();
@@ -430,6 +437,23 @@
             const submitBtn = document.getElementById('submitBtn');
             const btnNilReport = document.getElementById('btnNilReport');
             const btnSaveAndAddMore = document.getElementById('btnSaveAndAddMore');
+            const infoBox = document.getElementById('villageInfoBox'); // 🟢 नवीन
+
+            // 🟢 जर फॉर्मच्या सेटिंगमध्ये लोकसंख्या दाखवायची असेल तरच दाखवा
+            if (vid && vid !== 'ALL' && vid !== 'subcenter_all' && currentFormObj && currentFormObj.schema_json && currentFormObj.schema_json.show_village_info) {
+                let villageObj = userVillages.find(v => String(v.id) === String(vid));
+                if(villageObj) {
+                    let pop = villageObj.population || 0;
+                    let houses = villageObj.total_houses || 0;
+                    document.getElementById('popText').innerHTML = `📍 लोकसंख्या: ${pop}`;
+                    document.getElementById('houseText').innerHTML = `🏠 एकूण घरे: ${houses}`;
+                    infoBox.classList.remove('hidden');
+                } else {
+                    infoBox.classList.add('hidden');
+                }
+            } else {
+                infoBox.classList.add('hidden'); // सर्व गावे निवडल्यास लपवणे
+            }
 
             if (!vid) {
                 container.innerHTML = '<p class="text-center text-gray-400 font-bold py-10 text-lg">कृपया गाव / कार्यक्षेत्र निवडा.</p>';
@@ -445,7 +469,7 @@
             if (vid === 'ALL') {
                 currentPendingVillages = globalPendingVillages;
             } else {
-                currentPendingVillages = globalPendingVillages.filter(v => v.id === parseInt(vid) || v.id === vid);
+                currentPendingVillages = globalPendingVillages.filter(v => String(v.id) === String(vid));
             }
 
             let columns = currentDataFields.map(f => {
@@ -642,9 +666,13 @@
                     });
                 }
 
+                // जर 'subcenter' फॉर्म असेल तर त्याचा village_id 'subcenter_all' असेल, पण डेटाबेसमध्ये आपण '00000000-0000-0000-0000-000000000000' किंवा उपकेंद्राचा एखादा डीफॉल्ट आयडी टाकणे आवश्यक आहे. 
+                // सध्यातरी आपण जो village id आहे तोच घेत आहोत.
+                let realVillageId = v.id === 'subcenter_all' ? '00000000-0000-0000-0000-000000000000' : v.id;
+
                 let pLoad = {
                     form_id: formId,
-                    village_id: v.id,
+                    village_id: realVillageId,
                     employee_id: loggedInUser.id,
                     report_month: parseInt(repMonth),
                     report_year: parseInt(repYear),
