@@ -24,46 +24,46 @@
 
     <div class="max-w-7xl mx-auto bg-white p-4 rounded-lg shadow-md flex justify-between items-center mb-6 no-print border-t-8 border-green-700">
         <div>
-            <h1 id="mainTitle" class="text-xl font-bold text-green-800">📊 प्रगत अहवाल केंद्र</h1>
-            <p class="text-sm font-bold text-blue-600 mt-1" id="roleSubtitle">माहिती लोड होत आहे...</p>
+            <h1 id="mainTitle" class="text-xl md:text-2xl font-bold text-green-800">📊 प्रगत अहवाल केंद्र</h1>
+            <p class="text-sm md:text-base font-bold text-blue-600 mt-1" id="roleSubtitle">माहिती लोड होत आहे...</p>
         </div>
-        <button onclick="window.location.href='dashboard.html'" class="bg-gray-600 text-white px-4 py-2 rounded font-bold shadow hover:bg-gray-700 transition text-sm">डॅशबोर्डवर परत जा</button>
+        <button onclick="window.location.href='dashboard.html'" class="bg-gray-600 text-white px-3 py-2 md:px-4 md:py-2 rounded font-bold shadow hover:bg-gray-700 transition text-sm">डॅशबोर्ड</button>
     </div>
 
-    <div class="max-w-7xl mx-auto bg-white p-6 rounded-lg shadow-md mb-6 no-print">
+    <div class="max-w-7xl mx-auto bg-white p-4 md:p-6 rounded-lg shadow-md mb-6 no-print">
 
-        <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4 items-end">
+        <div class="grid grid-cols-1 lg:grid-cols-5 gap-4 md:gap-4 mb-4 items-end">
 
             <div class="relative" id="multiSelectContainer">
-                <label class="block text-gray-700 text-xs font-bold mb-1">अहवाल / फॉर्म निवडा</label>
-                <button onclick="toggleMultiSelect()" class="w-full p-2 border border-gray-300 rounded bg-white text-left text-sm font-medium flex justify-between items-center min-h-[38px] hover:border-green-500">
-                    <span id="multiSelectBtnText">सर्व अहवाल (All Forms)</span>
-                    <span class="text-xs text-gray-400">▼</span>
+                <label class="block text-gray-700 text-sm md:text-xs font-bold mb-2 md:mb-1">अहवाल / फॉर्म निवडा</label>
+                <button onclick="toggleMultiSelect()" class="w-full p-3 md:p-2 border border-gray-300 rounded bg-white text-left text-base md:text-sm font-medium flex justify-between items-center min-h-[48px] md:min-h-[38px] hover:border-green-500">
+                    <span id="multiSelectBtnText" class="truncate pr-2">सर्व अहवाल (All Forms)</span>
+                    <span class="text-sm md:text-xs text-gray-400 flex-shrink-0">▼</span>
                 </button>
-                <div id="multiSelectDropdown" class="absolute left-0 right-0 mt-1 bg-white border border-gray-300 rounded shadow-2xl z-50 max-h-60 overflow-y-auto hidden">
+                <div id="multiSelectDropdown" class="absolute left-0 right-0 mt-1 bg-white border border-gray-300 rounded shadow-2xl z-50 max-h-72 overflow-y-auto hidden">
                     <div class="p-3 border-b bg-gray-50 sticky top-0">
-                        <label class="flex items-center gap-2 font-bold text-sm text-green-700 cursor-pointer">
-                            <input type="checkbox" id="chkAllReports" checked onchange="toggleAllReports(this)" class="w-4 h-4"> 
+                        <label class="flex items-center gap-3 md:gap-2 font-bold text-base md:text-sm text-green-700 cursor-pointer">
+                            <input type="checkbox" id="chkAllReports" checked onchange="toggleAllReports(this)" class="w-5 h-5 md:w-4 md:h-4"> 
                             सर्व फॉर्म्स निवडा
                         </label>
                     </div>
-                    <div id="multiSelectOptions" class="text-sm font-medium"></div>
+                    <div id="multiSelectOptions" class="text-base md:text-sm font-medium"></div>
                 </div>
                 <select id="reportFormSelect" class="hidden"></select>
             </div>
 
             <div>
-                <label class="block text-gray-700 text-xs font-bold mb-1">कालावधी प्रकार</label>
-                <select id="periodType" onchange="togglePeriodInputs()" class="w-full p-2 border border-gray-300 rounded bg-white text-sm font-bold text-blue-700">
+                <label class="block text-gray-700 text-sm md:text-xs font-bold mb-2 md:mb-1">कालावधी प्रकार</label>
+                <select id="periodType" onchange="togglePeriodInputs()" class="w-full p-3 md:p-2 border border-gray-300 rounded bg-white text-base md:text-sm font-bold text-blue-700 min-h-[48px] md:min-h-[38px]">
                     <option value="monthly">महिन्यानुसार</option>
                     <option value="custom">तारखेनुसार (फक्त यादी)</option>
                 </select>
             </div>
 
-            <div id="monthlyInputs" class="col-span-2 flex gap-2">
+            <div id="monthlyInputs" class="lg:col-span-2 flex flex-col sm:flex-row md:flex-row gap-4 md:gap-2">
                 <div class="flex-1">
-                    <label class="block text-gray-700 text-xs font-bold mb-1">महिना</label>
-                    <select id="reportMonth" class="w-full p-2 border border-gray-300 rounded bg-white text-sm font-bold">
+                    <label class="block text-gray-700 text-sm md:text-xs font-bold mb-2 md:mb-1">महिना</label>
+                    <select id="reportMonth" class="w-full p-3 md:p-2 border border-gray-300 rounded bg-white text-base md:text-sm font-bold min-h-[48px] md:min-h-[38px]">
                         <option value="जानेवारी">जानेवारी</option><option value="फेब्रुवारी">फेब्रुवारी</option>
                         <option value="मार्च">मार्च</option><option value="एप्रिल">एप्रिल</option>
                         <option value="मे">मे</option><option value="जून">जून</option>
@@ -73,41 +73,41 @@
                     </select>
                 </div>
                 <div class="flex-1">
-                    <label class="block text-gray-700 text-xs font-bold mb-1">वर्ष</label>
-                    <input type="number" id="reportYear" class="w-full p-2 border border-gray-300 rounded text-sm font-bold text-center" value="2026">
+                    <label class="block text-gray-700 text-sm md:text-xs font-bold mb-2 md:mb-1">वर्ष</label>
+                    <input type="number" id="reportYear" class="w-full p-3 md:p-2 border border-gray-300 rounded text-base md:text-sm font-bold text-center min-h-[48px] md:min-h-[38px]" value="2026">
                 </div>
                 <div id="fortnightInputs" class="flex-1 hidden">
-                    <label class="block text-orange-700 text-xs font-bold mb-1">पंधरवाडा</label>
-                    <select id="reportFortnight" class="w-full p-2 border border-orange-400 rounded bg-orange-50 text-sm font-bold text-orange-900">
+                    <label class="block text-orange-700 text-sm md:text-xs font-bold mb-2 md:mb-1">पंधरवाडा</label>
+                    <select id="reportFortnight" class="w-full p-3 md:p-2 border border-orange-400 rounded bg-orange-50 text-base md:text-sm font-bold text-orange-900 min-h-[48px] md:min-h-[38px]">
                         <option value="1">१ ते १५ तारीख</option>
                         <option value="2">१६ ते अखेर</option>
                     </select>
                 </div>
             </div>
 
-            <div id="customDateInputs" class="col-span-2 hidden flex gap-2">
+            <div id="customDateInputs" class="lg:col-span-2 hidden flex-col sm:flex-row md:flex-row gap-4 md:gap-2">
                 <div class="flex-1">
-                    <label class="block text-gray-700 text-xs font-bold mb-1">पासून (Start Date)</label>
-                    <input type="date" id="startDate" class="w-full p-2 border border-gray-300 rounded text-sm font-bold text-indigo-700">
+                    <label class="block text-gray-700 text-sm md:text-xs font-bold mb-2 md:mb-1">पासून (Start Date)</label>
+                    <input type="date" id="startDate" class="w-full p-3 md:p-2 border border-gray-300 rounded text-base md:text-sm font-bold text-indigo-700 min-h-[48px] md:min-h-[38px]">
                 </div>
                 <div class="flex-1">
-                    <label class="block text-gray-700 text-xs font-bold mb-1">पर्यंत (End Date)</label>
-                    <input type="date" id="endDate" class="w-full p-2 border border-gray-300 rounded text-sm font-bold text-indigo-700">
+                    <label class="block text-gray-700 text-sm md:text-xs font-bold mb-2 md:mb-1">पर्यंत (End Date)</label>
+                    <input type="date" id="endDate" class="w-full p-3 md:p-2 border border-gray-300 rounded text-base md:text-sm font-bold text-indigo-700 min-h-[48px] md:min-h-[38px]">
                 </div>
             </div>
 
             <div id="subcenterFilterDiv">
-                <label class="block text-gray-700 text-xs font-bold mb-1">उपकेंद्र फिल्टर</label>
-                <select id="reportSubCenterFilter" class="w-full p-2 border border-gray-300 rounded bg-white text-sm font-bold">
+                <label class="block text-gray-700 text-sm md:text-xs font-bold mb-2 md:mb-1">उपकेंद्र फिल्टर</label>
+                <select id="reportSubCenterFilter" class="w-full p-3 md:p-2 border border-gray-300 rounded bg-white text-base md:text-sm font-bold min-h-[48px] md:min-h-[38px]">
                     <option value="सर्व">सर्व उपकेंद्र (All Sub-centers)</option>
                 </select>
             </div>
         </div>
 
-        <div class="grid grid-cols-1 gap-4 border-t border-gray-200 pt-4">
-            <div id="groupFilterDiv">
-                <label class="block text-gray-700 text-xs font-bold mb-1">अहवाल मांडणी प्रकार (Group View)</label>
-                <select id="reportGroupFilter" class="w-full p-2 border border-gray-300 rounded bg-blue-50 text-sm font-bold text-blue-800 focus:ring-2 focus:ring-blue-500">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 border-t border-gray-200 pt-6 mt-2">
+            <div id="groupFilterDiv" class="lg:col-span-1">
+                <label class="block text-gray-700 text-sm md:text-xs font-bold mb-2 md:mb-1">अहवाल मांडणी प्रकार (Group View)</label>
+                <select id="reportGroupFilter" class="w-full p-3 md:p-2 border border-gray-300 rounded bg-blue-50 text-base md:text-sm font-bold text-blue-800 focus:ring-2 focus:ring-blue-500 min-h-[48px] md:min-h-[38px]">
                     <option value="Village">१. गावनिहाय कर्मचारी गटबद्ध यादी (Employee Blocks)</option>
                     <option value="SubCenterFlat">२. सर्व उपकेंद्रांची सलग गावनिहाय यादी (Flat Village List)</option>
                     <option value="SubCenterSum">३. उपकेंद्र निहाय एकूण बेरजेची यादी (SubCenter Wise Sum)</option>
@@ -115,9 +115,9 @@
                 </select>
             </div>
 
-            <div class="flex items-end gap-3 md:col-span-2">
-                <button onclick="fetchReportData()" class="flex-1 bg-blue-600 text-white font-extrabold p-3 rounded-lg shadow-lg hover:bg-blue-700 transition transform hover:-translate-y-0.5 text-sm md:text-base">🔍 अहवाल पहा</button>
-                <button onclick="generatePendingReport()" id="pendingReportBtn" class="flex-1 bg-red-600 text-white font-extrabold p-3 rounded-lg shadow-lg hover:bg-red-700 transition transform hover:-translate-y-0.5 text-sm md:text-base">⚠️ अपूर्ण यादी शोधा</button>
+            <div class="flex flex-col sm:flex-row items-end gap-4 md:gap-3 lg:col-span-2">
+                <button onclick="fetchReportData()" class="w-full sm:flex-1 bg-blue-600 text-white font-extrabold p-4 md:p-3 rounded-lg shadow-lg hover:bg-blue-700 transition transform hover:-translate-y-0.5 text-base md:text-base">🔍 अहवाल पहा</button>
+                <button onclick="generatePendingReport()" id="pendingReportBtn" class="w-full sm:flex-1 bg-red-600 text-white font-extrabold p-4 md:p-3 rounded-lg shadow-lg hover:bg-red-700 transition transform hover:-translate-y-0.5 text-base md:text-base">⚠️ अपूर्ण यादी शोधा</button>
             </div>
         </div>
 
@@ -251,13 +251,16 @@
             if (val === 'custom') {
                 document.getElementById('monthlyInputs').classList.add('hidden');
                 document.getElementById('customDateInputs').classList.remove('hidden');
+                document.getElementById('customDateInputs').classList.add('flex');
             } else {
                 document.getElementById('monthlyInputs').classList.remove('hidden');
+                document.getElementById('monthlyInputs').classList.add('flex');
                 document.getElementById('customDateInputs').classList.add('hidden');
+                document.getElementById('customDateInputs').classList.remove('flex');
             }
         }
 
-       async function loadInitialMasterData() {
+        async function loadInitialMasterData() {
             document.getElementById('reportLoader').classList.remove('hidden');
 
             try {
@@ -293,7 +296,6 @@
 
                 const { data: formData } = await supabaseClient.from('dynamic_forms').select('*').eq('is_active', true);
                 
-                // 🟢 नवीन बदल: कर्मचाऱ्याच्या पदानुसार (Role) फॉर्म्स फिल्टर करणे
                 if (user.role !== 'admin' && user.role !== 'taluka_admin' && user.role !== 'phc_admin') {
                     let currentUserRole = String(user.role).toUpperCase().trim();
                     masterData.forms = (formData || []).filter(f => {
@@ -302,7 +304,6 @@
                         return allowedArray.includes(currentUserRole);
                     });
                 } else {
-                    // जर ॲडमिन असेल, तर सर्व फॉर्म्स दिसतील
                     masterData.forms = formData || [];
                 }
 
@@ -314,12 +315,12 @@
                     let opt = document.createElement('option'); opt.value = f.id; opt.text = f.form_name; select.appendChild(opt);
                     let div = document.createElement('div');
                     let formTypeTag = '';
-                    if(f.form_type === 'list') formTypeTag = `<span class="bg-indigo-100 text-indigo-700 text-[10px] px-1 ml-2 rounded">यादी फॉर्म</span>`;
-                    else if(f.form_type === 'fortnightly') formTypeTag = `<span class="bg-orange-100 text-orange-700 text-[10px] px-1 ml-2 rounded">पंधरवाडी</span>`;
-                    else if(f.form_type === 'subcenter') formTypeTag = `<span class="bg-green-100 text-green-700 text-[10px] px-1 ml-2 rounded">उपकेंद्र स्तर</span>`;
+                    if(f.form_type === 'list') formTypeTag = `<span class="bg-indigo-100 text-indigo-700 text-xs md:text-[10px] px-2 py-0.5 md:px-1 ml-2 rounded">यादी फॉर्म</span>`;
+                    else if(f.form_type === 'fortnightly') formTypeTag = `<span class="bg-orange-100 text-orange-700 text-xs md:text-[10px] px-2 py-0.5 md:px-1 ml-2 rounded">पंधरवाडी</span>`;
+                    else if(f.form_type === 'subcenter') formTypeTag = `<span class="bg-green-100 text-green-700 text-xs md:text-[10px] px-2 py-0.5 md:px-1 ml-2 rounded">उपकेंद्र स्तर</span>`;
                     
-                    div.className = "hover:bg-gray-100 transition"; div.style.padding = "10px"; div.style.borderBottom = "1px solid #eee"; div.style.cursor = "pointer";
-                    div.innerHTML = `<label style="cursor:pointer; display:flex; align-items:center; gap:8px; font-weight:600;"><input type="checkbox" class="report-chk w-4 h-4" value="${f.id}" checked onchange="checkIndividualReport()"> ${f.form_name} ${formTypeTag}</label>`;
+                    div.className = "hover:bg-gray-100 transition"; div.style.padding = "12px 10px"; div.style.borderBottom = "1px solid #eee"; div.style.cursor = "pointer";
+                    div.innerHTML = `<label style="cursor:pointer; display:flex; align-items:center; gap:10px; font-weight:600;" class="text-base md:text-sm"><input type="checkbox" class="report-chk w-5 h-5 md:w-4 md:h-4" value="${f.id}" checked onchange="checkIndividualReport()"> ${f.form_name} ${formTypeTag}</label>`;
                     optionsDiv.appendChild(div);
                 });
 
@@ -333,6 +334,7 @@
 
             document.getElementById('reportLoader').classList.add('hidden');
         }
+
         function toggleMultiSelect() {
             let dropdown = document.getElementById('multiSelectDropdown');
             dropdown.style.display = dropdown.style.display === "block" ? "none" : "block";
@@ -362,14 +364,17 @@
                 if(fObj && fObj.form_type === 'fortnightly') hasFortnightly = true;
             });
             
-            if (hasFortnightly) document.getElementById('fortnightInputs').classList.remove('hidden');
-            else document.getElementById('fortnightInputs').classList.add('hidden');
+            if (hasFortnightly) {
+                document.getElementById('fortnightInputs').classList.remove('hidden');
+            } else {
+                document.getElementById('fortnightInputs').classList.add('hidden');
+            }
 
             if(chkAll && chkAll.checked) { textSpan.innerText = "सर्व अहवाल (All Forms)"; textSpan.style.color = "var(--primary)"; } 
             else {
                 let selected = document.querySelectorAll('.report-chk:checked');
                 if(selected.length === 0) { textSpan.innerText = "-- कोणताही अहवाल निवडलेला नाही --"; textSpan.style.color = "red"; } 
-                else if(selected.length === 1) { let lbl = selected[0].parentElement.innerText.trim(); textSpan.innerText = lbl.length > 35 ? lbl.substring(0, 35) + "..." : lbl; textSpan.style.color = "#d35400"; } 
+                else if(selected.length === 1) { let lbl = selected[0].parentElement.innerText.trim(); textSpan.innerText = lbl.length > 30 ? lbl.substring(0, 30) + "..." : lbl; textSpan.style.color = "#d35400"; } 
                 else { textSpan.innerText = `✔️ ${selected.length} अहवाल निवडले`; textSpan.style.color = "green"; }
             }
         }
@@ -1626,7 +1631,7 @@
                         .content p { text-indent: 50px; margin-bottom: 8px; }
                         .forms-box { margin: 15px 0 15px 40px; padding: 15px 15px 15px 10px; border: 1px solid #ccc; background-color: #fafafa; border-radius: 5px; box-shadow: inset 0 0 5px rgba(0,0,0,0.05);}
                         .forms-box ul { margin: 0; padding-left: 20px; list-style-type: decimal; }
-                        .sign-block { text-align: right; margin-top: 40px; font-weight: bold; font-size: 16px; line-height: 1.5; }
+                        .sign-block { text-align: right; margin-top: 30px; font-weight: bold; font-size: 16px; line-height: 1.5; }
                         .copy-to { margin-top: 40px; font-size: 15px; font-weight: bold; line-height: 1.6; }
                         
                         @media print { 
