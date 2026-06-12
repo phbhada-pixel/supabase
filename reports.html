@@ -480,9 +480,17 @@
                     const validDataFields = allFields.filter(f => f.type !== 'group_header');
                     const isProgressive = formObj.form_type === 'progressive';
 
-                    let fieldMetaList = validDataFields.map(f => {
+                    let fieldMetaList = [];
+
+                    // 🟢 नवीन बदल: फॉर्मला लोकसंख्या लागू असल्यास अहवालात दोन स्वतंत्र कॉलम्स तयार करणे (type: 'info' मुळे बेरीज होत नाही)
+                    if (formObj.schema_json && formObj.schema_json.show_village_info) {
+                        fieldMetaList.push({ id: 'sys_pop', label: 'लोकसंख्या', type: 'info', formula: '', min: '', max: '', l1: '', l2: '', l3: 'लोकसंख्या' });
+                        fieldMetaList.push({ id: 'sys_house', label: 'घर संख्या', type: 'info', formula: '', min: '', max: '', l1: '', l2: '', l3: 'घर संख्या' });
+                    }
+
+                    validDataFields.forEach(f => {
                         let chain = getFieldHierarchyChain(allFields, f);
-                        return { id: f.id, label: f.label, type: f.type, formula: f.formula, min: f.min, max: f.max, l1: chain[0] || "", l2: chain[1] || "", l3: f.label };
+                        fieldMetaList.push({ id: f.id, label: f.label, type: f.type, formula: f.formula, min: f.min, max: f.max, l1: chain[0] || "", l2: chain[1] || "", l3: f.label });
                     });
 
                     let fData = [];
@@ -534,13 +542,6 @@
                             vName = "🏢 संपूर्ण उपकेंद्र (Subcenter Level)";
                         }
 
-                        // 🟢 फॉर्मला लोकसंख्या लागू असल्यास ती गावाच्या नावासोबत दिसेल
-                        if (formObj.schema_json && formObj.schema_json.show_village_info && villageObj) {
-                            let pop = villageObj.population || 0;
-                            let houses = villageObj.total_houses || 0;
-                            vName += ` <br/><span style="font-size:10px; font-weight:bold; color:#d32f2f;">(लोकसंख्या: ${pop} | घरे: ${houses})</span>`;
-                        }
-
                         let row = { 
                             response_id: res.id,
                             report_month: res.report_month,
@@ -552,6 +553,12 @@
                             employee: empObj?empObj.full_name:'-', 
                             values: {} 
                         };
+
+                        // 🟢 नवीन बदल: रो मध्ये लोकसंख्या व घरे स्वतंत्रपणे भरणे
+                        if (formObj.schema_json && formObj.schema_json.show_village_info) {
+                            row.values['sys_pop'] = villageObj ? (villageObj.population || 0) : 0;
+                            row.values['sys_house'] = villageObj ? (villageObj.total_houses || 0) : 0;
+                        }
 
                         validDataFields.forEach(f => {
                             if (!f.formula || String(f.formula).trim() === "") {
@@ -752,7 +759,7 @@
                             let smartM = phcTotals[c.id].isNum ? formatNumberDecimals(phcTotals[c.id].M) : "-";
                             let smartP = rep.isProg && phcTotals[c.id].isNum ? formatNumberDecimals(phcTotals[c.id].P) : "-";
                             tbodyHtml += `<td class="border p-2 font-extrabold bg-green-50 text-green-900 text-center">${smartM}</td>`;
-                            if (rep.isProg) tbodyHtml += `<td class="border p-2 font-extrabold bg-green-50 text-green-900 text-center">${smartP}</td>`;
+                            if (rep.isProg && c.type === 'number') tbodyHtml += `<td class="border p-2 font-extrabold bg-green-50 text-green-900 text-center">${smartP}</td>`;
                         }
                         tbodyHtml += `</tr>`;
                     });
@@ -1114,7 +1121,7 @@
                             let val = r.values[c.id]; let mObj = (typeof val === 'object' && val !== null) ? val.M : val;
                             rowData.push(mObj !== undefined && mObj !== "" ? (isNaN(Number(mObj)) ? String(mObj) : Number(mObj)) : 0);
                             
-                            if(rep.isProg) { 
+                            if(rep.isProg && c.type === 'number') { 
                                 let pObj = (typeof val === 'object' && val !== null) ? val.P : val; 
                                 rowData.push(pObj !== undefined && pObj !== "" ? (isNaN(Number(pObj)) ? String(pObj) : Number(pObj)) : 0); 
                             }
@@ -1123,7 +1130,7 @@
                         if(rep.formType !== 'list') {
                             let tM = phcTotals[c.id].isNum ? Number(phcTotals[c.id].M) : "-";
                             let tP = phcTotals[c.id].isNum ? Number(phcTotals[c.id].P) : "-";
-                            rowData.push(tM); if(rep.isProg) rowData.push(tP);
+                            rowData.push(tM); if(rep.isProg && c.type === 'number') rowData.push(tP);
                         }
                         sheetData.push(rowData); 
                     });
@@ -1668,7 +1675,7 @@
                         </div>
                         
                         <div class="subject-box">
-                            <span style="text-decoration: underline;">विषय:</span> प्रलंबित अहवाल विहित वेळेत सादर न केल्याबाबत <strong>कारणे दाखवा नोटीस</strong>.
+                            <span style="text-decoration: underline;">विषय:</span> प्रलंबित अहवाल विहित वेळेत सादर জ্ঞ न केल्याबाबत <strong>कारणे दाखवा नोटीस</strong>.
                         </div>
                         
                         <div class="content">
