@@ -12,11 +12,18 @@
         .report-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; table-layout: auto; }
         .report-table th, .report-table td { border: 1px solid #000; padding: 6px; text-align: center; word-wrap: break-word; }
         .report-table th { font-weight: bold; color: #333; }
-        .page-break { page-break-before: always !important; display: block; }
         .table-responsive { width: 100%; overflow-x: auto; margin-bottom: 20px;}
+        
+        /* 🟢 प्रिंट आणि PDF साठी खास CSS सेटिंग्ज */
         @media print {
             .no-print { display: none !important; }
             body { background: #fff; padding: 0; }
+            /* 🟢 प्रत्येक नवीन अहवाल नवीन पानावरून सुरू होईल */
+            .page-break { page-break-before: always !important; break-before: page !important; }
+            /* 🟢 टेबलची ओळ (Row) अर्धी तुटू नये म्हणून */
+            tr { page-break-inside: avoid !important; break-inside: avoid !important; }
+            /* 🟢 टेबल पुढच्या पानावर गेल्यास हेडिंग पुन्हा दिसावे */
+            thead { display: table-header-group !important; }
         }
     </style>
 </head>
@@ -482,7 +489,6 @@
 
                     let fieldMetaList = [];
 
-                    // 🟢 नवीन बदल: फॉर्मला लोकसंख्या लागू असल्यास अहवालात दोन स्वतंत्र कॉलम्स तयार करणे (type: 'info' मुळे बेरीज होत नाही)
                     if (formObj.schema_json && formObj.schema_json.show_village_info) {
                         fieldMetaList.push({ id: 'sys_pop', label: 'लोकसंख्या', type: 'info', formula: '', min: '', max: '', l1: '', l2: '', l3: 'लोकसंख्या' });
                         fieldMetaList.push({ id: 'sys_house', label: 'घर संख्या', type: 'info', formula: '', min: '', max: '', l1: '', l2: '', l3: 'घर संख्या' });
@@ -554,7 +560,6 @@
                             values: {} 
                         };
 
-                        // 🟢 नवीन बदल: रो मध्ये लोकसंख्या व घरे स्वतंत्रपणे भरणे
                         if (formObj.schema_json && formObj.schema_json.show_village_info) {
                             row.values['sys_pop'] = villageObj ? (villageObj.population || 0) : 0;
                             row.values['sys_house'] = villageObj ? (villageObj.total_houses || 0) : 0;
@@ -723,9 +728,15 @@
             downArea.innerHTML = `<div class="flex flex-col md:flex-row justify-between items-center gap-2 p-3 bg-gray-50 rounded-lg border shadow-sm mb-4"><span class="font-bold text-gray-700">${phcHeaderTxt}</span><div class="flex gap-2"><button onclick="downloadConsolidatedExcel()" class="bg-green-600 text-white font-extrabold px-6 py-2 rounded-lg shadow-lg hover:bg-green-700 transition">📥 Excel डाऊनलोड</button><button onclick="window.print()" class="bg-red-600 text-white font-extrabold px-6 py-2 rounded-lg shadow-lg hover:bg-red-700 transition">🖨️ प्रिंट काढा</button></div></div>`;
 
             let html = '';
-            reports.forEach(rep => {
+            
+            // 🟢 प्रिंटिंग वेळी पेज-ब्रेक (Page Break) ॲड करण्यासाठी index वापरला आहे
+            reports.forEach((rep, index) => {
                 let columns = rep.fields; let rows = rep.rows;
-                html += `<div class="mb-8 p-4 border border-gray-300 rounded-xl bg-white shadow-sm overflow-hidden"><div class="text-center border-b pb-2 mb-4 bg-purple-50 p-3 rounded-t-lg"><h2 class="text-lg font-extrabold text-purple-800">📋 अहवाल: ${rep.formName}</h2><p class="text-sm font-bold text-gray-600">कालावधी: ${rep.periodText}</p></div>`;
+                
+                // 🟢 पहिल्या अहवालानंतरच्या प्रत्येक अहवालाला "page-break" क्लास लागेल
+                let pageBreakClass = index > 0 ? "page-break" : "";
+                
+                html += `<div class="mb-8 p-4 border border-gray-300 rounded-xl bg-white shadow-sm overflow-hidden ${pageBreakClass}"><div class="text-center border-b pb-2 mb-4 bg-purple-50 p-3 rounded-t-lg"><h2 class="text-lg font-extrabold text-purple-800">📋 अहवाल: ${rep.formName}</h2><p class="text-sm font-bold text-gray-600">कालावधी: ${rep.periodText}</p></div>`;
 
                 if(groupType === "SubCenterConsolidated") {
                     let phcTotals = calculateSmartTotals(rows, columns, rep.isProg);
@@ -1100,7 +1111,9 @@
                     let ccIdx = 2;
                     rows.forEach(r => {
                         let vName = r.village ? `${r.village} (${r.subcenter})` : "-";
-                        r1.push(vName); if(rep.isProg) r1.push("");
+                        // Excel मध्ये HTML टॅग्स (<br/> आणि <span>) काढून फक्त गावाचे नाव ठेवत आहोत
+                        let cleanVName = vName.replace(/<[^>]*>?/gm, '');
+                        r1.push(cleanVName); if(rep.isProg) r1.push("");
                         if(rep.isProg) { merges.push({ s: { r: 3, c: ccIdx }, e: { r: 3, c: ccIdx + 1 } }); r2.push("मासिक"); r2.push("प्रगत"); ccIdx += 2; } else { ccIdx += 1; }
                     });
                     
@@ -1239,7 +1252,11 @@
 
                     dataRowsToRender.forEach((r, rIdx) => {
                         let rowData = [rIdx + 1, r.subcenter];
-                        if(groupType === 'SubCenterFlat') rowData.push(r.village);
+                        if(groupType === 'SubCenterFlat') {
+                            // Excel मध्ये HTML टॅग्स काढून टाकतो
+                            let cleanVName = r.village.replace(/<[^>]*>?/gm, '');
+                            rowData.push(cleanVName);
+                        }
                         columns.forEach(c => {
                             let val = r.values[c.id];
                             if(typeof val === 'object' && val !== null) { 
@@ -1351,7 +1368,8 @@
                         if(rep.isProg) { sheetData.push(r4); subTitleHeaderRows.push(startR + 3); }
 
                         subRows.forEach((r, rIdx) => {
-                            let rowData = [rIdx + 1, r.village];
+                            let cleanVName = r.village.replace(/<[^>]*>?/gm, '');
+                            let rowData = [rIdx + 1, cleanVName];
                             columns.forEach(c => {
                                 let val = r.values[c.id];
                                 if(typeof val === 'object' && val !== null) { 
@@ -1675,7 +1693,7 @@
                         </div>
                         
                         <div class="subject-box">
-                            <span style="text-decoration: underline;">विषय:</span> प्रलंबित अहवाल विहित वेळेत सादर জ্ঞ न केल्याबाबत <strong>कारणे दाखवा नोटीस</strong>.
+                            <span style="text-decoration: underline;">विषय:</span> प्रलंबित अहवाल विहित वेळेत सादर न केल्याबाबत <strong>कारणे दाखवा नोटीस</strong>.
                         </div>
                         
                         <div class="content">
