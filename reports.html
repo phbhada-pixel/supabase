@@ -159,7 +159,7 @@
 
         let masterData = { forms: [], villages: [], employees: [], subCenters: [], phcs: [] };
         let currentReports = [];
-        let user = { role: 'User', subcenter: 'सर्व', mobile: '', phc_id: null, id: null, sub_center_id: null };
+        let user = { role: 'User', subcenter: 'सर्व', mobile: '', phc_id: null, id: null };
         let windowDbData = [];
 
         const monthNamesMarathi = {
@@ -426,7 +426,6 @@
                 selMonthNum = monthNamesMarathi[selMonth]; 
                 selYear = parseInt(document.getElementById('reportYear').value);
                 
-                // 🟢 1000 Row Limit Bypass आणि अचूक Progressive Fetching
                 let periods = getProgressiveMonthsList(selMonthNum, selYear);
                 let orQueryStr = periods.map(p => `and(report_month.eq.${p.month},report_year.eq.${p.year})`).join(',');
                 query = query.or(orQueryStr);
@@ -441,7 +440,6 @@
                 basePeriodText = `${formatDateToDDMMYYYY(sDate)} ते ${formatDateToDDMMYYYY(eDate)}`;
             }
 
-            // 🟢 ॲडमिनसाठी जास्तीत जास्त डेटा मिळवण्यासाठी Limit Bypass
             query = query.limit(50000); 
 
             let filterSubCenter = document.getElementById('reportSubCenterFilter').value; 
@@ -534,7 +532,6 @@
                         let empObj = masterData.employees.find(e => e.id === res.employee_id);
                         let scObj = villageObj ? masterData.subCenters.find(s => s.id === villageObj.sub_center_id) : null;
 
-                        // 🟢 कर्मचाऱ्यांना त्यांच्या संपूर्ण उपकेंद्राचा डेटा दिसावा अशी दुरुस्ती
                         if (user.role !== 'admin' && user.role !== 'taluka_admin' && user.role !== 'phc_admin') {
                             if (empObj && empObj.sub_center_id !== user.sub_center_id && res.employee_id !== user.id) {
                                 return; 
@@ -887,18 +884,13 @@
                         rows.forEach(r => { let key = `${r.subcenter}###${r.employee}`; if(!employeeGroups[key]) employeeGroups[key] = []; employeeGroups[key].push(r); });
 
                         Object.keys(employeeGroups).sort().forEach(empKey => {
-                            let [scName, empName] = empKey.split("###"); let subRows = employeeGroups[empKey];
+                            let [scName, empName] = empKey.split("###");
+                            let subRows = employeeGroups[empKey];
 
-                            let currentMetaIndex = sheetData.length;
-                            sheetData.push([`📋 अहवाल: ${rep.formName} | कालावधी: ${rep.periodText} | 🏢 उपकेंद्र: ${scName} | 🧑‍⚕️ कर्मचारी: ${empName}`]);
-                            masterHeaderRows.push(currentMetaIndex); merges.push({ s: { r: currentMetaIndex, c: 0 }, e: { r: currentMetaIndex, c: totalColumnsCount - 1 } });
+                            html += `<div style="margin-top:20px; margin-bottom:10px; background:#00705a; color:#ffffff; padding:10px; border-radius:4px; font-weight:bold; font-size:14px;">🏢 उपकेंद्र: ${scName} | 🧑‍⚕️ कर्मचारी: ${empName}</div>`;
 
-                            let startR = sheetData.length;
-                            let r1 = ["अ.क्र.", "गाव/कार्यक्षेत्र"]; let r2 = ["", ""]; let r3 = ["", ""]; let r4 = rep.isProg ? ["", ""] : null;
-
-                            let totalHeaderRows = rep.isProg ? 4 : 3;
-                            merges.push({ s: { r: startR, c: 0 }, e: { r: startR + totalHeaderRows - 1, c: 0 } });
-                            merges.push({ s: { r: startR, c: 1 }, e: { r: startR + totalHeaderRows - 1, c: 1 } });
+                            let l1Row = `<tr><th rowspan="${rep.isProg?4:3}" class="border p-2">अ.क्र.</th><th rowspan="${rep.isProg?4:3}" class="border p-2">गाव/कार्यक्षेत्र</th>`;
+                            let l2Row = `<tr>`; let l3Row = `<tr>`; let l4Row = rep.isProg ? `<tr>` : ``;
 
                             let i = 0;
                             while(i < columns.length) {
@@ -906,8 +898,7 @@
                                 if(c.l1 !== "") {
                                     while(j < columns.length && columns[j].l1 === c.l1) { j++; }
                                     let totalL1Span = 0; for(let k=i; k<j; k++) totalL1Span += (rep.isProg && columns[k].type === 'number') ? 2 : 1;
-                                    r1.push(c.l1); for(let s=1; s<totalL1Span; s++) r1.push("");
-                                    merges.push({ s: { r: startR, c: r1.length - totalL1Span }, e: { r: startR, c: r1.length - 1 } });
+                                    l1Row += `<th colspan="${totalL1Span}" class="border p-2 bg-purple-100 text-purple-900">${c.l1}</th>`;
 
                                     let k = i;
                                     while(k < j) {
@@ -915,45 +906,25 @@
                                         if(c2.l2 !== "") {
                                             while(m < j && columns[m].l2 === c2.l2) { m++; }
                                             let totalL2Span = 0; for(let n=k; n<m; n++) totalL2Span += (rep.isProg && columns[n].type === 'number') ? 2 : 1;
-                                            r2.push(c2.l2); for(let s=1; s<totalL2Span; s++) r2.push("");
-                                            merges.push({ s: { r: startR+1, c: r2.length - totalL2Span }, e: { r: startR+1, c: r2.length - 1 } });
-
+                                            l2Row += `<th colspan="${totalL2Span}" class="border p-2 bg-blue-50 text-blue-900">${c2.l2}</th>`;
                                             for(let n=k; n<m; n++) {
-                                                let cn = columns[n]; let w = (rep.isProg && cn.type === 'number') ? 2 : 1;
-                                                r3.push(cn.l3);
-                                                if(w === 2) {
-                                                    r3.push(""); merges.push({ s: { r: startR+2, c: r3.length - 2 }, e: { r: startR+2, c: r3.length - 1 } });
-                                                    r4.push("मासिक"); r4.push("प्रगत");
-                                                } else {
-                                                    if(rep.isProg) { merges.push({ s: { r: startR+2, c: r3.length - 1 }, e: { r: startR+3, c: r3.length - 1 } }); r4.push(""); }
-                                                }
+                                                let w = (rep.isProg && columns[n].type === 'number') ? 2 : 1;
+                                                if(w===2) { l3Row += `<th colspan="2" class="border p-2 text-xs">${columns[n].l3}</th>`; l4Row += `<th class="border p-1 bg-yellow-50 text-[10px]">मासिक</th><th class="border p-1 bg-orange-50 text-[10px]">प्रगत</th>`; } 
+                                                else { l3Row += `<th rowspan="${rep.isProg?2:1}" class="border p-2 text-xs">${columns[n].l3}</th>`; }
                                             }
                                             k = m;
                                         } else {
-                                            let w = (rep.isProg && c2.type === 'number') ? 2 : 1;
-                                            r2.push(c2.l3);
-                                            if(w === 2) {
-                                                r2.push(""); merges.push({ s: { r: startR+1, c: r2.length - 2 }, e: { r: startR+2, c: r2.length - 1 } }); 
-                                                r3.push(""); r3.push(""); r4.push("मासिक"); r4.push("प्रगत");
-                                            } else {
-                                                if(rep.isProg) { merges.push({ s: { r: startR+1, c: r2.length - 1 }, e: { r: startR+3, c: r2.length - 1 } }); r3.push(""); r4.push(""); } 
-                                                else { merges.push({ s: { r: startR+1, c: r2.length - 1 }, e: { r: startR+2, c: r2.length - 1 } }); r3.push(""); }
-                                            }
+                                            let mult2 = (rep.isProg && c2.type === 'number') ? 2 : 1;
+                                            if(mult2 === 2) { l2Row += `<th colspan="2" rowspan="2" class="border p-2 text-xs">${c2.l3}</th>`; l4Row += `<th class="border p-1 bg-yellow-50 text-[10px]">मासिक</th><th class="border p-1 bg-orange-50 text-[10px]">प्रगत</th>`; } 
+                                            else { l2Row += `<th rowspan="${rep.isProg?3:2}" class="border p-2 text-xs">${c2.l3}</th>`; }
                                             k++;
                                         }
                                     }
                                     i = j;
                                 } else {
-                                    let w = (rep.isProg && c.type === 'number') ? 2 : 1;
-                                    r1.push(c.l3);
-                                    if(w === 2) {
-                                        r1.push(""); merges.push({ s: { r: startR, c: r1.length - 2 }, e: { r: startR+2, c: r1.length - 1 } }); 
-                                        r2.push(""); r2.push(""); r3.push(""); r3.push(""); r4.push("मासिक"); r4.push("प्रगत");
-                                    } else {
-                                        let bottomR = rep.isProg ? startR+3 : startR+2;
-                                        merges.push({ s: { r: startR, c: r1.length - 1 }, e: { r: bottomR, c: r1.length - 1 } });
-                                        r2.push(""); r3.push(""); if(rep.isProg) r4.push("");
-                                    }
+                                    let mult = (rep.isProg && c.type === 'number') ? 2 : 1;
+                                    if(mult === 2) { l1Row += `<th colspan="2" rowspan="3" class="border p-2 text-xs">${c.l3}</th>`; l4Row += `<th class="border p-1 bg-yellow-50 text-[10px]">मासिक</th><th class="border p-1 bg-orange-50 text-[10px]">प्रगत</th>`; } 
+                                    else { l1Row += `<th rowspan="${rep.isProg?4:3}" class="border p-2 text-xs">${c.l3}</th>`; }
                                     i++;
                                 }
                             }
@@ -961,18 +932,22 @@
 
                             let tbodyHtml = '';
                             subRows.forEach((r, rIdx) => {
+                                let actionHtml = '';
+                                if (user.role === 'phc_admin' && r.response_id && isEditingAllowed(r.report_month, r.report_year)) {
+                                    actionHtml = `<div class="mt-1 flex gap-1 justify-start no-print">
+                                        <button onclick="openEditModal('${r.response_id}')" class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-[10px] font-bold shadow-sm hover:bg-blue-200">✏️</button>
+                                        <button onclick="deleteResponse('${r.response_id}')" class="bg-red-100 text-red-700 px-2 py-0.5 rounded text-[10px] font-bold shadow-sm hover:bg-red-200">🗑️</button>
+                                    </div>`;
+                                }
+
                                 let cleanVName = r.village.replace(/<[^>]*>?/gm, '');
-                                let rowData = [rIdx + 1, cleanVName];
+                                tbodyHtml += `<tr class="hover:bg-gray-50 text-xs"><td class="border p-2 text-center font-bold">${rIdx+1}</td><td class="border p-2 font-bold text-gray-800 text-left">${cleanVName} ${actionHtml}</td>`;
                                 columns.forEach(c => {
                                     let val = r.values[c.id];
-                                    if(typeof val === 'object' && val !== null) { 
-                                        rowData.push(val.M !== '' ? (isNaN(Number(val.M)) ? String(val.M) : Number(val.M)) : 0); 
-                                        rowData.push(val.P !== '' ? (isNaN(Number(val.P)) ? String(val.P) : Number(val.P)) : 0); 
-                                    } else { 
-                                        rowData.push(val !== '' ? (isNaN(Number(val)) ? String(val) : Number(val)) : ''); 
-                                    }
+                                    if(typeof val === 'object' && val !== null) { tbodyHtml += `<td class="border p-2 text-blue-800 text-center font-bold">${val.M}</td><td class="border p-2 font-bold bg-orange-50/30 text-orange-800 text-center">${val.P}</td>`; } 
+                                    else { tbodyHtml += `<td class="border p-2 text-center">${val !== '' ? val : '-'}</td>`; }
                                 });
-                                sheetData.push(rowData);
+                                tbodyHtml += `</tr>`;
                             });
 
                             if(rep.formType !== 'list') {
@@ -1392,12 +1367,9 @@
                                 i++;
                             }
                         }
+                        l1Row += `</tr>`; l2Row += `</tr>`; l3Row += `</tr>`; if(rep.isProg) l4Row += `</tr>`;
 
-                        sheetData.push(r1); subTitleHeaderRows.push(startR);
-                        sheetData.push(r2); subTitleHeaderRows.push(startR + 1);
-                        sheetData.push(r3); subTitleHeaderRows.push(startR + 2);
-                        if(rep.isProg) { sheetData.push(r4); subTitleHeaderRows.push(startR + 3); }
-
+                        let tbodyHtml = '';
                         subRows.forEach((r, rIdx) => {
                             let cleanVName = r.village.replace(/<[^>]*>?/gm, '');
                             let rowData = [rIdx + 1, cleanVName];
