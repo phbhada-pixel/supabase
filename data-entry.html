@@ -676,7 +676,14 @@
                 }
 
                 // 🟢 डेटाबेस Foreign Key Error दुरुस्ती: 'subcenter_all' असल्यास खऱ्या गावाचा आयडी (real_db_id) पाठवणे
-                let realVillageId = v.id === 'subcenter_all' ? v.real_db_id : v.id;
+              // 🟢 जर उपकेंद्र फॉर्म असेल आणि real_db_id मिळाला नाही, तर उपलब्ध असलेले पहिले वैध गाव आयडी म्हणून वापरणे
+let realVillageId = v.id === 'subcenter_all' ? (v.real_db_id || (userVillages[0] ? userVillages[0].id : null)) : v.id;
+
+if (!realVillageId || realVillageId === 'subcenter_all') {
+    alert("⚠️ चूक: तुमच्या उपकेंद्रासाठी सिस्टीममध्ये कोणतेही वैध गाव सापडले नाही. कृपया ॲडमिनकडून गाव मॅपिंग तपासा.");
+    document.getElementById('loader').classList.add('hidden');
+    return;
+}
 
                 let pLoad = {
                     form_id: formId,
