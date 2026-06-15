@@ -14,15 +14,11 @@
         .report-table th { font-weight: bold; color: #333; }
         .table-responsive { width: 100%; overflow-x: auto; margin-bottom: 20px;}
         
-        /* 🟢 प्रिंट आणि PDF साठी खास CSS सेटिंग्ज */
         @media print {
             .no-print { display: none !important; }
             body { background: #fff; padding: 0; }
-            /* 🟢 प्रत्येक नवीन अहवाल नवीन पानावरून सुरू होईल */
             .page-break { page-break-before: always !important; break-before: page !important; }
-            /* 🟢 टेबलची ओळ (Row) अर्धी तुटू नये म्हणून */
             tr { page-break-inside: avoid !important; break-inside: avoid !important; }
-            /* 🟢 टेबल पुढच्या पानावर गेल्यास हेडिंग पुन्हा दिसावे */
             thead { display: table-header-group !important; }
         }
     </style>
@@ -161,7 +157,7 @@
         const SUPABASE_KEY = 'sb_publishable_sdgZ9G8ko4H_3Mh9RouYFg_JOQ-4Mdx'; 
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-        let masterData = { forms: [], villages: [], employees: [], filledStats: [], subCenters: [], phcs: [] };
+        let masterData = { forms: [], villages: [], employees: [], subCenters: [], phcs: [] };
         let currentReports = [];
         let user = { role: 'User', subcenter: 'सर्व', mobile: '', phc_id: null, id: null };
         let windowDbData = [];
@@ -241,14 +237,12 @@
                     }
                 });
             }
-
             try {
                 if (/^[0-9.+\-*/() ]+$/.test(fStr)) {
                     let res = eval(fStr);
                     return isNaN(res) || !isFinite(res) ? null : res;
                 }
             } catch(e) {}
-            
             let simpleNum = parseFloat(fStr);
             return isNaN(simpleNum) ? null : simpleNum;
         }
@@ -330,9 +324,6 @@
                     div.innerHTML = `<label style="cursor:pointer; display:flex; align-items:center; gap:10px; font-weight:600;" class="text-base md:text-sm"><input type="checkbox" class="report-chk w-5 h-5 md:w-4 md:h-4" value="${f.id}" checked onchange="checkIndividualReport()"> ${f.form_name} ${formTypeTag}</label>`;
                     optionsDiv.appendChild(div);
                 });
-
-                const { data: respData } = await supabaseClient.from('form_responses').select('form_id, village_id, report_month, report_year, report_fortnight');
-                masterData.filledStats = respData || [];
 
                 document.getElementById('chkAllReports').checked = true;
                 updateMultiSelectText();
@@ -729,11 +720,9 @@
 
             let html = '';
             
-            // 🟢 प्रिंटिंग वेळी पेज-ब्रेक (Page Break) ॲड करण्यासाठी index वापरला आहे
             reports.forEach((rep, index) => {
                 let columns = rep.fields; let rows = rep.rows;
                 
-                // 🟢 पहिल्या अहवालानंतरच्या प्रत्येक अहवालाला "page-break" क्लास लागेल
                 let pageBreakClass = index > 0 ? "page-break" : "";
                 
                 html += `<div class="mb-8 p-4 border border-gray-300 rounded-xl bg-white shadow-sm overflow-hidden ${pageBreakClass}"><div class="text-center border-b pb-2 mb-4 bg-purple-50 p-3 rounded-t-lg"><h2 class="text-lg font-extrabold text-purple-800">📋 अहवाल: ${rep.formName}</h2><p class="text-sm font-bold text-gray-600">कालावधी: ${rep.periodText}</p></div>`;
@@ -744,7 +733,7 @@
                     let l2Row = `<tr>`; let l3Row = rep.isProg ? `<tr>` : ``;
 
                     rows.forEach((r) => {
-                        let vName = r.village ? `${r.village} <br/><span class="text-[10px] text-gray-500">(${r.subcenter})</span>` : "-";
+                        let vName = r.village ? `${r.village}` : "-";
                         l1Row += `<th colspan="${rep.isProg ? 2 : 1}" class="border p-2 bg-purple-100">${vName}</th>`;
                         if (rep.isProg) { l2Row += `<th class="border p-1 bg-yellow-50 text-[10px]">मासिक</th><th class="border p-1 bg-orange-50 text-[10px]">प्रगत</th></tr>`; }
                     });
@@ -853,7 +842,10 @@
                             }
 
                             tbodyHtml += `<tr class="hover:bg-gray-50 text-xs"><td class="border p-2 text-center font-bold">${rIdx+1}</td><td class="border p-2 font-bold text-gray-800 text-left">${r.subcenter}</td>`;
-                            if(groupType === 'SubCenterFlat') tbodyHtml += `<td class="border p-2 font-bold text-gray-800 text-left">${r.village} ${actionHtml}</td>`;
+                            if(groupType === 'SubCenterFlat') {
+                                let cleanVName = r.village.replace(/<[^>]*>?/gm, '');
+                                tbodyHtml += `<td class="border p-2 font-bold text-gray-800 text-left">${cleanVName} ${actionHtml}</td>`;
+                            }
                             
                             columns.forEach(c => {
                                 let val = r.values[c.id];
@@ -937,7 +929,8 @@
                                     </div>`;
                                 }
 
-                                tbodyHtml += `<tr class="hover:bg-gray-50 text-xs"><td class="border p-2 text-center font-bold">${rIdx+1}</td><td class="border p-2 font-bold text-gray-800 text-left">${r.village} ${actionHtml}</td>`;
+                                let cleanVName = r.village.replace(/<[^>]*>?/gm, '');
+                                tbodyHtml += `<tr class="hover:bg-gray-50 text-xs"><td class="border p-2 text-center font-bold">${rIdx+1}</td><td class="border p-2 font-bold text-gray-800 text-left">${cleanVName} ${actionHtml}</td>`;
                                 columns.forEach(c => {
                                     let val = r.values[c.id];
                                     if(typeof val === 'object' && val !== null) { tbodyHtml += `<td class="border p-2 text-blue-800 text-center font-bold">${val.M}</td><td class="border p-2 font-bold bg-orange-50/30 text-orange-800 text-center">${val.P}</td>`; } 
@@ -1111,7 +1104,6 @@
                     let ccIdx = 2;
                     rows.forEach(r => {
                         let vName = r.village ? `${r.village} (${r.subcenter})` : "-";
-                        // Excel मध्ये HTML टॅग्स (<br/> आणि <span>) काढून फक्त गावाचे नाव ठेवत आहोत
                         let cleanVName = vName.replace(/<[^>]*>?/gm, '');
                         r1.push(cleanVName); if(rep.isProg) r1.push("");
                         if(rep.isProg) { merges.push({ s: { r: 3, c: ccIdx }, e: { r: 3, c: ccIdx + 1 } }); r2.push("मासिक"); r2.push("प्रगत"); ccIdx += 2; } else { ccIdx += 1; }
@@ -1253,7 +1245,6 @@
                     dataRowsToRender.forEach((r, rIdx) => {
                         let rowData = [rIdx + 1, r.subcenter];
                         if(groupType === 'SubCenterFlat') {
-                            // Excel मध्ये HTML टॅग्स काढून टाकतो
                             let cleanVName = r.village.replace(/<[^>]*>?/gm, '');
                             rowData.push(cleanVName);
                         }
@@ -1472,12 +1463,14 @@
             return "आरोग्य कर्मचारी"; 
         }
 
-        function generatePendingReport() {
+        async function generatePendingReport() {
             let periodType = document.getElementById('periodType').value;
             if (periodType === 'custom') {
                 alert("अपूर्ण यादी (Pending Report) शोधण्यासाठी कृपया 'महिन्यानुसार' कालावधी निवडा. कस्टम तारखांसाठी हे उपलब्ध नाही.");
                 return;
             }
+
+            document.getElementById('reportLoader').classList.remove('hidden');
 
             const selMonth = document.getElementById('reportMonth').value;
             const selMonthNum = monthNamesMarathi[selMonth];
@@ -1485,7 +1478,19 @@
             let selFortnight = document.getElementById('reportFortnight') ? document.getElementById('reportFortnight').value : "1";
             
             let selectedIDs = getSelectedReportIDs();
-            if (selectedIDs.length === 0) { alert("कृपया किमान एक अहवाल निवडा!"); return; }
+            if (selectedIDs.length === 0) { 
+                document.getElementById('reportLoader').classList.add('hidden');
+                alert("कृपया किमान एक अहवाल निवडा!"); return; 
+            }
+
+            // 🟢 FRESH FETCH: नेहमी नवीन डेटा घेणे (Stale Data Issue Fix)
+            let freshDataQuery = supabaseClient.from('form_responses')
+                .select('form_id, village_id, employee_id, report_month, report_year, report_fortnight')
+                .eq('report_month', parseInt(selMonthNum))
+                .eq('report_year', parseInt(selYear));
+
+            const { data: freshRespData, error: freshErr } = await freshDataQuery;
+            let currentFilledStats = freshRespData || [];
 
             let employeePendingMap = {}; 
             let filterSubCenter = document.getElementById('reportSubCenterFilter').value;
@@ -1512,37 +1517,55 @@
 
                     let empKey = u.full_name + "###" + scName;
 
-                    let userVillages = masterData.villages.filter(v => v.sub_center_id === u.sub_center_id);
-                    userVillages.forEach(v => {
-                        let isFortnightly = f.form_type === 'fortnightly';
-                        let isFilled = masterData.filledStats.some(h => 
-                            h.form_id === f.id && 
-                            h.village_id === v.id && 
-                            h.report_month === parseInt(selMonthNum) && 
+                    // 🟢 Subcenter Level Form Fix
+                    if (f.form_type === 'subcenter') {
+                        let isFilled = currentFilledStats.some(h =>
+                            h.form_id === f.id &&
+                            h.report_month === parseInt(selMonthNum) &&
                             h.report_year === parseInt(selYear) &&
-                            (!isFortnightly || h.report_fortnight === parseInt(selFortnight))
+                            (f.data_entry_mode === 'shared' ? true : h.employee_id === u.id)
                         );
-                        
+
                         if (!isFilled) {
                             if (!employeePendingMap[empKey]) {
-                                employeePendingMap[empKey] = {
-                                    empName: u.full_name,
-                                    scName: scName,
-                                    empRole: u.role, 
-                                    pendingForms: {} 
-                                };
+                                employeePendingMap[empKey] = { empName: u.full_name, scName: scName, empRole: u.role, pendingForms: {} };
                             }
-                            
                             if (!employeePendingMap[empKey].pendingForms[f.form_name]) {
                                 employeePendingMap[empKey].pendingForms[f.form_name] = [];
                             }
-                            employeePendingMap[empKey].pendingForms[f.form_name].push(
-                                f.form_type === 'subcenter' ? "संपूर्ण उपकेंद्र" : v.name
-                            );
+                            if (!employeePendingMap[empKey].pendingForms[f.form_name].includes("🏢 संपूर्ण उपकेंद्र")) {
+                                employeePendingMap[empKey].pendingForms[f.form_name].push("🏢 संपूर्ण उपकेंद्र");
+                            }
                         }
-                    });
+                    } else {
+                        // Village-level logic
+                        let userVillages = masterData.villages.filter(v => v.sub_center_id === u.sub_center_id);
+                        userVillages.forEach(v => {
+                            let isFortnightly = f.form_type === 'fortnightly';
+                            let isFilled = currentFilledStats.some(h =>
+                                h.form_id === f.id &&
+                                h.village_id === v.id &&
+                                h.report_month === parseInt(selMonthNum) &&
+                                h.report_year === parseInt(selYear) &&
+                                (!isFortnightly || parseInt(h.report_fortnight) === parseInt(selFortnight)) &&
+                                (f.data_entry_mode === 'shared' ? true : h.employee_id === u.id)
+                            );
+
+                            if (!isFilled) {
+                                if (!employeePendingMap[empKey]) {
+                                    employeePendingMap[empKey] = { empName: u.full_name, scName: scName, empRole: u.role, pendingForms: {} };
+                                }
+                                if (!employeePendingMap[empKey].pendingForms[f.form_name]) {
+                                    employeePendingMap[empKey].pendingForms[f.form_name] = [];
+                                }
+                                employeePendingMap[empKey].pendingForms[f.form_name].push(v.name);
+                            }
+                        });
+                    }
                 });
             });
+
+            document.getElementById('reportLoader').classList.add('hidden');
 
             let container = document.getElementById('reportTableContainer'); 
             let downArea = document.getElementById('downloadButtonsArea');
