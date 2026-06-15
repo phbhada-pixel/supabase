@@ -14,7 +14,6 @@
         .report-table th { font-weight: bold; color: #333; }
         .table-responsive { width: 100%; overflow-x: auto; margin-bottom: 20px;}
         
-        /* 🟢 प्रिंट आणि PDF साठी खास CSS सेटिंग्ज */
         @media print {
             .no-print { display: none !important; }
             body { background: #fff; padding: 0; }
@@ -720,7 +719,6 @@
             return results;
         }
 
-        // 🟢 HTML Rendering Block (स्वच्छ HTML, यात sheetData नाही)
         function renderMultipleTables(reports, groupType) {
             let container = document.getElementById('reportTableContainer');
             let downArea = document.getElementById('downloadButtonsArea');
@@ -856,7 +854,8 @@
 
                             tbodyHtml += `<tr class="hover:bg-gray-50 text-xs"><td class="border p-2 text-center font-bold">${rIdx+1}</td><td class="border p-2 font-bold text-gray-800 text-left">${r.subcenter}</td>`;
                             if(groupType === 'SubCenterFlat') {
-                                tbodyHtml += `<td class="border p-2 font-bold text-gray-800 text-left">${r.village} ${actionHtml}</td>`;
+                                let cleanVName = r.village ? String(r.village).replace(/<[^>]*>?/gm, '') : "-";
+                                tbodyHtml += `<td class="border p-2 font-bold text-gray-800 text-left">${cleanVName} ${actionHtml}</td>`;
                             }
                             
                             columns.forEach(c => {
@@ -941,7 +940,8 @@
                                     </div>`;
                                 }
 
-                                tbodyHtml += `<tr class="hover:bg-gray-50 text-xs"><td class="border p-2 text-center font-bold">${rIdx+1}</td><td class="border p-2 font-bold text-gray-800 text-left">${r.village} ${actionHtml}</td>`;
+                                let cleanVName = r.village ? String(r.village).replace(/<[^>]*>?/gm, '') : "-";
+                                tbodyHtml += `<tr class="hover:bg-gray-50 text-xs"><td class="border p-2 text-center font-bold">${rIdx+1}</td><td class="border p-2 font-bold text-gray-800 text-left">${cleanVName} ${actionHtml}</td>`;
                                 columns.forEach(c => {
                                     let val = r.values[c.id];
                                     if(typeof val === 'object' && val !== null) { tbodyHtml += `<td class="border p-2 text-blue-800 text-center font-bold">${val.M}</td><td class="border p-2 font-bold bg-orange-50/30 text-orange-800 text-center">${val.P}</td>`; } 
@@ -981,7 +981,7 @@
             container.innerHTML = html;
         }
 
-        // 🟢 एक्सेल डाऊनलोड करण्यासाठी स्वतंत्र फंक्शन
+        // 🟢 एक्सेल डाऊनलोडसाठी स्वतंत्र आणि सुरक्षित फंक्शन
         function downloadConsolidatedExcel() {
             if(currentReports.length === 0) return;
             let groupType = document.getElementById('reportGroupFilter').value;
@@ -989,8 +989,9 @@
             if (user.role !== 'admin' && user.role !== 'taluka_admin' && user.role !== 'phc_admin') groupType = 'Village';
 
             let wb = XLSX.utils.book_new();
+            let usedSheetNames = new Set(); // 🟢 डुप्लिकेट शीटची नावे टाळण्यासाठी
 
-            currentReports.forEach((rep) => {
+            currentReports.forEach((rep, repIndex) => {
                 let columns = rep.fields; let rows = rep.rows;
                 let sheetData = []; let merges = []; let masterHeaderRows = []; let subTitleHeaderRows = []; let groupTotalRows = []; let phcTotalRows = [];
 
@@ -1008,8 +1009,7 @@
 
                     let ccIdx = 2;
                     rows.forEach(r => {
-                        let vName = r.village ? `${r.village}` : "-";
-                        let cleanVName = vName.replace(/<[^>]*>?/gm, '');
+                        let cleanVName = r.village ? String(r.village).replace(/<[^>]*>?/gm, '') : "-";
                         r1.push(cleanVName); if(rep.isProg) r1.push("");
                         if(rep.isProg) { merges.push({ s: { r: 3, c: ccIdx }, e: { r: 3, c: ccIdx + 1 } }); r2.push("मासिक"); r2.push("प्रगत"); ccIdx += 2; } else { ccIdx += 1; }
                     });
@@ -1141,13 +1141,15 @@
                             i++;
                         }
                     }
-                    l1Row += `</tr>`; l2Row += `</tr>`; l3Row += `</tr>`; if(rep.isProg) l4Row += `</tr>`;
+                    sheetData.push(r1); subTitleHeaderRows.push(startR);
+                    sheetData.push(r2); subTitleHeaderRows.push(startR + 1);
+                    sheetData.push(r3); subTitleHeaderRows.push(startR + 2);
+                    if(rep.isProg) { sheetData.push(r4); subTitleHeaderRows.push(startR + 3); }
 
-                    let tbodyHtml = '';
                     dataRowsToRender.forEach((r, rIdx) => {
-                        let rowData = [rIdx + 1, r.subcenter];
+                        let rowData = [rIdx + 1, r.subcenter || "-"];
                         if(groupType === 'SubCenterFlat') {
-                            let cleanVName = r.village.replace(/<[^>]*>?/gm, '');
+                            let cleanVName = r.village ? String(r.village).replace(/<[^>]*>?/gm, '') : "-";
                             rowData.push(cleanVName);
                         }
                         columns.forEach(c => {
@@ -1257,7 +1259,7 @@
                         l1Row += `</tr>`; l2Row += `</tr>`; l3Row += `</tr>`; if(rep.isProg) l4Row += `</tr>`;
 
                         subRows.forEach((r, rIdx) => {
-                            let cleanVName = r.village.replace(/<[^>]*>?/gm, '');
+                            let cleanVName = r.village ? String(r.village).replace(/<[^>]*>?/gm, '') : "-";
                             let rowData = [rIdx + 1, cleanVName];
                             columns.forEach(c => {
                                 let val = r.values[c.id];
@@ -1300,6 +1302,18 @@
                         merges.push({ s: { r: pRowIdx, c: 0 }, e: { r: pRowIdx, c: 1 } });
                     }
                 }
+
+                // 🟢 एक्सेल शीटचे नाव सुरक्षित करणे (Invalid Characters काढून टाकणे)
+                let safeSheetName = rep.formName ? String(rep.formName).replace(/[\\/*?:\[\]]/g, '').trim().substring(0, 28) : "Report";
+                if (!safeSheetName) safeSheetName = "Report_" + repIndex;
+                
+                let finalSheetName = safeSheetName;
+                let counter = 1;
+                while(usedSheetNames.has(finalSheetName)) {
+                    finalSheetName = safeSheetName.substring(0, 25) + "_" + counter;
+                    counter++;
+                }
+                usedSheetNames.add(finalSheetName);
 
                 let ws = XLSX.utils.aoa_to_sheet(sheetData); ws["!merges"] = merges;
                 let finalColLimit = sheetData[3] ? sheetData[3].length : 60;
@@ -1345,7 +1359,7 @@
                 for(let c=wscols.length; c<finalColLimit; c++) wscols.push({ wch: 14 });
                 ws["!cols"] = wscols;
 
-                XLSX.utils.book_append_sheet(wb, ws, rep.formName.substring(0, 30));
+                XLSX.utils.book_append_sheet(wb, ws, finalSheetName);
             });
 
             let dlName = `अहवाल_${document.getElementById('periodType').value === 'custom' ? 'Custom' : document.getElementById('reportMonth').value}_${document.getElementById('reportYear').value}.xlsx`;
