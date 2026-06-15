@@ -989,9 +989,9 @@
             if (user.role !== 'admin' && user.role !== 'taluka_admin' && user.role !== 'phc_admin') groupType = 'Village';
 
             let wb = XLSX.utils.book_new();
-            let usedSheetNames = new Set(); // 🟢 डुप्लिकेट शीटची नावे टाळण्यासाठी
+            let usedSheetNames = new Set(); 
 
-            currentReports.forEach((rep, repIndex) => {
+            currentReports.forEach((rep, index) => {
                 let columns = rep.fields; let rows = rep.rows;
                 let sheetData = []; let merges = []; let masterHeaderRows = []; let subTitleHeaderRows = []; let groupTotalRows = []; let phcTotalRows = [];
 
@@ -1040,7 +1040,7 @@
                         if(rep.formType !== 'list') {
                             let tM = phcTotals[c.id].isNum ? Number(phcTotals[c.id].M) : "-";
                             let tP = phcTotals[c.id].isNum ? Number(phcTotals[c.id].P) : "-";
-                            rowData.push(tM); if(rep.isProg) rowData.push(tP);
+                            rowData.push(tM); if(rep.isProg && c.type === 'number') rowData.push(tP);
                         }
                         sheetData.push(rowData); 
                     });
@@ -1110,7 +1110,9 @@
                                         if(w === 2) {
                                             r3.push(""); merges.push({ s: { r: startR+2, c: r3.length - 2 }, e: { r: startR+2, c: r3.length - 1 } });
                                             r4.push("मासिक"); r4.push("प्रगत");
-                                        } else { if(rep.isProg) { merges.push({ s: { r: startR+2, c: r3.length - 1 }, e: { r: startR+3, c: r3.length - 1 } }); r4.push(""); } }
+                                        } else {
+                                            if(rep.isProg) { merges.push({ s: { r: startR+2, c: r3.length - 1 }, e: { r: startR+3, c: r3.length - 1 } }); r4.push(""); }
+                                        }
                                     }
                                     k = m;
                                 } else {
@@ -1147,16 +1149,16 @@
                     if(rep.isProg) { sheetData.push(r4); subTitleHeaderRows.push(startR + 3); }
 
                     dataRowsToRender.forEach((r, rIdx) => {
-                        let rowData = [rIdx + 1, r.subcenter || "-"];
-                        if(groupType === 'SubCenterFlat') {
-                            let cleanVName = r.village ? String(r.village).replace(/<[^>]*>?/gm, '') : "-";
-                            rowData.push(cleanVName);
-                        }
+                        let cleanVName = r.village ? String(r.village).replace(/<[^>]*>?/gm, '') : "-";
+                        let rowData = [rIdx + 1, r.subcenter];
+                        if(groupType === 'SubCenterFlat') rowData.push(cleanVName);
                         columns.forEach(c => {
                             let val = r.values[c.id];
                             if(typeof val === 'object' && val !== null) { 
                                 rowData.push(val.M !== '' ? (isNaN(Number(val.M)) ? String(val.M) : Number(val.M)) : 0); 
-                                rowData.push(val.P !== '' ? (isNaN(Number(val.P)) ? String(val.P) : Number(val.P)) : 0); 
+                                if(rep.isProg && c.type === 'number') {
+                                    rowData.push(val.P !== '' ? (isNaN(Number(val.P)) ? String(val.P) : Number(val.P)) : 0); 
+                                }
                             } else { 
                                 rowData.push(val !== '' ? (isNaN(Number(val)) ? String(val) : Number(val)) : ''); 
                             }
@@ -1265,7 +1267,9 @@
                                 let val = r.values[c.id];
                                 if(typeof val === 'object' && val !== null) { 
                                     rowData.push(val.M !== '' ? (isNaN(Number(val.M)) ? String(val.M) : Number(val.M)) : 0); 
-                                    rowData.push(val.P !== '' ? (isNaN(Number(val.P)) ? String(val.P) : Number(val.P)) : 0); 
+                                    if(rep.isProg && c.type === 'number') {
+                                        rowData.push(val.P !== '' ? (isNaN(Number(val.P)) ? String(val.P) : Number(val.P)) : 0); 
+                                    }
                                 } else { 
                                     rowData.push(val !== '' ? (isNaN(Number(val)) ? String(val) : Number(val)) : ''); 
                                 }
@@ -1303,14 +1307,14 @@
                     }
                 }
 
-                // 🟢 एक्सेल शीटचे नाव सुरक्षित करणे (Invalid Characters काढून टाकणे)
-                let safeSheetName = rep.formName ? String(rep.formName).replace(/[\\/*?:\[\]]/g, '').trim().substring(0, 28) : "Report";
-                if (!safeSheetName) safeSheetName = "Report_" + repIndex;
+                // 🟢 NEW: सुरक्षित आणि युनिक शीट नावे तयार करणे (Duplicate Names Avoid)
+                let safeSheetName = rep.formName ? String(rep.formName).replace(/[\\\/\*\?\[\]]/g, '').trim().substring(0, 25) : "Report";
+                if (!safeSheetName) safeSheetName = "Report_" + index;
                 
                 let finalSheetName = safeSheetName;
                 let counter = 1;
                 while(usedSheetNames.has(finalSheetName)) {
-                    finalSheetName = safeSheetName.substring(0, 25) + "_" + counter;
+                    finalSheetName = safeSheetName.substring(0, 22) + "_" + counter;
                     counter++;
                 }
                 usedSheetNames.add(finalSheetName);
@@ -1359,7 +1363,7 @@
                 for(let c=wscols.length; c<finalColLimit; c++) wscols.push({ wch: 14 });
                 ws["!cols"] = wscols;
 
-                XLSX.utils.book_append_sheet(wb, ws, finalSheetName);
+                XLSX.utils.book_append_sheet(wb, ws, finalSheetName); // 🟢 Safe Sheet Name
             });
 
             let dlName = `अहवाल_${document.getElementById('periodType').value === 'custom' ? 'Custom' : document.getElementById('reportMonth').value}_${document.getElementById('reportYear').value}.xlsx`;
