@@ -14,6 +14,7 @@
         .report-table th { font-weight: bold; color: #333; }
         .table-responsive { width: 100%; overflow-x: auto; margin-bottom: 20px;}
         
+        /* 🟢 प्रिंट आणि PDF साठी खास CSS सेटिंग्ज */
         @media print {
             .no-print { display: none !important; }
             body { background: #fff; padding: 0; }
@@ -159,7 +160,7 @@
 
         let masterData = { forms: [], villages: [], employees: [], subCenters: [], phcs: [] };
         let currentReports = [];
-        let user = { role: 'User', subcenter: 'सर्व', mobile: '', phc_id: null, id: null };
+        let user = { role: 'User', subcenter: 'सर्व', mobile: '', phc_id: null, id: null, sub_center_id: null };
         let windowDbData = [];
 
         const monthNamesMarathi = {
@@ -719,6 +720,7 @@
             return results;
         }
 
+        // 🟢 HTML Rendering Block (स्वच्छ HTML, यात sheetData नाही)
         function renderMultipleTables(reports, groupType) {
             let container = document.getElementById('reportTableContainer');
             let downArea = document.getElementById('downloadButtonsArea');
@@ -854,8 +856,7 @@
 
                             tbodyHtml += `<tr class="hover:bg-gray-50 text-xs"><td class="border p-2 text-center font-bold">${rIdx+1}</td><td class="border p-2 font-bold text-gray-800 text-left">${r.subcenter}</td>`;
                             if(groupType === 'SubCenterFlat') {
-                                let cleanVName = r.village.replace(/<[^>]*>?/gm, '');
-                                tbodyHtml += `<td class="border p-2 font-bold text-gray-800 text-left">${cleanVName} ${actionHtml}</td>`;
+                                tbodyHtml += `<td class="border p-2 font-bold text-gray-800 text-left">${r.village} ${actionHtml}</td>`;
                             }
                             
                             columns.forEach(c => {
@@ -940,8 +941,7 @@
                                     </div>`;
                                 }
 
-                                let cleanVName = r.village.replace(/<[^>]*>?/gm, '');
-                                tbodyHtml += `<tr class="hover:bg-gray-50 text-xs"><td class="border p-2 text-center font-bold">${rIdx+1}</td><td class="border p-2 font-bold text-gray-800 text-left">${cleanVName} ${actionHtml}</td>`;
+                                tbodyHtml += `<tr class="hover:bg-gray-50 text-xs"><td class="border p-2 text-center font-bold">${rIdx+1}</td><td class="border p-2 font-bold text-gray-800 text-left">${r.village} ${actionHtml}</td>`;
                                 columns.forEach(c => {
                                     let val = r.values[c.id];
                                     if(typeof val === 'object' && val !== null) { tbodyHtml += `<td class="border p-2 text-blue-800 text-center font-bold">${val.M}</td><td class="border p-2 font-bold bg-orange-50/30 text-orange-800 text-center">${val.P}</td>`; } 
@@ -952,31 +952,27 @@
 
                             if(rep.formType !== 'list') {
                                 let groupTotals = calculateSmartTotals(subRows, columns, rep.isProg);
-                                let gRow = ["गटाची एकूण बेरीज", ""];
+                                tbodyHtml += `<tr class="bg-blue-50 font-bold text-blue-900 text-xs"><td class="border p-2 text-left" colspan="2">गटाची एकूण बेरीज</td>`;
                                 columns.forEach(c => {
                                     let gVal = groupTotals[c.id];
-                                    if(rep.isProg && c.type === 'number') { gRow.push(gVal.isNum ? Number(gVal.M) : '-'); gRow.push(gVal.isNum ? Number(gVal.P) : '-'); }
-                                    else { gRow.push(gVal.isNum ? Number(gVal.M) : '-'); }
+                                    if(rep.isProg && c.type === 'number') { tbodyHtml += `<td class="border p-2 text-center">${gVal.isNum ? formatNumberDecimals(gVal.M) : '-'}</td><td class="border p-2 text-center">${gVal.isNum ? formatNumberDecimals(gVal.P) : '-'}</td>`; }
+                                    else { tbodyHtml += `<td class="border p-2 text-center">${gVal.isNum ? formatNumberDecimals(gVal.M) : '-'}</td>`; }
                                 });
-                                let gRowIdx = sheetData.length;
-                                sheetData.push(gRow); groupTotalRows.push(gRowIdx);
-                                merges.push({ s: { r: gRowIdx, c: 0 }, e: { r: gRowIdx, c: 1 } });
+                                tbodyHtml += `</tr>`;
                             }
 
-                            sheetData.push(Array(totalColumnsCount).fill(""));
+                            html += `<div class="table-responsive"><table class="report-table"><thead>${l1Row + l2Row + l3Row + l4Row}</thead><tbody>${tbodyHtml}</tbody></table></div>`;
                         });
 
                         if ((user.role === 'admin' || user.role === 'taluka_admin' || user.role === 'phc_admin') && rep.formType !== 'list') {
                             let phcTotals = calculateSmartTotals(rows, columns, rep.isProg);
-                            let pRow = ["एकूण Total", ""];
+                            html += `<div class="table-responsive"><table class="report-table"><tbody><tr class="bg-green-100 font-extrabold text-green-900 text-sm"><td class="border p-2" style="width:200px;" colspan="2">एकूण Total</td>`;
                             columns.forEach(c => {
                                 let pVal = phcTotals[c.id];
-                                if(rep.isProg && c.type === 'number') { pRow.push(pVal.isNum ? Number(pVal.M) : '-'); pRow.push(pVal.isNum ? Number(pVal.P) : '-'); }
-                                else { pRow.push(pVal.isNum ? Number(pVal.M) : '-'); }
+                                if(rep.isProg && c.type === 'number') { html += `<td class="border p-2 text-center">${pVal.isNum ? formatNumberDecimals(pVal.M) : '-'}</td><td class="border p-2 text-center">${pVal.isNum ? formatNumberDecimals(pVal.P) : '-'}</td>`; }
+                                else { html += `<td class="border p-2 text-center">${pVal.isNum ? formatNumberDecimals(pVal.M) : '-'}</td>`; }
                             });
-                            let pRowIdx = sheetData.length;
-                            sheetData.push(pRow); phcTotalRows.push(pRowIdx);
-                            merges.push({ s: { r: pRowIdx, c: 0 }, e: { r: pRowIdx, c: 1 } });
+                            html += `</tr></tbody></table></div>`;
                         }
                     }
                 }
@@ -985,113 +981,7 @@
             container.innerHTML = html;
         }
 
-        async function deleteResponse(responseId) {
-            if(!confirm("तुम्हाला खात्री आहे का? हा डेटा कायमचा डिलीट होईल!")) return;
-            document.getElementById('reportLoader').classList.remove('hidden');
-            const { error } = await supabaseClient.from('form_responses').delete().eq('id', responseId);
-            document.getElementById('reportLoader').classList.add('hidden');
-            
-            if(error) alert("डिलीट करताना त्रुटी: " + error.message);
-            else { alert("✅ डेटा डिलीट झाला!"); fetchReportData(); }
-        }
-
-        let currentEditResponseId = null;
-        let currentEditFormId = null;
-
-        function openEditModal(respId) {
-            let response = windowDbData.find(r => r.id === respId);
-            if(!response) return;
-            
-            currentEditResponseId = respId;
-            currentEditFormId = response.form_id;
-            
-            let formObj = masterData.forms.find(f => f.id === response.form_id);
-            if(!formObj) return;
-
-            let allFields = formObj.schema_json.fields.filter(f => f.type !== 'group_header');
-            
-            let html = `<div class="space-y-4">`;
-            allFields.forEach(f => {
-                if(f.formula && String(f.formula).trim() !== "") return; 
-                
-                let val = "";
-                if(response.response_data && response.response_data[f.id]) {
-                    val = response.response_data[f.id].value;
-                }
-                
-                let chain = getFieldHierarchyChain(formObj.schema_json.fields, f);
-                let fullLabel = chain.join(" > ") + (chain.length > 0 ? " > " : "") + f.label;
-                
-                let inputType = f.type === 'number' ? 'number' : 'text';
-                if(f.type === 'date') inputType = 'date';
-                
-                html += `<div>
-                    <label class="block text-xs font-bold text-gray-700 mb-1">${fullLabel}</label>
-                    <input type="${inputType}" id="edit_f_${f.id}" value="${val}" class="w-full p-2 border-2 border-gray-300 rounded font-bold text-blue-900 focus:ring focus:ring-blue-200">
-                </div>`;
-            });
-            html += `</div>`;
-            
-            document.getElementById('editModalBody').innerHTML = html;
-            document.getElementById('editModal').classList.remove('hidden');
-        }
-
-        function closeEditModal() {
-            document.getElementById('editModal').classList.add('hidden');
-            currentEditResponseId = null;
-            currentEditFormId = null;
-        }
-
-        async function saveEditResponse() {
-            if(!currentEditResponseId) return;
-            let response = windowDbData.find(r => r.id === currentEditResponseId);
-            let formObj = masterData.forms.find(f => f.id === currentEditFormId);
-            
-            let allFields = formObj.schema_json.fields.filter(f => f.type !== 'group_header' && (!f.formula || String(f.formula).trim() === ""));
-            
-            let newData = { ...response.response_data };
-
-            for (let f of allFields) {
-                let el = document.getElementById(`edit_f_${f.id}`);
-                if (!el || el.value === "") continue;
-
-                let val = parseFloat(el.value);
-
-                if (!isNaN(val)) {
-                    if (f.max && String(f.max).trim() !== "") {
-                        let maxVal = evaluateValidationFormula(f.max, allFields, true);
-                        if (maxVal !== null && val > maxVal) {
-                            alert(`⚠️ चूक: '${f.label}' मधील आकडा ${maxVal} पेक्षा जास्त असू शकत नाही!`);
-                            el.focus();
-                            return; 
-                        }
-                    }
-
-                    if (f.min && String(f.min).trim() !== "") {
-                        let minVal = evaluateValidationFormula(f.min, allFields, true);
-                        if (minVal !== null && val < minVal) {
-                            alert(`⚠️ चूक: '${f.label}' मधील आकडा ${minVal} पेक्षा कमी असू शकत नाही!`);
-                            el.focus();
-                            return; 
-                        }
-                    }
-                }
-                newData[f.id] = { value: el.value };
-            }
-            
-            document.getElementById('reportLoader').classList.remove('hidden');
-            closeEditModal();
-            
-            const { error } = await supabaseClient.from('form_responses').update({ response_data: newData }).eq('id', currentEditResponseId);
-            
-            if(error) alert("अपडेट करताना त्रुटी: " + error.message);
-            else {
-                alert("✅ डेटा यशस्वीरीत्या अपडेट झाला!");
-                fetchReportData(); 
-            }
-            document.getElementById('reportLoader').classList.add('hidden');
-        }
-
+        // 🟢 एक्सेल डाऊनलोड करण्यासाठी स्वतंत्र फंक्शन
         function downloadConsolidatedExcel() {
             if(currentReports.length === 0) return;
             let groupType = document.getElementById('reportGroupFilter').value;
@@ -1118,7 +1008,7 @@
 
                     let ccIdx = 2;
                     rows.forEach(r => {
-                        let vName = r.village ? `${r.village} (${r.subcenter})` : "-";
+                        let vName = r.village ? `${r.village}` : "-";
                         let cleanVName = vName.replace(/<[^>]*>?/gm, '');
                         r1.push(cleanVName); if(rep.isProg) r1.push("");
                         if(rep.isProg) { merges.push({ s: { r: 3, c: ccIdx }, e: { r: 3, c: ccIdx + 1 } }); r2.push("मासिक"); r2.push("प्रगत"); ccIdx += 2; } else { ccIdx += 1; }
@@ -1251,12 +1141,9 @@
                             i++;
                         }
                     }
+                    l1Row += `</tr>`; l2Row += `</tr>`; l3Row += `</tr>`; if(rep.isProg) l4Row += `</tr>`;
 
-                    sheetData.push(r1); subTitleHeaderRows.push(startR);
-                    sheetData.push(r2); subTitleHeaderRows.push(startR + 1);
-                    sheetData.push(r3); subTitleHeaderRows.push(startR + 2);
-                    if(rep.isProg) { sheetData.push(r4); subTitleHeaderRows.push(startR + 3); }
-
+                    let tbodyHtml = '';
                     dataRowsToRender.forEach((r, rIdx) => {
                         let rowData = [rIdx + 1, r.subcenter];
                         if(groupType === 'SubCenterFlat') {
@@ -1369,7 +1256,6 @@
                         }
                         l1Row += `</tr>`; l2Row += `</tr>`; l3Row += `</tr>`; if(rep.isProg) l4Row += `</tr>`;
 
-                        let tbodyHtml = '';
                         subRows.forEach((r, rIdx) => {
                             let cleanVName = r.village.replace(/<[^>]*>?/gm, '');
                             let rowData = [rIdx + 1, cleanVName];
@@ -1464,6 +1350,113 @@
 
             let dlName = `अहवाल_${document.getElementById('periodType').value === 'custom' ? 'Custom' : document.getElementById('reportMonth').value}_${document.getElementById('reportYear').value}.xlsx`;
             XLSX.writeFile(wb, dlName);
+        }
+
+        async function deleteResponse(responseId) {
+            if(!confirm("तुम्हाला खात्री आहे का? हा डेटा कायमचा डिलीट होईल!")) return;
+            document.getElementById('reportLoader').classList.remove('hidden');
+            const { error } = await supabaseClient.from('form_responses').delete().eq('id', responseId);
+            document.getElementById('reportLoader').classList.add('hidden');
+            
+            if(error) alert("डिलीट करताना त्रुटी: " + error.message);
+            else { alert("✅ डेटा डिलीट झाला!"); fetchReportData(); }
+        }
+
+        let currentEditResponseId = null;
+        let currentEditFormId = null;
+
+        function openEditModal(respId) {
+            let response = windowDbData.find(r => r.id === respId);
+            if(!response) return;
+            
+            currentEditResponseId = respId;
+            currentEditFormId = response.form_id;
+            
+            let formObj = masterData.forms.find(f => f.id === response.form_id);
+            if(!formObj) return;
+
+            let allFields = formObj.schema_json.fields.filter(f => f.type !== 'group_header');
+            
+            let html = `<div class="space-y-4">`;
+            allFields.forEach(f => {
+                if(f.formula && String(f.formula).trim() !== "") return; 
+                
+                let val = "";
+                if(response.response_data && response.response_data[f.id]) {
+                    val = response.response_data[f.id].value;
+                }
+                
+                let chain = getFieldHierarchyChain(formObj.schema_json.fields, f);
+                let fullLabel = chain.join(" > ") + (chain.length > 0 ? " > " : "") + f.label;
+                
+                let inputType = f.type === 'number' ? 'number' : 'text';
+                if(f.type === 'date') inputType = 'date';
+                
+                html += `<div>
+                    <label class="block text-xs font-bold text-gray-700 mb-1">${fullLabel}</label>
+                    <input type="${inputType}" id="edit_f_${f.id}" value="${val}" class="w-full p-2 border-2 border-gray-300 rounded font-bold text-blue-900 focus:ring focus:ring-blue-200">
+                </div>`;
+            });
+            html += `</div>`;
+            
+            document.getElementById('editModalBody').innerHTML = html;
+            document.getElementById('editModal').classList.remove('hidden');
+        }
+
+        function closeEditModal() {
+            document.getElementById('editModal').classList.add('hidden');
+            currentEditResponseId = null;
+            currentEditFormId = null;
+        }
+
+        async function saveEditResponse() {
+            if(!currentEditResponseId) return;
+            let response = windowDbData.find(r => r.id === currentEditResponseId);
+            let formObj = masterData.forms.find(f => f.id === currentEditFormId);
+            
+            let allFields = formObj.schema_json.fields.filter(f => f.type !== 'group_header' && (!f.formula || String(f.formula).trim() === ""));
+            
+            let newData = { ...response.response_data };
+
+            for (let f of allFields) {
+                let el = document.getElementById(`edit_f_${f.id}`);
+                if (!el || el.value === "") continue;
+
+                let val = parseFloat(el.value);
+
+                if (!isNaN(val)) {
+                    if (f.max && String(f.max).trim() !== "") {
+                        let maxVal = evaluateValidationFormula(f.max, allFields, true);
+                        if (maxVal !== null && val > maxVal) {
+                            alert(`⚠️ चूक: '${f.label}' मधील आकडा ${maxVal} पेक्षा जास्त असू शकत नाही!`);
+                            el.focus();
+                            return; 
+                        }
+                    }
+
+                    if (f.min && String(f.min).trim() !== "") {
+                        let minVal = evaluateValidationFormula(f.min, allFields, true);
+                        if (minVal !== null && val < minVal) {
+                            alert(`⚠️ चूक: '${f.label}' मधील आकडा ${minVal} पेक्षा कमी असू शकत नाही!`);
+                            el.focus();
+                            return; 
+                        }
+                    }
+                }
+                newData[f.id] = { value: el.value };
+            }
+            
+            document.getElementById('reportLoader').classList.remove('hidden');
+            closeEditModal();
+            
+            const { error } = await supabaseClient.from('form_responses').update({ response_data: newData }).eq('id', currentEditResponseId);
+            
+            if(error) alert("अपडेट करताना त्रुटी: " + error.message);
+            else {
+                alert("✅ डेटा यशस्वीरीत्या अपडेट झाला!");
+                fetchReportData(); 
+            }
+            document.getElementById('reportLoader').classList.add('hidden');
         }
 
         function getMarathiDesignation(roleStr) {
