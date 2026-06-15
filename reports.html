@@ -212,19 +212,20 @@
             await loadInitialMasterData();
         };
 
-        // 🟢 डायनॅमिक हेडिंग मिळवण्यासाठी नवीन फंक्शन
+        // 🟢 डायनॅमिक हेडिंग - आता अचूकपणे PHC चे नाव घेईल
         function getDynamicHeader() {
             if (user.role === 'admin' || user.role === 'taluka_admin') {
                 return "तालुका आरोग्य प्रणाली अहवाल";
             } else if (user.role === 'phc_admin') {
                 let phcObj = masterData.phcs.find(p => String(p.id) === String(user.phc_id));
-                let phcName = phcObj ? phcObj.name : "";
-                return `प्राथमिक आरोग्य केंद्र ${phcName} - अहवाल`;
+                // phc_name किंवा name दोन्ही तपासेल
+                let phcName = phcObj ? (phcObj.phc_name || phcObj.name || "") : "";
+                return phcName ? `प्राथमिक आरोग्य केंद्र ${phcName} - अहवाल` : "प्राथमिक आरोग्य केंद्र - अहवाल";
             } else {
                 let empObj = masterData.employees.find(e => String(e.id) === String(user.id));
                 let empName = empObj ? empObj.full_name : "";
                 let scObj = empObj ? masterData.subCenters.find(s => String(s.id) === String(empObj.sub_center_id)) : null;
-                let scName = scObj ? scObj.name : "";
+                let scName = scObj ? (scObj.name || scObj.sub_center_name || "") : "";
                 return `उपकेंद्र: ${scName} | कर्मचारी: ${empName}`;
             }
         }
@@ -996,7 +997,6 @@
             container.innerHTML = html;
         }
 
-        // 🟢 एक्सेल डाऊनलोडसाठी स्वतंत्र आणि सुरक्षित फंक्शन
         function downloadConsolidatedExcel() {
             if(currentReports.length === 0) return;
             let groupType = document.getElementById('reportGroupFilter').value;
@@ -1127,9 +1127,7 @@
                                         if(w === 2) {
                                             r3.push(""); merges.push({ s: { r: startR+2, c: r3.length - 2 }, e: { r: startR+2, c: r3.length - 1 } });
                                             r4.push("मासिक"); r4.push("प्रगत");
-                                        } else {
-                                            if(rep.isProg) { merges.push({ s: { r: startR+2, c: r3.length - 1 }, e: { r: startR+3, c: r3.length - 1 } }); r4.push(""); }
-                                        }
+                                        } else { if(rep.isProg) { merges.push({ s: { r: startR+2, c: r3.length - 1 }, e: { r: startR+3, c: r3.length - 1 } }); r4.push(""); } }
                                     }
                                     k = m;
                                 } else {
@@ -1167,16 +1165,16 @@
                     if(rep.isProg) { sheetData.push(r4); subTitleHeaderRows.push(startR + 3); }
 
                     dataRowsToRender.forEach((r, rIdx) => {
-                        let cleanVName = r.village ? String(r.village).replace(/<[^>]*>?/gm, '') : "-";
                         let rowData = [rIdx + 1, r.subcenter];
-                        if(groupType === 'SubCenterFlat') rowData.push(cleanVName);
+                        if(groupType === 'SubCenterFlat') {
+                            let cleanVName = r.village.replace(/<[^>]*>?/gm, '');
+                            rowData.push(cleanVName);
+                        }
                         columns.forEach(c => {
                             let val = r.values[c.id];
                             if(typeof val === 'object' && val !== null) { 
                                 rowData.push(val.M !== '' ? (isNaN(Number(val.M)) ? String(val.M) : Number(val.M)) : 0); 
-                                if(rep.isProg && c.type === 'number') {
-                                    rowData.push(val.P !== '' ? (isNaN(Number(val.P)) ? String(val.P) : Number(val.P)) : 0); 
-                                }
+                                rowData.push(val.P !== '' ? (isNaN(Number(val.P)) ? String(val.P) : Number(val.P)) : 0); 
                             } else { 
                                 rowData.push(val !== '' ? (isNaN(Number(val)) ? String(val) : Number(val)) : ''); 
                             }
@@ -1287,9 +1285,7 @@
                                 let val = r.values[c.id];
                                 if(typeof val === 'object' && val !== null) { 
                                     rowData.push(val.M !== '' ? (isNaN(Number(val.M)) ? String(val.M) : Number(val.M)) : 0); 
-                                    if(rep.isProg && c.type === 'number') {
-                                        rowData.push(val.P !== '' ? (isNaN(Number(val.P)) ? String(val.P) : Number(val.P)) : 0); 
-                                    }
+                                    rowData.push(val.P !== '' ? (isNaN(Number(val.P)) ? String(val.P) : Number(val.P)) : 0); 
                                 } else { 
                                     rowData.push(val !== '' ? (isNaN(Number(val)) ? String(val) : Number(val)) : ''); 
                                 }
@@ -1351,7 +1347,7 @@
                         }
 
                         if(masterHeaderRows.includes(R)) { 
-                            style.fill = { fgColor: { rgb: "00705A" } }; style.font = { sz: 12, bold: true, color: { rgb: "FFFFFF" } }; style.alignment.horizontal = "left"; 
+                            style.fill = { fgColor: { rgb: "E8F5E9" } }; style.font = { sz: 12, bold: true, color: { rgb: "000000" } }; style.alignment.horizontal = "left"; 
                         } else if(subTitleHeaderRows.includes(R)) {
                             let idxInGroup = subTitleHeaderRows.indexOf(R) % (rep.isProg?4:3);
                             if(idxInGroup === 0) style.fill = { fgColor: { rgb: "E1BEE7" } }; 
