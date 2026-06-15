@@ -321,8 +321,9 @@
                 );
                 
                 if (!isFilled && userVillages.length > 0) {
-                    // 🟢 येथे आपण real_db_id म्हणून पहिल्या गावाचा आयडी सेव्ह करत आहोत, जेणेकरून DB मध्ये एरर येणार नाही.
-                    globalPendingVillages.push({ ...userVillages[0], name: "🏢 संपूर्ण उपकेंद्र (Subcenter Level)", id: 'subcenter_all', real_db_id: userVillages[0].id });
+                    // 🟢 सुधारणा: 'id' थेट खऱ्या गावाचा (userVillages[0].id) ठेवतो, जेणेकरून Foreign Key एरर येणार नाही.
+                    // फक्त 'name' बदलून "संपूर्ण उपकेंद्र" करतो जेणेकरून युझरला योग्य दिसेल.
+                    globalPendingVillages.push({ ...userVillages[0], name: "🏢 संपूर्ण उपकेंद्र (Subcenter Level)" });
                 } else if (isFilled) {
                     hiddenCount++;
                 }
@@ -439,9 +440,8 @@
             const btnSaveAndAddMore = document.getElementById('btnSaveAndAddMore');
             const infoBox = document.getElementById('villageInfoBox'); 
 
-            // 🟢 जर फॉर्मच्या सेटिंगमध्ये लोकसंख्या दाखवायची असेल तरच दाखवा
             if (vid && vid !== 'ALL' && currentFormObj && currentFormObj.schema_json && currentFormObj.schema_json.show_village_info) {
-                if (vid === 'subcenter_all') {
+                if (currentFormObj.form_type === 'subcenter') {
                     // उपकेंद्रासाठी सर्व गावांची बेरीज करा
                     let totalPop = userVillages.reduce((sum, v) => sum + (v.population || 0), 0);
                     let totalHouses = userVillages.reduce((sum, v) => sum + (v.total_houses || 0), 0);
@@ -675,19 +675,10 @@
                     });
                 }
 
-                // 🟢 डेटाबेस Foreign Key Error दुरुस्ती: 'subcenter_all' असल्यास खऱ्या गावाचा आयडी (real_db_id) पाठवणे
-              // 🟢 जर उपकेंद्र फॉर्म असेल आणि real_db_id मिळाला नाही, तर उपलब्ध असलेले पहिले वैध गाव आयडी म्हणून वापरणे
-let realVillageId = v.id === 'subcenter_all' ? (v.real_db_id || (userVillages[0] ? userVillages[0].id : null)) : v.id;
-
-if (!realVillageId || realVillageId === 'subcenter_all') {
-    alert("⚠️ चूक: तुमच्या उपकेंद्रासाठी सिस्टीममध्ये कोणतेही वैध गाव सापडले नाही. कृपया ॲडमिनकडून गाव मॅपिंग तपासा.");
-    document.getElementById('loader').classList.add('hidden');
-    return;
-}
-
+                // 🟢 पूर्णतः एरर मुक्त: v.id मध्येच आता खऱ्या गावाचा वैध UUID असल्यामुळे डेटाबेसमध्ये अचूक एंट्री होईल.
                 let pLoad = {
                     form_id: formId,
-                    village_id: realVillageId,
+                    village_id: v.id, 
                     employee_id: loggedInUser.id,
                     report_month: parseInt(repMonth),
                     report_year: parseInt(repYear),
@@ -707,12 +698,12 @@ if (!realVillageId || realVillageId === 'subcenter_all') {
                 document.getElementById('loader').classList.add('hidden');
 
                 if (error) {
-                    alert("माहिती सेव्ह करताना त्रुटी आली: " + error.message);
+                    alert("маहिती सेव्ह करताना त्रुटी आली: " + error.message);
                 } else {
                     currentMonthResponses.push(...payloads);
 
                     if (isNilReport) {
-                        alert(`✅ उत्कृष्ट! ${currentPendingVillages.map(v=>v.name).join(', ')} चा निरंक (NIL) अहवाल यशस्वीरीत्या सबमिट झाला!`);
+                        alert(`✅ उत्कृष्ट! अहवाल यशस्वीरीत्या सबमिट झाला!`);
                         updateFormDropdown(); 
                     } else if (isAddMore) {
                         alert("✅ माहिती सेव्ह झाली! तुम्ही या गावासाठी पुढची नोंद करू शकता.");
