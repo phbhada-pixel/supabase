@@ -48,7 +48,6 @@
                 </select>
             </div>
 
-            <!-- 🟢 नवीन: आठवडी ड्रॉपडाऊन -->
             <div id="weekDiv" class="hidden">
                 <label class="block text-blue-700 font-bold mb-2 text-sm">आठवडा <span class="text-red-500">*</span></label>
                 <select id="reportWeek" onchange="handleMonthYearChange()" class="w-full p-2.5 border-2 border-blue-400 rounded bg-blue-50 font-bold text-blue-900 text-base shadow-sm">
@@ -117,7 +116,7 @@
         let userVillages = [];
         let allowedForms = [];
         let currentMonthResponses = [];
-        let onetimeResponses = []; // 🟢 नवीन: 'एकदाच' फॉर्म्सचा संपूर्ण डेटा ठेवण्यासाठी
+        let onetimeResponses = []; // 🟢 एकदाच फॉर्म्सचा संपूर्ण डेटा
 
         let globalPendingVillages = []; 
         let currentPendingVillages = []; 
@@ -135,7 +134,7 @@
 
             await fetchVillages();
             await fetchAvailableForms();
-            await fetchOnetimeResponses(); // 🟢 नवीन कॉल
+            await fetchOnetimeResponses();
             await fetchMonthResponses(); 
 
             updateFormDropdown(); 
@@ -190,10 +189,15 @@
             }
         }
 
-        // 🟢 नवीन फंक्शन: जे फॉर्म्स 'एकदाच (onetime)' आहेत, त्यांचा सगळा (All Time) डेटा ओढून घेणे
+        // 🟢 'एकदाच' (onetime) वारंवारता असलेल्या फॉर्म्सचा सगळा डेटा ओढणे
         async function fetchOnetimeResponses() {
             if (userVillages.length === 0) return;
-            const onetimeFormIds = allowedForms.filter(f => f.form_type === 'onetime').map(f => f.id);
+            
+            const onetimeFormIds = allowedForms.filter(f => {
+                let freq = f.schema_json && f.schema_json.frequency ? f.schema_json.frequency : (f.form_type === 'fortnightly' ? 'fortnightly' : 'monthly');
+                return freq === 'onetime';
+            }).map(f => f.id);
+            
             if(onetimeFormIds.length === 0) return;
             
             const villageIds = userVillages.map(v => v.id);
@@ -245,14 +249,17 @@
             allFormsMap = {};
 
             let fN = parseInt(document.getElementById('reportFortnight').value) || 1;
-            let wN = parseInt(document.getElementById('reportWeek').value) || 1; // 🟢 आठवडा
+            let wN = parseInt(document.getElementById('reportWeek').value) || 1; 
             
             let hasFortnightly = false; 
             let hasWeekly = false; 
 
             allowedForms.forEach(form => {
-                if (form.form_type === 'fortnightly') hasFortnightly = true; 
-                if (form.form_type === 'weekly') hasWeekly = true; 
+                // 🟢 फॉर्मच्या प्रकाराऐवजी आता 'वारंवारता' (Frequency) तपासणार
+                let freq = form.schema_json && form.schema_json.frequency ? form.schema_json.frequency : (form.form_type === 'fortnightly' ? 'fortnightly' : 'monthly');
+                
+                if (freq === 'fortnightly') hasFortnightly = true; 
+                if (freq === 'weekly') hasWeekly = true; 
                 
                 let showForm = true;
                 
@@ -262,8 +269,8 @@
                         (form.data_entry_mode === 'shared' ? true : r.employee_id === loggedInUser.id)
                     );
                     if (isFilled) showForm = false;
-                } else if (form.form_type === 'onetime' && userVillages.length > 0) {
-                    // 🟢 Onetime Logic
+                } else if (freq === 'onetime' && userVillages.length > 0) {
+                    // एकदाच भरायचा फॉर्म
                     let filledCount = 0;
                     userVillages.forEach(v => {
                         let isFilled = onetimeResponses.some(r => 
@@ -280,9 +287,9 @@
                         let isFilled = currentMonthResponses.some(r => 
                             r.form_id === form.id && r.village_id === v.id && 
                             (form.data_entry_mode === 'shared' ? true : r.employee_id === loggedInUser.id) &&
-                            ((form.form_type === 'fortnightly' && r.report_fortnight === fN) ||
-                             (form.form_type === 'weekly' && r.report_fortnight === wN) ||
-                             (form.form_type !== 'fortnightly' && form.form_type !== 'weekly'))
+                            ((freq === 'fortnightly' && r.report_fortnight === fN) ||
+                             (freq === 'weekly' && r.report_fortnight === wN) ||
+                             (freq !== 'fortnightly' && freq !== 'weekly'))
                         );
                         if (isFilled) filledCount++;
                     });
@@ -293,9 +300,9 @@
                         let isNil = currentMonthResponses.some(r => 
                             r.form_id === form.id && r.village_id === v.id && 
                             r.response_data && r.response_data.is_nil === true &&
-                            ((form.form_type === 'fortnightly' && r.report_fortnight === fN) ||
-                             (form.form_type === 'weekly' && r.report_fortnight === wN) ||
-                             (form.form_type !== 'fortnightly' && form.form_type !== 'weekly'))
+                            ((freq === 'fortnightly' && r.report_fortnight === fN) ||
+                             (freq === 'weekly' && r.report_fortnight === wN) ||
+                             (freq !== 'fortnightly' && freq !== 'weekly'))
                         );
                         if (isNil) nilCount++;
                     });
@@ -307,11 +314,11 @@
                     const opt = document.createElement('option');
                     opt.value = form.id; 
                     let tag = "";
-                    if(form.form_type === 'list') tag = " (यादी)";
-                    else if(form.form_type === 'fortnightly') tag = " (पंधरवाडी)";
-                    else if(form.form_type === 'weekly') tag = " (आठवडी)";
-                    else if(form.form_type === 'onetime') tag = " (एकदाच)";
-                    else if(form.form_type === 'subcenter') tag = " (उपकेंद्र एकत्रित)";
+                    if(freq === 'weekly') tag = " (आठवडी)";
+                    else if(freq === 'fortnightly') tag = " (पंधरवाडी)";
+                    else if(freq === 'onetime') tag = " (एकदाच)";
+                    else if(form.form_type === 'list') tag = " (यादी)";
+                    else if(form.form_type === 'subcenter') tag = " (उपकेंद्र)";
                     opt.text = form.form_name + tag;
                     fSelect.appendChild(opt);
                 }
@@ -358,9 +365,10 @@
             let fN = parseInt(document.getElementById('reportFortnight').value) || 1;
             let wN = parseInt(document.getElementById('reportWeek').value) || 1;
 
-            // 🟢 Onetime फॉर्मसाठी महिना व वर्ष डिसेबल (Dim) करणे
+            let freq = currentFormObj.schema_json && currentFormObj.schema_json.frequency ? currentFormObj.schema_json.frequency : (currentFormObj.form_type === 'fortnightly' ? 'fortnightly' : 'monthly');
+
             const controlsDiv = document.getElementById('topControlsDiv');
-            if(currentFormObj.form_type === 'onetime') {
+            if(freq === 'onetime') {
                 document.getElementById('reportMonth').parentElement.classList.add('opacity-30', 'pointer-events-none');
                 document.getElementById('reportYear').parentElement.classList.add('opacity-30', 'pointer-events-none');
             } else {
@@ -379,7 +387,7 @@
                 } else if (isFilled) {
                     hiddenCount++;
                 }
-            } else if (currentFormObj.form_type === 'onetime') {
+            } else if (freq === 'onetime') {
                 userVillages.forEach(v => {
                     let isFilled = onetimeResponses.some(r => 
                         r.form_id === formId && r.village_id === v.id && 
@@ -401,9 +409,9 @@
                         isFilled = currentMonthResponses.some(r => 
                             r.form_id === formId && r.village_id === v.id && 
                             (currentFormObj.data_entry_mode === 'shared' ? true : r.employee_id === loggedInUser.id) &&
-                            ((currentFormObj.form_type === 'fortnightly' && r.report_fortnight === fN) ||
-                             (currentFormObj.form_type === 'weekly' && r.report_fortnight === wN) ||
-                             (currentFormObj.form_type !== 'fortnightly' && currentFormObj.form_type !== 'weekly'))
+                            ((freq === 'fortnightly' && r.report_fortnight === fN) ||
+                             (freq === 'weekly' && r.report_fortnight === wN) ||
+                             (freq !== 'fortnightly' && freq !== 'weekly'))
                         );
                     }
 
@@ -520,7 +528,6 @@
             }
 
             let html = '';
-            
             let showPop = currentFormObj.schema_json && currentFormObj.schema_json.show_population === true;
 
             let columns = currentDataFields.map(f => {
@@ -660,7 +667,9 @@
 
             submitBtn.classList.remove('hidden');
             
-            if (currentFormObj.form_type === 'list' || currentFormObj.form_type === 'fortnightly' || currentFormObj.form_type === 'weekly') {
+            let freq = currentFormObj.schema_json && currentFormObj.schema_json.frequency ? currentFormObj.schema_json.frequency : (currentFormObj.form_type === 'fortnightly' ? 'fortnightly' : 'monthly');
+            
+            if (currentFormObj.form_type === 'list' || freq === 'fortnightly' || freq === 'weekly') {
                 btnNilReport.classList.remove('hidden');
                 btnSaveAndAddMore.classList.remove('hidden');
                 submitBtn.innerHTML = "💾 सेव्ह करा आणि बाहेर पडा";
@@ -719,6 +728,7 @@
             document.getElementById('loader').classList.remove('hidden');
 
             let payloads = [];
+            let freq = currentFormObj.schema_json && currentFormObj.schema_json.frequency ? currentFormObj.schema_json.frequency : (currentFormObj.form_type === 'fortnightly' ? 'fortnightly' : 'monthly');
 
             currentPendingVillages.forEach(v => {
                 let responseDataObj = {};
@@ -732,8 +742,7 @@
                     });
                 }
 
-                // 🟢 Onetime फॉर्म असेल तर महिना आणि वर्ष '0' सेव्ह करायचे
-                let isOnetime = currentFormObj.form_type === 'onetime';
+                let isOnetime = freq === 'onetime';
 
                 let pLoad = {
                     form_id: formId,
@@ -744,10 +753,10 @@
                     response_data: responseDataObj
                 };
                 
-                if (currentFormObj.form_type === 'fortnightly') {
+                if (freq === 'fortnightly') {
                     pLoad.report_fortnight = parseInt(repFortnight);
-                } else if (currentFormObj.form_type === 'weekly') {
-                    pLoad.report_fortnight = parseInt(repWeek); // 🟢 आठवडा 'report_fortnight' कॉलममध्येच सेव्ह केला (डेटाबेस बदलावा लागू नये म्हणून)
+                } else if (freq === 'weekly') {
+                    pLoad.report_fortnight = parseInt(repWeek);
                 } else {
                     pLoad.report_fortnight = 0;
                 }
@@ -764,7 +773,7 @@
                     alert("माहिती सेव्ह करताना त्रुटी आली: " + error.message);
                 } else {
                     
-                    if (currentFormObj.form_type === 'onetime') {
+                    if (freq === 'onetime') {
                         onetimeResponses.push(...payloads);
                     } else {
                         currentMonthResponses.push(...payloads);
