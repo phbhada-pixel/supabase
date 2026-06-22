@@ -22,7 +22,7 @@
 
     <div class="max-w-7xl mx-auto bg-white p-3 md:p-6 rounded-lg shadow-md">
 
-        <div class="grid grid-cols-1 md:grid-cols-5 gap-4 md:gap-6 mb-6 pb-6 border-b">
+        <div class="grid grid-cols-1 md:grid-cols-6 gap-4 md:gap-4 mb-6 pb-6 border-b" id="topControlsDiv">
             <div>
                 <label class="block text-gray-700 font-bold mb-2 text-sm">अहवाल महिना <span class="text-red-500">*</span></label>
                 <select id="reportMonth" onchange="handleMonthYearChange()" class="w-full p-2.5 border-2 border-gray-300 rounded font-bold text-gray-800 text-base">
@@ -48,6 +48,18 @@
                 </select>
             </div>
 
+            <!-- 🟢 नवीन: आठवडी ड्रॉपडाऊन -->
+            <div id="weekDiv" class="hidden">
+                <label class="block text-blue-700 font-bold mb-2 text-sm">आठवडा <span class="text-red-500">*</span></label>
+                <select id="reportWeek" onchange="handleMonthYearChange()" class="w-full p-2.5 border-2 border-blue-400 rounded bg-blue-50 font-bold text-blue-900 text-base shadow-sm">
+                    <option value="1">पहिला आठवडा (Week 1)</option>
+                    <option value="2">दुसरा आठवडा (Week 2)</option>
+                    <option value="3">तिसरा आठवडा (Week 3)</option>
+                    <option value="4">चौथा आठवडा (Week 4)</option>
+                    <option value="5">पाचवा आठवडा (Week 5)</option>
+                </select>
+            </div>
+
             <div class="md:col-span-2">
                 <label class="block text-gray-700 font-bold mb-2 text-sm">अहवाल / फॉर्म निवडा <span class="text-red-500">*</span></label>
                 <select id="formSelect" onchange="loadFormSchema()" class="w-full p-2.5 border-2 border-indigo-400 rounded bg-indigo-50 font-extrabold text-indigo-900 shadow-sm text-base">
@@ -61,11 +73,6 @@
                     <option value="">-- आधी फॉर्म निवडा --</option>
                 </select>
                 <p id="villageHint" class="text-[10px] text-green-600 mt-1 hidden font-bold">✓ फक्त राहिलेली गावे दाखवली आहेत.</p>
-
-                <div id="villageInfoBox" class="hidden mt-2 p-3 bg-blue-100 border border-blue-300 rounded-lg text-sm font-bold text-blue-900 flex justify-between shadow-inner">
-                    <span id="popText" class="text-red-600">📍 लोकसंख्या: 0</span>
-                    <span id="houseText" class="text-indigo-700">🏠 एकूण घरे: 0</span>
-                </div>
             </div>
         </div>
 
@@ -76,7 +83,6 @@
             </div>
 
             <div class="flex flex-col md:flex-row justify-center md:justify-end gap-3 border-t pt-4" id="actionButtonsContainer">
-                
                 <button type="button" id="btnNilReport" onclick="submitData(true, false)" class="hidden w-full md:w-auto bg-gray-500 text-white px-6 py-4 md:py-3 rounded-lg font-extrabold text-lg shadow-xl hover:bg-gray-600 transition transform hover:scale-105">
                     🚫 निरंक (NIL) रिपोर्ट
                 </button>
@@ -111,6 +117,7 @@
         let userVillages = [];
         let allowedForms = [];
         let currentMonthResponses = [];
+        let onetimeResponses = []; // 🟢 नवीन: 'एकदाच' फॉर्म्सचा संपूर्ण डेटा ठेवण्यासाठी
 
         let globalPendingVillages = []; 
         let currentPendingVillages = []; 
@@ -128,6 +135,7 @@
 
             await fetchVillages();
             await fetchAvailableForms();
+            await fetchOnetimeResponses(); // 🟢 नवीन कॉल
             await fetchMonthResponses(); 
 
             updateFormDropdown(); 
@@ -177,9 +185,25 @@
                 allowedForms = data.filter(form => {
                     let rolesStr = form.allowed_roles ? String(form.allowed_roles).trim().toUpperCase() : "ALL";
                     if (rolesStr === "ALL" || loggedInUser.role === "admin") return true;
-                    return rolesStr.split(',').includes(userRole);
+                    return rolesStr.split(',').map(r=>r.trim()).includes(userRole);
                 });
             }
+        }
+
+        // 🟢 नवीन फंक्शन: जे फॉर्म्स 'एकदाच (onetime)' आहेत, त्यांचा सगळा (All Time) डेटा ओढून घेणे
+        async function fetchOnetimeResponses() {
+            if (userVillages.length === 0) return;
+            const onetimeFormIds = allowedForms.filter(f => f.form_type === 'onetime').map(f => f.id);
+            if(onetimeFormIds.length === 0) return;
+            
+            const villageIds = userVillages.map(v => v.id);
+            const { data, error } = await supabaseClient
+                .from('form_responses')
+                .select('form_id, village_id, employee_id, response_data')
+                .in('form_id', onetimeFormIds)
+                .in('village_id', villageIds);
+
+            onetimeResponses = data || [];
         }
 
         async function fetchMonthResponses() {
@@ -199,13 +223,12 @@
         }
 
         async function handleMonthYearChange() {
-            document.getElementById('dynamicFieldsContainer').innerHTML = '<p class="text-center text-blue-500 font-bold py-10 text-lg">महिना/पंधरवाडा बदलला आहे, डेटा तपासला जात आहे...</p>';
+            document.getElementById('dynamicFieldsContainer').innerHTML = '<p class="text-center text-blue-500 font-bold py-10 text-lg">महिना/कालावधी बदलला आहे, डेटा तपासला जात आहे...</p>';
             document.getElementById('submitBtn').classList.add('hidden');
             document.getElementById('btnNilReport').classList.add('hidden');
             document.getElementById('btnSaveAndAddMore').classList.add('hidden');
             document.getElementById('villageSelect').innerHTML = '<option value="">-- आधी फॉर्म निवडा --</option>';
             document.getElementById('villageHint').classList.add('hidden');
-            document.getElementById('villageInfoBox').classList.add('hidden'); 
 
             await fetchMonthResponses();
             updateFormDropdown();
@@ -222,8 +245,15 @@
             allFormsMap = {};
 
             let fN = parseInt(document.getElementById('reportFortnight').value) || 1;
+            let wN = parseInt(document.getElementById('reportWeek').value) || 1; // 🟢 आठवडा
+            
+            let hasFortnightly = false; 
+            let hasWeekly = false; 
 
             allowedForms.forEach(form => {
+                if (form.form_type === 'fortnightly') hasFortnightly = true; 
+                if (form.form_type === 'weekly') hasWeekly = true; 
+                
                 let showForm = true;
                 
                 if (form.form_type === 'subcenter' && userVillages.length > 0) {
@@ -232,14 +262,27 @@
                         (form.data_entry_mode === 'shared' ? true : r.employee_id === loggedInUser.id)
                     );
                     if (isFilled) showForm = false;
+                } else if (form.form_type === 'onetime' && userVillages.length > 0) {
+                    // 🟢 Onetime Logic
+                    let filledCount = 0;
+                    userVillages.forEach(v => {
+                        let isFilled = onetimeResponses.some(r => 
+                            r.form_id === form.id && r.village_id === v.id && 
+                            (form.data_entry_mode === 'shared' ? true : r.employee_id === loggedInUser.id)
+                        );
+                        if (isFilled) filledCount++;
+                    });
+                    if (filledCount >= userVillages.length) showForm = false;
+
                 } else if (form.form_type !== 'list' && userVillages.length > 0) {
                     let filledCount = 0;
                     userVillages.forEach(v => {
                         let isFilled = currentMonthResponses.some(r => 
-                            r.form_id === form.id && 
-                            r.village_id === v.id && 
+                            r.form_id === form.id && r.village_id === v.id && 
                             (form.data_entry_mode === 'shared' ? true : r.employee_id === loggedInUser.id) &&
-                            (form.form_type !== 'fortnightly' || r.report_fortnight === fN) 
+                            ((form.form_type === 'fortnightly' && r.report_fortnight === fN) ||
+                             (form.form_type === 'weekly' && r.report_fortnight === wN) ||
+                             (form.form_type !== 'fortnightly' && form.form_type !== 'weekly'))
                         );
                         if (isFilled) filledCount++;
                     });
@@ -248,10 +291,11 @@
                     let nilCount = 0;
                     userVillages.forEach(v => {
                         let isNil = currentMonthResponses.some(r => 
-                            r.form_id === form.id && 
-                            r.village_id === v.id && 
+                            r.form_id === form.id && r.village_id === v.id && 
                             r.response_data && r.response_data.is_nil === true &&
-                            (form.form_type !== 'fortnightly' || r.report_fortnight === fN)
+                            ((form.form_type === 'fortnightly' && r.report_fortnight === fN) ||
+                             (form.form_type === 'weekly' && r.report_fortnight === wN) ||
+                             (form.form_type !== 'fortnightly' && form.form_type !== 'weekly'))
                         );
                         if (isNil) nilCount++;
                     });
@@ -265,11 +309,19 @@
                     let tag = "";
                     if(form.form_type === 'list') tag = " (यादी)";
                     else if(form.form_type === 'fortnightly') tag = " (पंधरवाडी)";
+                    else if(form.form_type === 'weekly') tag = " (आठवडी)";
+                    else if(form.form_type === 'onetime') tag = " (एकदाच)";
                     else if(form.form_type === 'subcenter') tag = " (उपकेंद्र एकत्रित)";
                     opt.text = form.form_name + tag;
                     fSelect.appendChild(opt);
                 }
             });
+
+            if (hasFortnightly) document.getElementById('fortnightDiv').classList.remove('hidden');
+            else document.getElementById('fortnightDiv').classList.add('hidden');
+
+            if (hasWeekly) document.getElementById('weekDiv').classList.remove('hidden');
+            else document.getElementById('weekDiv').classList.add('hidden');
 
             if (allFormsMap[currentSelection]) {
                 fSelect.value = currentSelection;
@@ -278,8 +330,6 @@
                 fSelect.value = "";
                 document.getElementById('villageSelect').innerHTML = '<option value="">-- आधी फॉर्म निवडा --</option>';
                 document.getElementById('villageHint').classList.add('hidden');
-                document.getElementById('villageInfoBox').classList.add('hidden'); 
-                document.getElementById('fortnightDiv').classList.add('hidden');
                 document.getElementById('dynamicFieldsContainer').innerHTML = '<p class="text-center text-gray-400 font-bold py-10 text-lg">कृपया वरून फॉर्म आणि गाव निवडा.</p>';
             }
         }
@@ -289,19 +339,15 @@
             const container = document.getElementById('dynamicFieldsContainer');
             const vSelect = document.getElementById('villageSelect');
             const vHint = document.getElementById('villageHint');
-            const fnDiv = document.getElementById('fortnightDiv');
-            const infoBox = document.getElementById('villageInfoBox'); 
 
             document.getElementById('submitBtn').classList.add('hidden');
             document.getElementById('btnNilReport').classList.add('hidden');
             document.getElementById('btnSaveAndAddMore').classList.add('hidden');
             container.innerHTML = '<p class="text-center text-gray-400 font-bold py-10 text-lg">कृपया गाव / कार्यक्षेत्र निवडा.</p>';
-            infoBox.classList.add('hidden'); 
 
             if (!formId) {
                 vSelect.innerHTML = '<option value="">-- आधी फॉर्म निवडा --</option>';
                 vHint.classList.add('hidden');
-                fnDiv.classList.add('hidden');
                 return;
             }
 
@@ -309,10 +355,18 @@
             globalPendingVillages = [];
             let hiddenCount = 0;
             
-            if (currentFormObj.form_type === 'fortnightly') fnDiv.classList.remove('hidden');
-            else fnDiv.classList.add('hidden');
-
             let fN = parseInt(document.getElementById('reportFortnight').value) || 1;
+            let wN = parseInt(document.getElementById('reportWeek').value) || 1;
+
+            // 🟢 Onetime फॉर्मसाठी महिना व वर्ष डिसेबल (Dim) करणे
+            const controlsDiv = document.getElementById('topControlsDiv');
+            if(currentFormObj.form_type === 'onetime') {
+                document.getElementById('reportMonth').parentElement.classList.add('opacity-30', 'pointer-events-none');
+                document.getElementById('reportYear').parentElement.classList.add('opacity-30', 'pointer-events-none');
+            } else {
+                document.getElementById('reportMonth').parentElement.classList.remove('opacity-30', 'pointer-events-none');
+                document.getElementById('reportYear').parentElement.classList.remove('opacity-30', 'pointer-events-none');
+            }
 
             if (currentFormObj.form_type === 'subcenter') {
                 let isFilled = currentMonthResponses.some(r => 
@@ -321,12 +375,19 @@
                 );
                 
                 if (!isFilled && userVillages.length > 0) {
-                    // 🟢 सुधारणा: 'id' थेट खऱ्या गावाचा (userVillages[0].id) ठेवतो, जेणेकरून Foreign Key एरर येणार नाही.
-                    // फक्त 'name' बदलून "संपूर्ण उपकेंद्र" करतो जेणेकरून युझरला योग्य दिसेल.
                     globalPendingVillages.push({ ...userVillages[0], name: "🏢 संपूर्ण उपकेंद्र (Subcenter Level)" });
                 } else if (isFilled) {
                     hiddenCount++;
                 }
+            } else if (currentFormObj.form_type === 'onetime') {
+                userVillages.forEach(v => {
+                    let isFilled = onetimeResponses.some(r => 
+                        r.form_id === formId && r.village_id === v.id && 
+                        (currentFormObj.data_entry_mode === 'shared' ? true : r.employee_id === loggedInUser.id)
+                    );
+                    if (!isFilled) globalPendingVillages.push(v);
+                    else hiddenCount++;
+                });
             } else {
                 userVillages.forEach(v => {
                     let isFilled = false;
@@ -340,7 +401,9 @@
                         isFilled = currentMonthResponses.some(r => 
                             r.form_id === formId && r.village_id === v.id && 
                             (currentFormObj.data_entry_mode === 'shared' ? true : r.employee_id === loggedInUser.id) &&
-                            (currentFormObj.form_type !== 'fortnightly' || r.report_fortnight === fN)
+                            ((currentFormObj.form_type === 'fortnightly' && r.report_fortnight === fN) ||
+                             (currentFormObj.form_type === 'weekly' && r.report_fortnight === wN) ||
+                             (currentFormObj.form_type !== 'fortnightly' && currentFormObj.form_type !== 'weekly'))
                         );
                     }
 
@@ -438,31 +501,6 @@
             const submitBtn = document.getElementById('submitBtn');
             const btnNilReport = document.getElementById('btnNilReport');
             const btnSaveAndAddMore = document.getElementById('btnSaveAndAddMore');
-            const infoBox = document.getElementById('villageInfoBox'); 
-
-            if (vid && vid !== 'ALL' && currentFormObj && currentFormObj.schema_json && currentFormObj.schema_json.show_village_info) {
-                if (currentFormObj.form_type === 'subcenter') {
-                    // उपकेंद्रासाठी सर्व गावांची बेरीज करा
-                    let totalPop = userVillages.reduce((sum, v) => sum + (v.population || 0), 0);
-                    let totalHouses = userVillages.reduce((sum, v) => sum + (v.total_houses || 0), 0);
-                    document.getElementById('popText').innerHTML = `📍 उपकेंद्र लोकसंख्या: ${totalPop}`;
-                    document.getElementById('houseText').innerHTML = `🏠 उपकेंद्र एकूण घरे: ${totalHouses}`;
-                    infoBox.classList.remove('hidden');
-                } else {
-                    let villageObj = userVillages.find(v => String(v.id) === String(vid));
-                    if(villageObj) {
-                        let pop = villageObj.population || 0;
-                        let houses = villageObj.total_houses || 0;
-                        document.getElementById('popText').innerHTML = `📍 लोकसंख्या: ${pop}`;
-                        document.getElementById('houseText').innerHTML = `🏠 एकूण घरे: ${houses}`;
-                        infoBox.classList.remove('hidden');
-                    } else {
-                        infoBox.classList.add('hidden');
-                    }
-                }
-            } else {
-                infoBox.classList.add('hidden');
-            }
 
             if (!vid) {
                 container.innerHTML = '<p class="text-center text-gray-400 font-bold py-10 text-lg">कृपया गाव / कार्यक्षेत्र निवडा.</p>';
@@ -478,8 +516,12 @@
             if (vid === 'ALL') {
                 currentPendingVillages = globalPendingVillages;
             } else {
-                currentPendingVillages = globalPendingVillages.filter(v => String(v.id) === String(vid));
+                currentPendingVillages = globalPendingVillages.filter(v => v.id === parseInt(vid) || v.id === vid);
             }
+
+            let html = '';
+            
+            let showPop = currentFormObj.schema_json && currentFormObj.schema_json.show_population === true;
 
             let columns = currentDataFields.map(f => {
                 let chain = getFieldHierarchyChain(allFields, f);
@@ -489,9 +531,14 @@
                 return { ...f, l1, l2, l3: f.label };
             });
 
-            let html = '<div class="table-responsive"><table class="w-full border-collapse block md:table">';
+            html += '<div class="table-responsive"><table class="w-full border-collapse block md:table">';
             
             let l1Row = `<tr><th rowspan="3" class="p-3 border text-center font-extrabold text-gray-800 min-w-[150px] bg-gray-200">गाव / कार्यक्षेत्र</th>`;
+            if (showPop) {
+                l1Row += `<th rowspan="3" class="p-3 border text-center font-extrabold text-indigo-950 bg-yellow-100 min-w-[85px]">लोकसंख्या</th>`;
+                l1Row += `<th rowspan="3" class="p-3 border text-center font-extrabold text-indigo-950 bg-yellow-100 min-w-[85px]">कुटुंब संख्या</th>`;
+            }
+
             let l2Row = `<tr>`;
             let l3Row = `<tr>`;
 
@@ -541,6 +588,15 @@
                             <span class="text-2xl md:text-sm font-extrabold text-indigo-900 md:text-gray-900">${currentFormObj.form_type === 'subcenter' ? '🏢 ' : index+1+'. '}${v.name}</span>
                          </td>`;
 
+                if (showPop) {
+                    html += `<td class="block md:table-cell p-4 md:p-2 border-b border-gray-200 md:border md:border-gray-300 text-center bg-yellow-50/40 font-black text-indigo-950 text-base md:text-sm">
+                                <span class="md:hidden text-xs text-gray-500 block font-bold mb-0.5">📊 लोकसंख्या:</span>${v.population || 0}
+                             </td>`;
+                    html += `<td class="block md:table-cell p-4 md:p-2 border-b border-gray-200 md:border md:border-gray-300 text-center bg-yellow-50/40 font-black text-indigo-950 text-base md:text-sm">
+                                <span class="md:hidden text-xs text-gray-500 block font-bold mb-0.5">🏠 कुटुंब संख्या:</span>${v.total_houses || 0}
+                             </td>`;
+                }
+
                 let prevL1 = null;
                 let prevL2 = null;
 
@@ -563,7 +619,7 @@
                     } else if (col.type === 'date') {
                         inputHtml = `<input type="date" id="${inputId}" class="w-full md:w-32 p-4 md:p-2 text-xl md:text-sm font-bold md:font-semibold text-center text-gray-900 bg-gray-50 border-2 border-gray-400 rounded-lg md:rounded outline-none focus:ring-4 focus:ring-gray-600" ${reqAttr} ${onInputAttr}>`;
                     } else if (col.type === 'dropdown' && col.options) {
-                        let optsHtml = `<option value="">- निवडा -</option>`;
+                        let optsHtml = `<option value="">-- निवडा --</option>`;
                         col.options.forEach(opt => optsHtml += `<option value="${opt}">${opt}</option>`);
                         inputHtml = `<select id="${inputId}" class="w-full md:w-32 p-4 md:p-2 text-xl md:text-sm font-extrabold md:font-bold text-center text-purple-900 bg-purple-50 border-2 border-purple-400 md:border-gray-400 rounded-lg md:rounded outline-none focus:ring-4 focus:ring-purple-600" ${reqAttr} ${onInputAttr}>${optsHtml}</select>`;
                     } else {
@@ -604,7 +660,7 @@
 
             submitBtn.classList.remove('hidden');
             
-            if (currentFormObj.form_type === 'list' || currentFormObj.form_type === 'fortnightly') {
+            if (currentFormObj.form_type === 'list' || currentFormObj.form_type === 'fortnightly' || currentFormObj.form_type === 'weekly') {
                 btnNilReport.classList.remove('hidden');
                 btnSaveAndAddMore.classList.remove('hidden');
                 submitBtn.innerHTML = "💾 सेव्ह करा आणि बाहेर पडा";
@@ -620,6 +676,7 @@
             const repMonth = document.getElementById('reportMonth').value;
             const repYear = document.getElementById('reportYear').value;
             const repFortnight = document.getElementById('reportFortnight').value || null;
+            const repWeek = document.getElementById('reportWeek').value || null;
 
             if (!formId || currentPendingVillages.length === 0) return;
 
@@ -675,18 +732,24 @@
                     });
                 }
 
-                // 🟢 पूर्णतः एरर मुक्त: v.id मध्येच आता खऱ्या गावाचा वैध UUID असल्यामुळे डेटाबेसमध्ये अचूक एंट्री होईल.
+                // 🟢 Onetime फॉर्म असेल तर महिना आणि वर्ष '0' सेव्ह करायचे
+                let isOnetime = currentFormObj.form_type === 'onetime';
+
                 let pLoad = {
                     form_id: formId,
-                    village_id: v.id, 
+                    village_id: v.id,
                     employee_id: loggedInUser.id,
-                    report_month: parseInt(repMonth),
-                    report_year: parseInt(repYear),
+                    report_month: isOnetime ? 0 : parseInt(repMonth),
+                    report_year: isOnetime ? 0 : parseInt(repYear),
                     response_data: responseDataObj
                 };
                 
                 if (currentFormObj.form_type === 'fortnightly') {
                     pLoad.report_fortnight = parseInt(repFortnight);
+                } else if (currentFormObj.form_type === 'weekly') {
+                    pLoad.report_fortnight = parseInt(repWeek); // 🟢 आठवडा 'report_fortnight' कॉलममध्येच सेव्ह केला (डेटाबेस बदलावा लागू नये म्हणून)
+                } else {
+                    pLoad.report_fortnight = 0;
                 }
 
                 payloads.push(pLoad);
@@ -698,12 +761,17 @@
                 document.getElementById('loader').classList.add('hidden');
 
                 if (error) {
-                    alert("маहिती सेव्ह करताना त्रुटी आली: " + error.message);
+                    alert("माहिती सेव्ह करताना त्रुटी आली: " + error.message);
                 } else {
-                    currentMonthResponses.push(...payloads);
+                    
+                    if (currentFormObj.form_type === 'onetime') {
+                        onetimeResponses.push(...payloads);
+                    } else {
+                        currentMonthResponses.push(...payloads);
+                    }
 
                     if (isNilReport) {
-                        alert(`✅ उत्कृष्ट! अहवाल यशस्वीरीत्या सबमिट झाला!`);
+                        alert(`✅ उत्कृष्ट! ${currentPendingVillages.map(v=>v.name).join(', ')} चा निरंक (NIL) अहवाल यशस्वीरीत्या सबमिट झाला!`);
                         updateFormDropdown(); 
                     } else if (isAddMore) {
                         alert("✅ माहिती सेव्ह झाली! तुम्ही या गावासाठी पुढची नोंद करू शकता.");
