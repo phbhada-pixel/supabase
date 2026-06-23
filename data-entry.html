@@ -22,8 +22,29 @@
 
     <div class="max-w-7xl mx-auto bg-white p-3 md:p-6 rounded-lg shadow-md">
 
+        <div class="grid grid-cols-1 md:grid-cols-6 gap-4 mb-4 pb-4 border-b border-gray-200">
+            <div class="md:col-span-2">
+                <label class="block text-gray-700 font-bold mb-2 text-sm">कोणते अहवाल पाहायचे आहेत?</label>
+                <select id="frequencyFilter" onchange="updateFormDropdown()" class="w-full p-2.5 border-2 border-blue-400 rounded bg-blue-50 font-bold text-blue-900 text-base shadow-sm">
+                    <option value="all">सर्व (All)</option>
+                    <option value="daily">दैनिक (Daily)</option>
+                    <option value="weekly">आठवडी (Weekly)</option>
+                    <option value="fortnightly">पंधरवाडी (Fortnightly)</option>
+                    <option value="monthly">मासिक (Monthly)</option>
+                    <option value="onetime">एकदाच (One-Time)</option>
+                </select>
+            </div>
+
+            <div class="md:col-span-4">
+                <label class="block text-gray-700 font-bold mb-2 text-sm">अहवाल / फॉर्म निवडा <span class="text-red-500">*</span></label>
+                <select id="formSelect" onchange="loadFormSchema()" class="w-full p-2.5 border-2 border-indigo-400 rounded bg-indigo-50 font-extrabold text-indigo-900 shadow-sm text-base">
+                    <option value="">-- फॉर्म लोड होत आहेत --</option>
+                </select>
+            </div>
+        </div>
+
         <div class="grid grid-cols-1 md:grid-cols-6 gap-4 md:gap-4 mb-6 pb-6 border-b" id="topControlsDiv">
-            <div>
+            <div class="md:col-span-1">
                 <label class="block text-gray-700 font-bold mb-2 text-sm">अहवाल महिना <span class="text-red-500">*</span></label>
                 <select id="reportMonth" onchange="handleMonthYearChange()" class="w-full p-2.5 border-2 border-gray-300 rounded font-bold text-gray-800 text-base">
                     <option value="1">जानेवारी</option><option value="2">फेब्रुवारी</option>
@@ -35,38 +56,18 @@
                 </select>
             </div>
             
-            <div>
+            <div class="md:col-span-1">
                 <label class="block text-gray-700 font-bold mb-2 text-sm">अहवाल वर्ष <span class="text-red-500">*</span></label>
                 <input type="number" id="reportYear" onchange="handleMonthYearChange()" class="w-full p-2.5 border-2 border-gray-300 rounded text-base font-mono font-bold" value="2026">
             </div>
 
-            <div id="fortnightDiv" class="hidden">
-                <label class="block text-orange-700 font-bold mb-2 text-sm">पंधरवाडा <span class="text-red-500">*</span></label>
-                <select id="reportFortnight" onchange="handleMonthYearChange()" class="w-full p-2.5 border-2 border-orange-400 rounded bg-orange-50 font-bold text-orange-900 text-base shadow-sm">
-                    <option value="1">१ ते १५ तारीख</option>
-                    <option value="2">१६ ते महिनाअखेर</option>
-                </select>
+            <div id="dynamicPeriodDiv" class="hidden md:col-span-2">
+                <label id="dynamicPeriodLabel" class="block text-orange-700 font-bold mb-2 text-sm">कालावधी <span class="text-red-500">*</span></label>
+                <select id="dynamicPeriodValue" onchange="handleMonthYearChange()" class="w-full p-2.5 border-2 border-orange-400 rounded bg-orange-50 font-bold text-orange-900 text-base shadow-sm">
+                    </select>
             </div>
 
-            <div id="weekDiv" class="hidden">
-                <label class="block text-blue-700 font-bold mb-2 text-sm">आठवडा <span class="text-red-500">*</span></label>
-                <select id="reportWeek" onchange="handleMonthYearChange()" class="w-full p-2.5 border-2 border-blue-400 rounded bg-blue-50 font-bold text-blue-900 text-base shadow-sm">
-                    <option value="1">पहिला आठवडा (Week 1)</option>
-                    <option value="2">दुसरा आठवडा (Week 2)</option>
-                    <option value="3">तिसरा आठवडा (Week 3)</option>
-                    <option value="4">चौथा आठवडा (Week 4)</option>
-                    <option value="5">पाचवा आठवडा (Week 5)</option>
-                </select>
-            </div>
-
-            <div class="md:col-span-2">
-                <label class="block text-gray-700 font-bold mb-2 text-sm">अहवाल / फॉर्म निवडा <span class="text-red-500">*</span></label>
-                <select id="formSelect" onchange="loadFormSchema()" class="w-full p-2.5 border-2 border-indigo-400 rounded bg-indigo-50 font-extrabold text-indigo-900 shadow-sm text-base">
-                    <option value="">-- फॉर्म लोड होत आहेत --</option>
-                </select>
-            </div>
-
-            <div class="md:col-span-2">
+            <div class="md:col-span-2" id="villageDivWrapper">
                 <label class="block text-gray-700 font-bold mb-2 text-sm">गाव / कार्यक्षेत्र निवडा <span class="text-red-500">*</span></label>
                 <select id="villageSelect" onchange="renderFormFields()" class="w-full p-2.5 border-2 border-green-400 rounded bg-green-50 font-extrabold text-green-900 shadow-sm text-base disabled:opacity-50">
                     <option value="">-- आधी फॉर्म निवडा --</option>
@@ -116,7 +117,7 @@
         let userVillages = [];
         let allowedForms = [];
         let currentMonthResponses = [];
-        let onetimeResponses = []; // 🟢 एकदाच फॉर्म्सचा संपूर्ण डेटा
+        let onetimeResponses = []; 
 
         let globalPendingVillages = []; 
         let currentPendingVillages = []; 
@@ -134,7 +135,7 @@
 
             await fetchVillages();
             await fetchAvailableForms();
-            await fetchOnetimeResponses();
+            await fetchOnetimeResponses(); 
             await fetchMonthResponses(); 
 
             updateFormDropdown(); 
@@ -189,10 +190,8 @@
             }
         }
 
-        // 🟢 'एकदाच' (onetime) वारंवारता असलेल्या फॉर्म्सचा सगळा डेटा ओढणे
         async function fetchOnetimeResponses() {
             if (userVillages.length === 0) return;
-            
             const onetimeFormIds = allowedForms.filter(f => {
                 let freq = f.schema_json && f.schema_json.frequency ? f.schema_json.frequency : (f.form_type === 'fortnightly' ? 'fortnightly' : 'monthly');
                 return freq === 'onetime';
@@ -244,23 +243,19 @@
 
         function updateFormDropdown() {
             const fSelect = document.getElementById('formSelect');
+            const freqFilter = document.getElementById('frequencyFilter').value;
             const currentSelection = fSelect.value;
             fSelect.innerHTML = '<option value="">-- फॉर्म निवडा --</option>';
             allFormsMap = {};
 
-            let fN = parseInt(document.getElementById('reportFortnight').value) || 1;
-            let wN = parseInt(document.getElementById('reportWeek').value) || 1; 
-            
-            let hasFortnightly = false; 
-            let hasWeekly = false; 
+            // 🟢 सिलेक्ट केलेला वारंवारता प्रकार (दैनिक, आठवडी, पंधरवाडी)
+            let periodVal = parseInt(document.getElementById('dynamicPeriodValue') ? document.getElementById('dynamicPeriodValue').value : "1") || 1;
 
             allowedForms.forEach(form => {
-                // 🟢 फॉर्मच्या प्रकाराऐवजी आता 'वारंवारता' (Frequency) तपासणार
                 let freq = form.schema_json && form.schema_json.frequency ? form.schema_json.frequency : (form.form_type === 'fortnightly' ? 'fortnightly' : 'monthly');
                 
-                if (freq === 'fortnightly') hasFortnightly = true; 
-                if (freq === 'weekly') hasWeekly = true; 
-                
+                if (freqFilter !== 'all' && freq !== freqFilter) return;
+
                 let showForm = true;
                 
                 if (form.form_type === 'subcenter' && userVillages.length > 0) {
@@ -270,7 +265,6 @@
                     );
                     if (isFilled) showForm = false;
                 } else if (freq === 'onetime' && userVillages.length > 0) {
-                    // एकदाच भरायचा फॉर्म
                     let filledCount = 0;
                     userVillages.forEach(v => {
                         let isFilled = onetimeResponses.some(r => 
@@ -287,9 +281,10 @@
                         let isFilled = currentMonthResponses.some(r => 
                             r.form_id === form.id && r.village_id === v.id && 
                             (form.data_entry_mode === 'shared' ? true : r.employee_id === loggedInUser.id) &&
-                            ((freq === 'fortnightly' && r.report_fortnight === fN) ||
-                             (freq === 'weekly' && r.report_fortnight === wN) ||
-                             (freq !== 'fortnightly' && freq !== 'weekly'))
+                            ((freq === 'daily' && r.report_fortnight === periodVal) ||
+                             (freq === 'weekly' && r.report_fortnight === periodVal) ||
+                             (freq === 'fortnightly' && r.report_fortnight === periodVal) ||
+                             (freq !== 'daily' && freq !== 'weekly' && freq !== 'fortnightly'))
                         );
                         if (isFilled) filledCount++;
                     });
@@ -300,9 +295,10 @@
                         let isNil = currentMonthResponses.some(r => 
                             r.form_id === form.id && r.village_id === v.id && 
                             r.response_data && r.response_data.is_nil === true &&
-                            ((freq === 'fortnightly' && r.report_fortnight === fN) ||
-                             (freq === 'weekly' && r.report_fortnight === wN) ||
-                             (freq !== 'fortnightly' && freq !== 'weekly'))
+                            ((freq === 'daily' && r.report_fortnight === periodVal) ||
+                             (freq === 'weekly' && r.report_fortnight === periodVal) ||
+                             (freq === 'fortnightly' && r.report_fortnight === periodVal) ||
+                             (freq !== 'daily' && freq !== 'weekly' && freq !== 'fortnightly'))
                         );
                         if (isNil) nilCount++;
                     });
@@ -314,21 +310,16 @@
                     const opt = document.createElement('option');
                     opt.value = form.id; 
                     let tag = "";
-                    if(freq === 'weekly') tag = " (आठवडी)";
+                    if(freq === 'daily') tag = " (दैनिक)";
+                    else if(freq === 'weekly') tag = " (आठवडी)";
                     else if(freq === 'fortnightly') tag = " (पंधरवाडी)";
                     else if(freq === 'onetime') tag = " (एकदाच)";
                     else if(form.form_type === 'list') tag = " (यादी)";
-                    else if(form.form_type === 'subcenter') tag = " (उपकेंद्र)";
+                    else if(form.form_type === 'subcenter') tag = " (उपकेंद्र एकत्रित)";
                     opt.text = form.form_name + tag;
                     fSelect.appendChild(opt);
                 }
             });
-
-            if (hasFortnightly) document.getElementById('fortnightDiv').classList.remove('hidden');
-            else document.getElementById('fortnightDiv').classList.add('hidden');
-
-            if (hasWeekly) document.getElementById('weekDiv').classList.remove('hidden');
-            else document.getElementById('weekDiv').classList.add('hidden');
 
             if (allFormsMap[currentSelection]) {
                 fSelect.value = currentSelection;
@@ -338,6 +329,7 @@
                 document.getElementById('villageSelect').innerHTML = '<option value="">-- आधी फॉर्म निवडा --</option>';
                 document.getElementById('villageHint').classList.add('hidden');
                 document.getElementById('dynamicFieldsContainer').innerHTML = '<p class="text-center text-gray-400 font-bold py-10 text-lg">कृपया वरून फॉर्म आणि गाव निवडा.</p>';
+                document.getElementById('dynamicPeriodDiv').classList.add('hidden');
             }
         }
 
@@ -355,6 +347,7 @@
             if (!formId) {
                 vSelect.innerHTML = '<option value="">-- आधी फॉर्म निवडा --</option>';
                 vHint.classList.add('hidden');
+                document.getElementById('dynamicPeriodDiv').classList.add('hidden');
                 return;
             }
 
@@ -362,19 +355,54 @@
             globalPendingVillages = [];
             let hiddenCount = 0;
             
-            let fN = parseInt(document.getElementById('reportFortnight').value) || 1;
-            let wN = parseInt(document.getElementById('reportWeek').value) || 1;
-
             let freq = currentFormObj.schema_json && currentFormObj.schema_json.frequency ? currentFormObj.schema_json.frequency : (currentFormObj.form_type === 'fortnightly' ? 'fortnightly' : 'monthly');
 
-            const controlsDiv = document.getElementById('topControlsDiv');
-            if(freq === 'onetime') {
+            // 🟢 स्मार्ट कालावधी (Dynamic Period Logic)
+            let dDiv = document.getElementById('dynamicPeriodDiv');
+            let dLabel = document.getElementById('dynamicPeriodLabel');
+            let dSelect = document.getElementById('dynamicPeriodValue');
+
+            let currentPeriodVal = dSelect.value || "1";
+            let prevPeriodType = dSelect.getAttribute('data-type') || "";
+
+            if (freq === 'onetime') {
                 document.getElementById('reportMonth').parentElement.classList.add('opacity-30', 'pointer-events-none');
                 document.getElementById('reportYear').parentElement.classList.add('opacity-30', 'pointer-events-none');
+                dDiv.classList.add('hidden');
+                dSelect.setAttribute('data-type', 'none');
             } else {
                 document.getElementById('reportMonth').parentElement.classList.remove('opacity-30', 'pointer-events-none');
                 document.getElementById('reportYear').parentElement.classList.remove('opacity-30', 'pointer-events-none');
+                
+                if (freq === 'daily') {
+                    if(prevPeriodType !== 'daily') {
+                        dLabel.innerHTML = 'तारीख (Day) <span class="text-red-500">*</span>';
+                        let opts = ''; for(let i=1; i<=31; i++) opts += `<option value="${i}">${i} तारीख</option>`;
+                        dSelect.innerHTML = opts; dSelect.value = "1";
+                        dSelect.setAttribute('data-type', 'daily');
+                    }
+                    dDiv.classList.remove('hidden');
+                } else if (freq === 'weekly') {
+                    if(prevPeriodType !== 'weekly') {
+                        dLabel.innerHTML = 'आठवडा (Week) <span class="text-red-500">*</span>';
+                        dSelect.innerHTML = `<option value="1">पहिला (Week 1)</option><option value="2">दुसरा (Week 2)</option><option value="3">तिसरा (Week 3)</option><option value="4">चौथा (Week 4)</option><option value="5">पाचवा (Week 5)</option>`;
+                        dSelect.value = "1"; dSelect.setAttribute('data-type', 'weekly');
+                    }
+                    dDiv.classList.remove('hidden');
+                } else if (freq === 'fortnightly') {
+                    if(prevPeriodType !== 'fortnightly') {
+                        dLabel.innerHTML = 'पंधरवाडा <span class="text-red-500">*</span>';
+                        dSelect.innerHTML = `<option value="1">१ ते १५ तारीख</option><option value="2">१६ ते अखेर</option>`;
+                        dSelect.value = "1"; dSelect.setAttribute('data-type', 'fortnightly');
+                    }
+                    dDiv.classList.remove('hidden');
+                } else {
+                    dDiv.classList.add('hidden');
+                    dSelect.setAttribute('data-type', 'none');
+                }
             }
+
+            let pVal = parseInt(dSelect.value) || 1;
 
             if (currentFormObj.form_type === 'subcenter') {
                 let isFilled = currentMonthResponses.some(r => 
@@ -403,15 +431,20 @@
                     if (currentFormObj.form_type === 'list') {
                         isFilled = currentMonthResponses.some(r => 
                             r.form_id === formId && r.village_id === v.id && 
-                            r.response_data && r.response_data.is_nil === true
+                            r.response_data && r.response_data.is_nil === true &&
+                            ((freq === 'daily' && r.report_fortnight === pVal) ||
+                             (freq === 'weekly' && r.report_fortnight === pVal) ||
+                             (freq === 'fortnightly' && r.report_fortnight === pVal) ||
+                             (freq !== 'daily' && freq !== 'weekly' && freq !== 'fortnightly'))
                         );
                     } else {
                         isFilled = currentMonthResponses.some(r => 
                             r.form_id === formId && r.village_id === v.id && 
                             (currentFormObj.data_entry_mode === 'shared' ? true : r.employee_id === loggedInUser.id) &&
-                            ((freq === 'fortnightly' && r.report_fortnight === fN) ||
-                             (freq === 'weekly' && r.report_fortnight === wN) ||
-                             (freq !== 'fortnightly' && freq !== 'weekly'))
+                            ((freq === 'daily' && r.report_fortnight === pVal) ||
+                             (freq === 'weekly' && r.report_fortnight === pVal) ||
+                             (freq === 'fortnightly' && r.report_fortnight === pVal) ||
+                             (freq !== 'daily' && freq !== 'weekly' && freq !== 'fortnightly'))
                         );
                     }
 
@@ -528,6 +561,7 @@
             }
 
             let html = '';
+            
             let showPop = currentFormObj.schema_json && currentFormObj.schema_json.show_population === true;
 
             let columns = currentDataFields.map(f => {
@@ -669,7 +703,7 @@
             
             let freq = currentFormObj.schema_json && currentFormObj.schema_json.frequency ? currentFormObj.schema_json.frequency : (currentFormObj.form_type === 'fortnightly' ? 'fortnightly' : 'monthly');
             
-            if (currentFormObj.form_type === 'list' || freq === 'fortnightly' || freq === 'weekly') {
+            if (currentFormObj.form_type === 'list' || freq === 'fortnightly' || freq === 'weekly' || freq === 'daily') {
                 btnNilReport.classList.remove('hidden');
                 btnSaveAndAddMore.classList.remove('hidden');
                 submitBtn.innerHTML = "💾 सेव्ह करा आणि बाहेर पडा";
@@ -684,8 +718,7 @@
             const formId = document.getElementById('formSelect').value;
             const repMonth = document.getElementById('reportMonth').value;
             const repYear = document.getElementById('reportYear').value;
-            const repFortnight = document.getElementById('reportFortnight').value || null;
-            const repWeek = document.getElementById('reportWeek').value || null;
+            const periodVal = document.getElementById('dynamicPeriodValue') ? document.getElementById('dynamicPeriodValue').value : "1";
 
             if (!formId || currentPendingVillages.length === 0) return;
 
@@ -753,10 +786,8 @@
                     response_data: responseDataObj
                 };
                 
-                if (freq === 'fortnightly') {
-                    pLoad.report_fortnight = parseInt(repFortnight);
-                } else if (freq === 'weekly') {
-                    pLoad.report_fortnight = parseInt(repWeek);
+                if (freq === 'fortnightly' || freq === 'weekly' || freq === 'daily') {
+                    pLoad.report_fortnight = parseInt(periodVal);
                 } else {
                     pLoad.report_fortnight = 0;
                 }
