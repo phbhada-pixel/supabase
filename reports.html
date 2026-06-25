@@ -552,29 +552,29 @@
             let selMonthNum = 0, selYear = 0;
             let selMonthName = ""; 
             
-            let selFortnight = "1", selWeek = "1", selDaily = "1";
+            let selFortnight = 1, selWeek = 1, selDaily = 1;
 
             if (periodType === 'monthly') {
                 selMonthName = document.getElementById('reportMonth').value; 
                 selMonthNum = monthNamesMarathi[selMonthName]; 
-                selYear = document.getElementById('reportYear').value;
+                selYear = parseInt(document.getElementById('reportYear').value);
                 periodText = `${selMonthName} ${selYear}`;
                 
                 let fnDiv = document.getElementById('fortnightInputs');
                 if (fnDiv && !fnDiv.classList.contains('hidden')) {
-                    selFortnight = document.getElementById('reportFortnight').value || "1";
-                    periodText += ` (पंधरवाडा: ${selFortnight === "1" ? '१ ते १५' : '१६ ते अखेर'})`;
+                    selFortnight = parseInt(document.getElementById('reportFortnight').value) || 1;
+                    periodText += ` (पंधरवाडा: ${selFortnight === 1 ? '१ ते १५' : '१६ ते अखेर'})`;
                 }
                 
                 let wkDiv = document.getElementById('weekInputs');
                 if (wkDiv && !wkDiv.classList.contains('hidden')) {
-                    selWeek = document.getElementById('reportWeek').value || "1";
+                    selWeek = parseInt(document.getElementById('reportWeek').value) || 1;
                     periodText += ` (आठवडा: ${selWeek})`;
                 }
                 
                 let dyDiv = document.getElementById('dailyInputs');
                 if (dyDiv && !dyDiv.classList.contains('hidden')) {
-                    selDaily = document.getElementById('reportDaily').value || "1";
+                    selDaily = parseInt(document.getElementById('reportDaily').value) || 1;
                     periodText += ` (तारीख: ${selDaily})`;
                 }
             } else {
@@ -633,7 +633,7 @@
                         currentMonthResp = formResp.filter(r => {
                             if (freq === 'onetime') return true; 
 
-                            // 🟢 100% Bulletproof Month Check (String based)
+                            // 🟢 100% Bulletproof Filter (लवचिक महिना व अंक तपासणी)
                             let dbMonth = String(r.report_month).trim().toLowerCase();
                             let rYear = parseInt(r.report_year);
                             let createdDt = new Date(r.created_at);
@@ -641,7 +641,7 @@
                             if (isNaN(rYear) || rYear === 0) rYear = createdDt.getFullYear();
                             if (dbMonth === "null" || dbMonth === "" || dbMonth === "undefined" || dbMonth === "nan") dbMonth = String(createdDt.getMonth() + 1);
 
-                            let matchY = (rYear == parseInt(selYear));
+                            let matchY = (rYear === selYear);
                             let matchM = (
                                 dbMonth == selMonthNum || 
                                 dbMonth === `0${selMonthNum}` || 
@@ -649,17 +649,17 @@
                                 dbMonth === monthNamesNumeric[selMonthNum]?.toLowerCase()
                             );
 
-                            // 🟢 100% Bulletproof Frequency Check (String based)
-                            let dbFn = String(r.report_fortnight).trim();
-                            if(dbFn === "null" || dbFn === "undefined" || dbFn === "" || dbFn === "NaN") dbFn = "1";
+                            let dbFn = parseInt(r.report_fortnight);
+                            if(isNaN(dbFn) || dbFn === 0) dbFn = 1;
 
+                            // 🟢 चूक येथे होती: === ऐवजी आता == वापरले आहे, जेणेकरून '1' आणि 1 जुळतील!
                             let matchFreq = true;
                             if (freq === 'fortnightly') {
-                                matchFreq = (dbFn == selFortnight || dbFn === `0${selFortnight}`);
+                                matchFreq = (dbFn == selFortnight);
                             } else if (freq === 'weekly') {
-                                matchFreq = (dbFn == selWeek || dbFn === `0${selWeek}`);
+                                matchFreq = (dbFn == selWeek);
                             } else if (freq === 'daily') {
-                                matchFreq = (dbFn == selDaily || dbFn === `0${selDaily}`);
+                                matchFreq = (dbFn == selDaily);
                             }
                             
                             return matchY && matchM && matchFreq;
@@ -921,7 +921,6 @@
             return { l1, l2, l3 };
         }
 
-        // 🟢 सुधारणा: 'sheetData is not defined' आणि 'r4 is null' चे सर्व Bugs काढले
         function renderMultipleTables(reports, groupType) {
             let container = document.getElementById('reportTableContainer');
             let downArea = document.getElementById('downloadButtonsArea');
@@ -1315,8 +1314,7 @@
                 let columns = rep.fields; let rows = rep.rows;
                 let sheetData = []; let merges = []; let titleHeaderRows = []; let masterHeaderRows = []; let subTitleHeaderRows = []; let groupTotalRows = []; let phcTotalRows = [];
                 let showPop = rep.showPopConfig === true;
-                
-                // 🟢 सुधारणा: Column count सुरक्षितपणे काढण्याची पद्धत
+
                 let totalBaseCols = groupType === 'SubCenterFlat' ? (showPop ? 6 : 4) : (showPop ? 4 : 2); 
                 let totalColumnsCount = totalBaseCols; columns.forEach(c => { totalColumnsCount += (rep.isProg && c.type === 'number') ? 2 : 1; });
 
@@ -1458,19 +1456,18 @@
                                         if(w === 2) {
                                             r3.push(""); merges.push({ s: { r: startR+2, c: r3.length - 2 }, e: { r: startR+2, c: r3.length - 1 } });
                                             r4.push("मासिक"); r4.push("प्रगत");
-                                        } else { 
-                                            if(rep.isProg) { merges.push({ s: { r: startR+2, c: r3.length - 1 }, e: { r: startR+3, c: r3.length - 1 } }); r4.push(""); } 
+                                        } else {
+                                            if(rep.isProg) { merges.push({ s: { r: startR+2, c: r3.length - 1 }, e: { r: startR+3, c: r3.length - 1 } }); r4.push(""); }
                                         }
                                     }
                                     k = m;
                                 } else {
-                                    let mult2 = (rep.isProg && c2.type === 'number') ? 2 : 1;
-                                    if(mult2 === 2) { 
+                                    let w = (rep.isProg && c2.type === 'number') ? 2 : 1;
+                                    if(w === 2) { 
                                         r2.push(c2.l3); r2.push(""); merges.push({ s: { r: startR+1, c: r2.length - 2 }, e: { r: startR+2, c: r2.length - 1 } }); 
                                         r3.push(""); r3.push(""); r4.push("मासिक"); r4.push("प्रगत"); 
                                     } else { 
                                         r2.push(c2.l3); 
-                                        // 🟢 सुधारणा: r4 null असताना error येऊ नये म्हणून if(rep.isProg)
                                         if(rep.isProg) {
                                             merges.push({ s: { r: startR+1, c: r2.length - 1 }, e: { r: startR+3, c: r2.length - 1 } }); 
                                             r3.push(""); r4.push(""); 
@@ -1545,20 +1542,11 @@
                     let employeeGroups = {};
                     rows.forEach(r => { let key = `${r.subcenter}###${r.employee}`; if(!employeeGroups[key]) employeeGroups[key] = []; employeeGroups[key].push(r); });
 
-                    let totalBaseCols = showPop ? 4 : 2; 
-                    let totalColumnsCount = totalBaseCols; columns.forEach(c => { totalColumnsCount += (rep.isProg && c.type === 'number') ? 2 : 1; });
-
                     let headInfo = getCustomHeader(rep);
-                    let startIdx = sheetData.length;
-                    sheetData.push([headInfo.l1]); titleHeaderRows.push(startIdx); merges.push({ s: { r: startIdx, c: 0 }, e: { r: startIdx, c: totalColumnsCount - 1 } });
-                    sheetData.push([headInfo.l2]); titleHeaderRows.push(startIdx+1); merges.push({ s: { r: startIdx+1, c: 0 }, e: { r: startIdx+1, c: totalColumnsCount - 1 } });
-                    
-                    if(headInfo.l3 !== "") { 
-                        sheetData.push([headInfo.l3]); titleHeaderRows.push(startIdx+2); merges.push({ s: { r: startIdx+2, c: 0 }, e: { r: startIdx+2, c: totalColumnsCount - 1 } }); 
-                    }
 
                     Object.keys(employeeGroups).sort().forEach(empKey => {
-                        let [scName, empName] = empKey.split("###"); let subRows = employeeGroups[empKey];
+                        let [scName, empName] = empKey.split("###");
+                        let subRows = employeeGroups[empKey];
 
                         if (user.role === 'admin' || user.role === 'taluka_admin' || user.role === 'phc_admin') {
                             let currentMetaIndex = sheetData.length;
@@ -1609,13 +1597,12 @@
                                         }
                                         k = m;
                                     } else {
-                                        let mult2 = (rep.isProg && c2.type === 'number') ? 2 : 1;
-                                        if(mult2 === 2) { 
+                                        let w = (rep.isProg && c2.type === 'number') ? 2 : 1;
+                                        if(w === 2) { 
                                             r2.push(c2.l3); r2.push(""); merges.push({ s: { r: startR+1, c: r2.length - 2 }, e: { r: startR+2, c: r2.length - 1 } }); 
                                             r3.push(""); r3.push(""); r4.push("मासिक"); r4.push("प्रगत"); 
                                         } else { 
                                             r2.push(c2.l3); 
-                                            // 🟢 सुधारणा: r4 null असताना error येऊ नये म्हणून if(rep.isProg)
                                             if(rep.isProg) {
                                                 merges.push({ s: { r: startR+1, c: r2.length - 1 }, e: { r: startR+3, c: r2.length - 1 } }); 
                                                 r3.push(""); r4.push(""); 
@@ -1703,9 +1690,8 @@
                 }
 
                 let ws = XLSX.utils.aoa_to_sheet(sheetData); ws["!merges"] = merges;
-                
-                // 🟢 सुधारणा: Column count सुरक्षितपणे काढण्याची पद्धत
                 let finalColLimit = 0;
+                
                 if (groupType === "SubCenterConsolidated") {
                     finalColLimit = 2 + (rows.length * (rep.isProg ? 2 : 1)) + (rep.isProg ? 2 : 1);
                 } else {
@@ -1891,7 +1877,7 @@
             let isOnetime = freqFilter === 'onetime';
             
             let periodDisplay = isOnetime ? "संपूर्ण अहवाल (All Time)" : `${selMonth} ${selYear}`;
-            if(isFnVisible && !isOnetime) periodDisplay += ` (पंधरवाडा: ${selFortnight == 1 ? '१ ते १५ तारीख' : '१६ ते महिनाअखेर'})`;
+            if(isFnVisible && !isOnetime) periodDisplay += ` (पंधरवाडा: ${selFortnight == "1" ? '१ ते १५ तारीख' : '१६ ते महिनाअखेर'})`;
             if(isWnVisible && !isOnetime) periodDisplay += ` (आठवडा: ${selWeek})`;
             if(isDyVisible && !isOnetime) periodDisplay += ` (तारीख: ${selDaily})`;
 
@@ -2112,7 +2098,7 @@
                         </div>
 
                         <div class="content">
-                            <p>शासकीय अहवाल विहित वेळेत सादर न करणे ही अत्यंत गंभीर व प्रशासकीय दृष्ट्या अक्षम्य बाब असून, हे आपल्या कामातील हलगर्जीपणाचे व वरिष्ठांच्या आदेशाचे जाणीवपूर्वक उल्लंघन केल्याचे स्पष्ट लक्षण आहे.</p>
+                            <p>शासकीय अहवाल विहित वेळेत सादर মজकूर न करणे ही अत्यंत गंभीर व प्रशासकीय दृष्ट्या अक्षम्य बाब असून, हे आपल्या कामातील हलगर्जीपणाचे व वरिष्ठांच्या आदेशाचे जाणीवपूर्वक उल्लंघन केल्याचे स्पष्ट लक्षण आहे.</p>
                             
                             <p>तरी, ही नोटीस प्राप्त होताच <strong>पुढील २४ तासांच्या आत</strong> सदर सर्व प्रलंबित अहवाल प्रणालीवर अचूकपणे अद्ययावत करावेत आणि विहित वेळेत अहवाल न पाठवल्याबाबतचा आपला खुलासा लेखी स्वरूपात त्वरित या कार्यालयास सादर करावा.</p>
                             
