@@ -123,7 +123,8 @@
             <div id="dailyInputs" class="hidden">
                 <label class="block text-purple-700 text-xs font-bold mb-1">तारीख (Day)</label>
                 <select id="reportDaily" class="w-full p-2 border border-purple-400 rounded bg-purple-50 text-sm font-bold text-purple-900">
-                    </select>
+                    <!-- JavaScript मधून ३१ तारखा लोड होतील -->
+                </select>
             </div>
 
             <div id="customDateInputs" class="col-span-2 hidden flex gap-2">
@@ -551,29 +552,29 @@
             let selMonthNum = 0, selYear = 0;
             let selMonthName = ""; 
             
-            let selFortnight = 1, selWeek = 1, selDaily = 1;
+            let selFortnight = "1", selWeek = "1", selDaily = "1";
 
             if (periodType === 'monthly') {
                 selMonthName = document.getElementById('reportMonth').value; 
                 selMonthNum = monthNamesMarathi[selMonthName]; 
-                selYear = parseInt(document.getElementById('reportYear').value);
+                selYear = document.getElementById('reportYear').value;
                 periodText = `${selMonthName} ${selYear}`;
                 
                 let fnDiv = document.getElementById('fortnightInputs');
                 if (fnDiv && !fnDiv.classList.contains('hidden')) {
-                    selFortnight = parseInt(document.getElementById('reportFortnight').value) || 1;
-                    periodText += ` (पंधरवाडा: ${selFortnight === 1 ? '१ ते १५' : '१६ ते अखेर'})`;
+                    selFortnight = document.getElementById('reportFortnight').value || "1";
+                    periodText += ` (पंधरवाडा: ${selFortnight === "1" ? '१ ते १५' : '१६ ते अखेर'})`;
                 }
                 
                 let wkDiv = document.getElementById('weekInputs');
                 if (wkDiv && !wkDiv.classList.contains('hidden')) {
-                    selWeek = parseInt(document.getElementById('reportWeek').value) || 1;
+                    selWeek = document.getElementById('reportWeek').value || "1";
                     periodText += ` (आठवडा: ${selWeek})`;
                 }
                 
                 let dyDiv = document.getElementById('dailyInputs');
                 if (dyDiv && !dyDiv.classList.contains('hidden')) {
-                    selDaily = parseInt(document.getElementById('reportDaily').value) || 1;
+                    selDaily = document.getElementById('reportDaily').value || "1";
                     periodText += ` (तारीख: ${selDaily})`;
                 }
             } else {
@@ -632,7 +633,7 @@
                         currentMonthResp = formResp.filter(r => {
                             if (freq === 'onetime') return true; 
 
-                            // 🟢 लवचिक (Flexible) महिना शोधण्याची पद्धत पूर्ववत केली
+                            // 🟢 100% Bulletproof Month Check (String based)
                             let dbMonth = String(r.report_month).trim().toLowerCase();
                             let rYear = parseInt(r.report_year);
                             let createdDt = new Date(r.created_at);
@@ -640,7 +641,7 @@
                             if (isNaN(rYear) || rYear === 0) rYear = createdDt.getFullYear();
                             if (dbMonth === "null" || dbMonth === "" || dbMonth === "undefined" || dbMonth === "nan") dbMonth = String(createdDt.getMonth() + 1);
 
-                            let matchY = (rYear === selYear);
+                            let matchY = (rYear == parseInt(selYear));
                             let matchM = (
                                 dbMonth == selMonthNum || 
                                 dbMonth === `0${selMonthNum}` || 
@@ -648,16 +649,17 @@
                                 dbMonth === monthNamesNumeric[selMonthNum]?.toLowerCase()
                             );
 
-                            let dbFn = parseInt(r.report_fortnight);
-                            if(isNaN(dbFn) || dbFn === 0) dbFn = 1;
+                            // 🟢 100% Bulletproof Frequency Check (String based)
+                            let dbFn = String(r.report_fortnight).trim();
+                            if(dbFn === "null" || dbFn === "undefined" || dbFn === "" || dbFn === "NaN") dbFn = "1";
 
                             let matchFreq = true;
                             if (freq === 'fortnightly') {
-                                matchFreq = (dbFn === selFortnight);
+                                matchFreq = (dbFn == selFortnight || dbFn === `0${selFortnight}`);
                             } else if (freq === 'weekly') {
-                                matchFreq = (dbFn === selWeek);
+                                matchFreq = (dbFn == selWeek || dbFn === `0${selWeek}`);
                             } else if (freq === 'daily') {
-                                matchFreq = (dbFn === selDaily);
+                                matchFreq = (dbFn == selDaily || dbFn === `0${selDaily}`);
                             }
                             
                             return matchY && matchM && matchFreq;
@@ -919,7 +921,7 @@
             return { l1, l2, l3 };
         }
 
-        // 🟢 सुधारणा: 'sheetData is not defined' ही एरर काढली
+        // 🟢 सुधारणा: 'sheetData is not defined' आणि 'r4 is null' चे सर्व Bugs काढले
         function renderMultipleTables(reports, groupType) {
             let container = document.getElementById('reportTableContainer');
             let downArea = document.getElementById('downloadButtonsArea');
@@ -1091,8 +1093,8 @@
                     });
 
                     if (((user.role === 'admin' || user.role === 'taluka_admin' || user.role === 'phc_admin')) && rep.formType !== 'list') {
-                        let colspanTotal = groupType === 'SubCenterFlat' ? (showPop ? 6 : 4) : (showPop ? 4 : 2); 
                         let phcTotals = calculateSmartTotals(dataRowsToRender, columns, rep.isProg);
+                        let colspanTotal = groupType === 'SubCenterFlat' ? (showPop ? 6 : 4) : (showPop ? 4 : 2); 
                         tbodyHtml += `<tr class="bg-green-100 font-extrabold text-green-900 text-sm"><td class="border p-2 text-left" colspan="${colspanTotal}">एकूण Total</td>`;
                         columns.forEach(c => {
                             let pVal = phcTotals[c.id];
@@ -1313,6 +1315,10 @@
                 let columns = rep.fields; let rows = rep.rows;
                 let sheetData = []; let merges = []; let titleHeaderRows = []; let masterHeaderRows = []; let subTitleHeaderRows = []; let groupTotalRows = []; let phcTotalRows = [];
                 let showPop = rep.showPopConfig === true;
+                
+                // 🟢 सुधारणा: Column count सुरक्षितपणे काढण्याची पद्धत
+                let totalBaseCols = groupType === 'SubCenterFlat' ? (showPop ? 6 : 4) : (showPop ? 4 : 2); 
+                let totalColumnsCount = totalBaseCols; columns.forEach(c => { totalColumnsCount += (rep.isProg && c.type === 'number') ? 2 : 1; });
 
                 if (groupType === "SubCenterConsolidated") {
                     let verticalColCount = 2 + (rows.length * (rep.isProg ? 2 : 1)) + (rep.isProg ? 2 : 1);
@@ -1402,9 +1408,6 @@
                         dataRowsToRender = rows.sort((a,b) => a.subcenter.localeCompare(b.subcenter) || a.employee.localeCompare(b.employee) || a.village.localeCompare(b.village));
                     }
 
-                    let totalBaseCols = groupType === 'SubCenterFlat' ? (showPop ? 6 : 4) : (showPop ? 4 : 2); 
-                    let totalColumnsCount = totalBaseCols; columns.forEach(c => { totalColumnsCount += (rep.isProg && c.type === 'number') ? 2 : 1; });
-
                     let headInfo = getCustomHeader(rep);
                     let startIdx = sheetData.length;
                     sheetData.push([headInfo.l1]); titleHeaderRows.push(startIdx); merges.push({ s: { r: startIdx, c: 0 }, e: { r: startIdx, c: totalColumnsCount - 1 } });
@@ -1455,18 +1458,26 @@
                                         if(w === 2) {
                                             r3.push(""); merges.push({ s: { r: startR+2, c: r3.length - 2 }, e: { r: startR+2, c: r3.length - 1 } });
                                             r4.push("मासिक"); r4.push("प्रगत");
-                                        } else { if(rep.isProg) { merges.push({ s: { r: startR+2, c: r3.length - 1 }, e: { r: startR+3, c: r3.length - 1 } }); r4.push(""); } }
+                                        } else { 
+                                            if(rep.isProg) { merges.push({ s: { r: startR+2, c: r3.length - 1 }, e: { r: startR+3, c: r3.length - 1 } }); r4.push(""); } 
+                                        }
                                     }
                                     k = m;
                                 } else {
-                                    let w = (rep.isProg && c2.type === 'number') ? 2 : 1;
-                                    r2.push(c2.l3);
-                                    if(w === 2) {
-                                        r2.push(""); merges.push({ s: { r: startR+1, c: r2.length - 2 }, e: { r: startR+2, c: r2.length - 1 } }); 
-                                        r3.push(""); r3.push(""); r4.push("मासिक"); r4.push("प्रगत");
-                                    } else {
-                                        if(rep.isProg) { merges.push({ s: { r: startR+1, c: r2.length - 1 }, e: { r: startR+3, c: r2.length - 1 } }); r3.push(""); r4.push(""); } 
-                                        else { merges.push({ s: { r: startR+1, c: r2.length - 1 }, e: { r: startR+2, c: r2.length - 1 } }); r3.push(""); }
+                                    let mult2 = (rep.isProg && c2.type === 'number') ? 2 : 1;
+                                    if(mult2 === 2) { 
+                                        r2.push(c2.l3); r2.push(""); merges.push({ s: { r: startR+1, c: r2.length - 2 }, e: { r: startR+2, c: r2.length - 1 } }); 
+                                        r3.push(""); r3.push(""); r4.push("मासिक"); r4.push("प्रगत"); 
+                                    } else { 
+                                        r2.push(c2.l3); 
+                                        // 🟢 सुधारणा: r4 null असताना error येऊ नये म्हणून if(rep.isProg)
+                                        if(rep.isProg) {
+                                            merges.push({ s: { r: startR+1, c: r2.length - 1 }, e: { r: startR+3, c: r2.length - 1 } }); 
+                                            r3.push(""); r4.push(""); 
+                                        } else {
+                                            merges.push({ s: { r: startR+1, c: r2.length - 1 }, e: { r: startR+2, c: r2.length - 1 } }); 
+                                            r3.push(""); 
+                                        }
                                     }
                                     k++;
                                 }
@@ -1598,14 +1609,20 @@
                                         }
                                         k = m;
                                     } else {
-                                        let w = (rep.isProg && c2.type === 'number') ? 2 : 1;
-                                        r2.push(c2.l3);
-                                        if(w === 2) {
-                                            r2.push(""); merges.push({ s: { r: startR+1, c: r2.length - 2 }, e: { r: startR+2, c: r2.length - 1 } }); 
-                                            r3.push(""); r3.push(""); r4.push("मासिक"); r4.push("प्रगत");
-                                        } else {
-                                            if(rep.isProg) { merges.push({ s: { r: startR+1, c: r2.length - 1 }, e: { r: startR+3, c: r2.length - 1 } }); r3.push(""); r4.push(""); } 
-                                            else { merges.push({ s: { r: startR+1, c: r2.length - 1 }, e: { r: startR+2, c: r2.length - 1 } }); r3.push(""); }
+                                        let mult2 = (rep.isProg && c2.type === 'number') ? 2 : 1;
+                                        if(mult2 === 2) { 
+                                            r2.push(c2.l3); r2.push(""); merges.push({ s: { r: startR+1, c: r2.length - 2 }, e: { r: startR+2, c: r2.length - 1 } }); 
+                                            r3.push(""); r3.push(""); r4.push("मासिक"); r4.push("प्रगत"); 
+                                        } else { 
+                                            r2.push(c2.l3); 
+                                            // 🟢 सुधारणा: r4 null असताना error येऊ नये म्हणून if(rep.isProg)
+                                            if(rep.isProg) {
+                                                merges.push({ s: { r: startR+1, c: r2.length - 1 }, e: { r: startR+3, c: r2.length - 1 } }); 
+                                                r3.push(""); r4.push(""); 
+                                            } else {
+                                                merges.push({ s: { r: startR+1, c: r2.length - 1 }, e: { r: startR+2, c: r2.length - 1 } }); 
+                                                r3.push(""); 
+                                            }
                                         }
                                         k++;
                                     }
@@ -1686,7 +1703,15 @@
                 }
 
                 let ws = XLSX.utils.aoa_to_sheet(sheetData); ws["!merges"] = merges;
-                let finalColLimit = sheetData[3] ? sheetData[3].length : 60;
+                
+                // 🟢 सुधारणा: Column count सुरक्षितपणे काढण्याची पद्धत
+                let finalColLimit = 0;
+                if (groupType === "SubCenterConsolidated") {
+                    finalColLimit = 2 + (rows.length * (rep.isProg ? 2 : 1)) + (rep.isProg ? 2 : 1);
+                } else {
+                    let baseC = groupType === 'SubCenterFlat' ? (showPop ? 6 : 4) : (showPop ? 4 : 2);
+                    finalColLimit = baseC; columns.forEach(c => { finalColLimit += (rep.isProg && c.type === 'number') ? 2 : 1; });
+                }
 
                 for(let R=0; R<sheetData.length; R++) {
                     for(let C=0; C<finalColLimit; C++) { 
@@ -1758,9 +1783,9 @@
             const selMonthNum = monthNamesMarathi[selMonth];
             const selYear = document.getElementById('reportYear').value;
             
-            let selFortnight = parseInt(document.getElementById('reportFortnight') ? document.getElementById('reportFortnight').value : "1") || 1;
-            let selWeek = parseInt(document.getElementById('reportWeek') ? document.getElementById('reportWeek').value : "1") || 1;
-            let selDaily = parseInt(document.getElementById('reportDaily') ? document.getElementById('reportDaily').value : "1") || 1;
+            let selFortnight = document.getElementById('reportFortnight') ? document.getElementById('reportFortnight').value : "1";
+            let selWeek = document.getElementById('reportWeek') ? document.getElementById('reportWeek').value : "1";
+            let selDaily = document.getElementById('reportDaily') ? document.getElementById('reportDaily').value : "1";
             
             let selectedIDs = getSelectedReportIDs();
             if (selectedIDs.length === 0) { alert("कृपया किमान एक अहवाल निवडा!"); return; }
@@ -1810,23 +1835,31 @@
                             
                             if (freq === 'onetime') return true; 
                             
-                            // 🟢 लवचिक महिना आणि वर्ष
-                            let dbMonthNum = parseInt(h.report_month);
+                            let dbMonth = String(h.report_month).trim().toLowerCase();
                             let rYear = parseInt(h.report_year);
+                            let createdDt = new Date(h.created_at);
                             
-                            let matchM = (dbMonthNum === selMonthNum);
-                            let matchY = (rYear === parseInt(selYear));
+                            if (isNaN(rYear) || rYear === 0) rYear = createdDt.getFullYear();
+                            if (dbMonth === "null" || dbMonth === "" || dbMonth === "undefined" || dbMonth === "nan") dbMonth = String(createdDt.getMonth() + 1);
+
+                            let matchY = (rYear == parseInt(selYear));
+                            let matchM = (
+                                dbMonth == selMonthNum || 
+                                dbMonth === `0${selMonthNum}` || 
+                                dbMonth === selMonthName.toLowerCase() || 
+                                dbMonth === monthNamesNumeric[selMonthNum]?.toLowerCase()
+                            );
                             
-                            let dbFn = parseInt(h.report_fortnight);
-                            if (isNaN(dbFn) || dbFn === 0) dbFn = 1;
+                            let dbFn = String(h.report_fortnight).trim();
+                            if(dbFn === "null" || dbFn === "undefined" || dbFn === "" || dbFn === "NaN") dbFn = "1";
                             
                             let matchFreq = true;
                             if (freq === 'fortnightly') {
-                                matchFreq = (dbFn === selFortnight);
+                                matchFreq = (dbFn == selFortnight || dbFn === `0${selFortnight}`);
                             } else if (freq === 'weekly') {
-                                matchFreq = (dbFn === selWeek);
+                                matchFreq = (dbFn == selWeek || dbFn === `0${selWeek}`);
                             } else if (freq === 'daily') {
-                                matchFreq = (dbFn === selDaily);
+                                matchFreq = (dbFn == selDaily || dbFn === `0${selDaily}`);
                             }
                             
                             return matchM && matchY && matchFreq;
