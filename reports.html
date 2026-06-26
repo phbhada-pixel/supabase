@@ -532,7 +532,7 @@
             return val;
         }
 
-        async function fetchReportData() {
+      async function fetchReportData() {
             let selectedIDs = getSelectedReportIDs(); 
             if(selectedIDs.length === 0) { alert("कृपया किमान एक अहवाल निवडा!"); return; }
 
@@ -552,29 +552,29 @@
             let selMonthNum = 0, selYear = 0;
             let selMonthName = ""; 
             
-            let selFortnight = 1, selWeek = 1, selDaily = 1;
+            let selFortnight = "1", selWeek = "1", selDaily = "1";
 
             if (periodType === 'monthly') {
                 selMonthName = document.getElementById('reportMonth').value; 
                 selMonthNum = monthNamesMarathi[selMonthName]; 
-                selYear = parseInt(document.getElementById('reportYear').value);
+                selYear = document.getElementById('reportYear').value;
                 periodText = `${selMonthName} ${selYear}`;
                 
                 let fnDiv = document.getElementById('fortnightInputs');
                 if (fnDiv && !fnDiv.classList.contains('hidden')) {
-                    selFortnight = parseInt(document.getElementById('reportFortnight').value) || 1;
-                    periodText += ` (पंधरवाडा: ${selFortnight === 1 ? '१ ते १५' : '१६ ते अखेर'})`;
+                    selFortnight = document.getElementById('reportFortnight').value || "1";
+                    periodText += ` (पंधरवाडा: ${selFortnight == "1" ? '१ ते १५' : '१६ ते अखेर'})`;
                 }
                 
                 let wkDiv = document.getElementById('weekInputs');
                 if (wkDiv && !wkDiv.classList.contains('hidden')) {
-                    selWeek = parseInt(document.getElementById('reportWeek').value) || 1;
+                    selWeek = document.getElementById('reportWeek').value || "1";
                     periodText += ` (आठवडा: ${selWeek})`;
                 }
                 
                 let dyDiv = document.getElementById('dailyInputs');
                 if (dyDiv && !dyDiv.classList.contains('hidden')) {
-                    selDaily = parseInt(document.getElementById('reportDaily').value) || 1;
+                    selDaily = document.getElementById('reportDaily').value || "1";
                     periodText += ` (तारीख: ${selDaily})`;
                 }
             } else {
@@ -641,7 +641,7 @@
                             if (isNaN(rYear) || rYear === 0) rYear = createdDt.getFullYear();
                             if (dbMonth === "null" || dbMonth === "" || dbMonth === "undefined" || dbMonth === "nan") dbMonth = String(createdDt.getMonth() + 1);
 
-                            let matchY = (rYear === selYear);
+                            let matchY = (rYear == parseInt(selYear));
                             let matchM = (
                                 dbMonth == selMonthNum || 
                                 dbMonth === `0${selMonthNum}` || 
@@ -649,17 +649,18 @@
                                 dbMonth === monthNamesNumeric[selMonthNum]?.toLowerCase()
                             );
 
-                            let dbFn = parseInt(r.report_fortnight);
-                            if(isNaN(dbFn) || dbFn === 0) dbFn = 1;
+                            let dbFn = String(r.report_fortnight).trim();
+                            // जर डेटाबेसमध्ये पंधरवाडा 0 किंवा null सेव्ह झाला असेल, तर तो 1 मानावा
+                            if(dbFn === "null" || dbFn === "undefined" || dbFn === "" || dbFn === "NaN" || dbFn === "0") dbFn = "1";
 
-                            // 🟢 चूक येथे होती: === ऐवजी आता == वापरले आहे, जेणेकरून '1' आणि 1 जुळतील!
+                            // 🟢 == वापरले आहे, जेणेकरून '1' आणि 1 जुळतील!
                             let matchFreq = true;
                             if (freq === 'fortnightly') {
-                                matchFreq = (dbFn == selFortnight);
+                                matchFreq = (dbFn == selFortnight || dbFn === `0${selFortnight}`);
                             } else if (freq === 'weekly') {
-                                matchFreq = (dbFn == selWeek);
+                                matchFreq = (dbFn == selWeek || dbFn === `0${selWeek}`);
                             } else if (freq === 'daily') {
-                                matchFreq = (dbFn == selDaily);
+                                matchFreq = (dbFn == selDaily || dbFn === `0${selDaily}`);
                             }
                             
                             return matchY && matchM && matchFreq;
@@ -811,7 +812,7 @@
                     alert(`⚠️ तुम्ही निवडलेल्या कालावधीचा डेटा फिल्टरमुळे लपवला जात आहे.\n\nकृपया खात्री करा की तुम्ही निवडलेले 'उपकेंद्र' आणि 'वर्ष' अचूक आहेत.`); 
                 }
             } catch(e) { alert("एरर: " + e.message); }
-        }        
+        }       
 
         function getFieldHierarchyChain(fields, fieldObj) {
             let chain = []; let current = fieldObj;
