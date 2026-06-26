@@ -722,9 +722,24 @@
 
             if (!formId || currentPendingVillages.length === 0) return;
 
+            // 🟢 डबल क्लिक थांबवण्यासाठी बटणे बंद करा
+            const btnSubmit = document.getElementById('submitBtn');
+            const btnNil = document.getElementById('btnNilReport');
+            const btnAddMore = document.getElementById('btnSaveAndAddMore');
+            if(btnSubmit) btnSubmit.disabled = true;
+            if(btnNil) btnNil.disabled = true;
+            if(btnAddMore) btnAddMore.disabled = true;
+
             if (!isNilReport) {
                 const formEl = document.getElementById('dynamicDataForm');
-                if (!formEl.checkValidity()) { formEl.reportValidity(); return; }
+                if (!formEl.checkValidity()) { 
+                    formEl.reportValidity(); 
+                    // व्हॅलिडेशन फेल झाल्यास बटणे पुन्हा चालू करा
+                    if(btnSubmit) btnSubmit.disabled = false;
+                    if(btnNil) btnNil.disabled = false;
+                    if(btnAddMore) btnAddMore.disabled = false;
+                    return; 
+                }
 
                 for (let v of currentPendingVillages) {
                     for (let f of currentDataFields) {
@@ -739,6 +754,9 @@
                             if (maxVal !== null && val > maxVal) {
                                 alert(`⚠️ चूक: ${v.name} साठी '${f.label}' मधील आकडा ${maxVal} पेक्षा जास्त असू शकत नाही!`);
                                 el.focus();
+                                if(btnSubmit) btnSubmit.disabled = false;
+                                if(btnNil) btnNil.disabled = false;
+                                if(btnAddMore) btnAddMore.disabled = false;
                                 return;
                             }
                         }
@@ -748,21 +766,62 @@
                             if (minVal !== null && val < minVal) {
                                 alert(`⚠️ चूक: ${v.name} साठी '${f.label}' मधील आकडा ${minVal} पेक्षा कमी असू शकत नाही!`);
                                 el.focus();
+                                if(btnSubmit) btnSubmit.disabled = false;
+                                if(btnNil) btnNil.disabled = false;
+                                if(btnAddMore) btnAddMore.disabled = false;
                                 return;
                             }
                         }
                     }
                 }
             } else {
-                if(!confirm("तुम्हाला खात्री आहे की या गावासाठी या कालावधीची माहिती 'निरंक (NIL)' आहे?\n(यानंतर या कालावधीत या गावाची नोंद करता येणार नाही)")) return;
+                if(!confirm("तुम्हाला खात्री आहे की या गावासाठी या कालावधीची माहिती 'निरंक (NIL)' आहे?\n(यानंतर या कालावधीत या गावाची नोंद करता येणार नाही)")) {
+                    if(btnSubmit) btnSubmit.disabled = false;
+                    if(btnNil) btnNil.disabled = false;
+                    if(btnAddMore) btnAddMore.disabled = false;
+                    return;
+                }
             }
 
-            document.getElementById('loaderText').innerText = "डेटा सुरक्षित सेव्ह होत आहे...";
+            document.getElementById('loaderText').innerText = "डेटा तपासला व सुरक्षित सेव्ह होत आहे...";
             document.getElementById('loader').classList.remove('hidden');
 
             let payloads = [];
             let freq = currentFormObj.schema_json && currentFormObj.schema_json.frequency ? currentFormObj.schema_json.frequency : (currentFormObj.form_type === 'fortnightly' ? 'fortnightly' : 'monthly');
+            let isOnetime = freq === 'onetime';
+            let targetFortnight = (freq === 'fortnightly' || freq === 'weekly' || freq === 'daily') ? parseInt(periodVal) : 0;
 
+            // 🟢 डेटाबेस लेव्हल ड्युप्लिकेट चेकिंग (List फॉर्म सोडून इतर सर्व फॉर्मसाठी)
+            if (currentFormObj.form_type !== 'list') {
+                const villageIds = currentPendingVillages.map(v => v.id);
+                const { data: existingRecords, error: checkError } = await supabaseClient
+                    .from('form_responses')
+                    .select('id, village_id')
+                    .eq('form_id', formId)
+                    .eq('report_month', isOnetime ? 0 : parseInt(repMonth))
+                    .eq('report_year', isOnetime ? 0 : parseInt(repYear))
+                    .eq('report_fortnight', targetFortnight)
+                    .in('village_id', villageIds);
+
+                if (checkError) {
+                    document.getElementById('loader').classList.add('hidden');
+                    alert("डेटा तपासताना त्रुटी आली: " + checkError.message);
+                    if(btnSubmit) btnSubmit.disabled = false;
+                    if(btnNil) btnNil.disabled = false;
+                    if(btnAddMore) btnAddMore.disabled = false;
+                    return;
+                }
+
+                if (existingRecords && existingRecords.length > 0) {
+                    document.getElementById('loader').classList.add('hidden');
+                    alert("⚠️ सावधगिरी: तुम्ही निवडलेल्या गावांपैकी काहींचा अहवाल आधीच सिस्टीममध्ये सबमिट झाला आहे! कृपया एकाच महिन्याचा डेटा दोनदा भरू नका.");
+                    // फॉर्म रिफ्रेश करा म्हणजे झालेले बदल दिसतील
+                    await handleMonthYearChange();
+                    return;
+                }
+            }
+
+            // 🟢 पे-लोड (Payload) तयार करणे
             currentPendingVillages.forEach(v => {
                 let responseDataObj = {};
                 
@@ -775,23 +834,15 @@
                     });
                 }
 
-                let isOnetime = freq === 'onetime';
-
                 let pLoad = {
                     form_id: formId,
                     village_id: v.id,
                     employee_id: loggedInUser.id,
                     report_month: isOnetime ? 0 : parseInt(repMonth),
                     report_year: isOnetime ? 0 : parseInt(repYear),
+                    report_fortnight: targetFortnight,
                     response_data: responseDataObj
                 };
-                
-                if (freq === 'fortnightly' || freq === 'weekly' || freq === 'daily') {
-                    pLoad.report_fortnight = parseInt(periodVal);
-                } else {
-                    pLoad.report_fortnight = 0;
-                }
-
                 payloads.push(pLoad);
             });
 
@@ -802,8 +853,10 @@
 
                 if (error) {
                     alert("माहिती सेव्ह करताना त्रुटी आली: " + error.message);
+                    if(btnSubmit) btnSubmit.disabled = false;
+                    if(btnNil) btnNil.disabled = false;
+                    if(btnAddMore) btnAddMore.disabled = false;
                 } else {
-                    
                     if (freq === 'onetime') {
                         onetimeResponses.push(...payloads);
                     } else {
@@ -830,6 +883,9 @@
             } catch (err) {
                 document.getElementById('loader').classList.add('hidden');
                 alert("नेटवर्क किंवा सिस्टीम एरर: " + err.message);
+                if(btnSubmit) btnSubmit.disabled = false;
+                if(btnNil) btnNil.disabled = false;
+                if(btnAddMore) btnAddMore.disabled = false;
             }
         }
     </script>
