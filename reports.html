@@ -358,7 +358,8 @@
                 masterData.forms = filteredForms;
                 populateFormsDropdown();
 
-                const { data: respData } = await supabaseClient.from('form_responses').select('form_id, village_id, report_month, report_year, report_fortnight');
+                // 🟢 अतिशय महत्त्वाचे: employee_id आणि created_at ओढणे गरजेचे आहे
+                const { data: respData } = await supabaseClient.from('form_responses').select('id, form_id, village_id, employee_id, report_month, report_year, report_fortnight, created_at');
                 masterData.filledStats = respData || [];
 
             } catch(e) { 
@@ -612,7 +613,7 @@
                 let finalReports = [];
 
                 formsToProcess.forEach(formObj => {
-                    let formResp = dbData.filter(r => r.form_id === formObj.id); 
+                    let formResp = dbData.filter(r => String(r.form_id) === String(formObj.id)); 
                     if(formResp.length === 0) return;
                     
                     const allFields = formObj.schema_json.fields || [];
@@ -633,49 +634,38 @@
                         currentMonthResp = formResp.filter(r => {
                             if (freq === 'onetime') return true; 
 
-                            // 🟢 100% बुलेटप्रूफ महिना आणि वर्ष चेकिंग
+                            let dbMonth = String(r.report_month).trim().toLowerCase();
                             let rYear = parseInt(r.report_year);
-                            if (isNaN(rYear) || rYear === 0) rYear = new Date(r.created_at).getFullYear();
+                            if (isNaN(rYear) || rYear === 0) {
+                                if(r.created_at) rYear = new Date(r.created_at).getFullYear();
+                                else rYear = parseInt(selYear); 
+                            }
                             let matchY = (rYear === parseInt(selYear));
 
-                            let mStr = String(r.report_month).trim().toLowerCase();
-                            let dbMonthNum = parseInt(mStr);
+                            let matchM = false;
+                            if (dbMonth == selMonthNum || dbMonth === `0${selMonthNum}`) matchM = true;
+                            else if (selMonthName && dbMonth.includes(selMonthName.toLowerCase())) matchM = true;
+                            else if (monthNamesNumeric[selMonthNum] && dbMonth.includes(monthNamesNumeric[selMonthNum].toLowerCase())) matchM = true;
                             
-                            // जर महिना अक्षरात असेल (उदा. 'जानेवारी'), तर त्याला अंकात रूपांतरित करा
-                            if (isNaN(dbMonthNum) || dbMonthNum === 0) {
-                                for (const [mName, mNum] of Object.entries(monthNamesMarathi)) {
-                                    if (mStr.includes(mName.toLowerCase())) { dbMonthNum = mNum; break; }
-                                }
-                                if (isNaN(dbMonthNum) || dbMonthNum === 0) {
-                                    dbMonthNum = new Date(r.created_at).getMonth() + 1;
+                            if (!matchM && (dbMonth === "null" || dbMonth === "" || dbMonth === "nan")) {
+                                if (r.created_at) {
+                                    let cMonth = new Date(r.created_at).getMonth() + 1;
+                                    matchM = (cMonth === parseInt(selMonthNum));
                                 }
                             }
-                            let matchM = (dbMonthNum === parseInt(selMonthNum));
 
-                            // 🟢 100% बुलेटप्रूफ पंधरवाडा / आठवडा चेकिंग (अंक आणि मजकूर दोन्हीसाठी)
-                            let fnStr = String(r.report_fortnight).trim();
-                            let dbFn = 1; // Default
-                            
-                            if (fnStr.includes("2") || fnStr.includes("२") || fnStr.includes("16") || fnStr.includes("१६") || fnStr.includes("अखेर") || fnStr.includes("दुसरा")) {
-                                dbFn = 2;
-                            } else if (fnStr.includes("3") || fnStr.includes("३") || fnStr.includes("तिसरा")) {
-                                dbFn = 3;
-                            } else if (fnStr.includes("4") || fnStr.includes("४") || fnStr.includes("चौथा")) {
-                                dbFn = 4;
-                            } else if (fnStr.includes("5") || fnStr.includes("५") || fnStr.includes("पाचवा")) {
-                                dbFn = 5;
-                            } else if (freq === 'daily') {
-                                let pFn = parseInt(fnStr);
-                                if (!isNaN(pFn) && pFn > 0) dbFn = pFn;
-                            } else {
-                                dbFn = 1;
-                            }
+                            let dbFn = String(r.report_fortnight).trim();
+                            if(dbFn === "null" || dbFn === "undefined" || dbFn === "" || dbFn === "NaN" || dbFn === "0") dbFn = "1";
 
                             let matchFreq = true;
-                            if (freq === 'fortnightly') matchFreq = (dbFn === parseInt(selFortnight));
-                            else if (freq === 'weekly') matchFreq = (dbFn === parseInt(selWeek));
-                            else if (freq === 'daily') matchFreq = (dbFn === parseInt(selDaily));
-
+                            if (freq === 'fortnightly') {
+                                matchFreq = (dbFn == selFortnight || dbFn === `0${selFortnight}` || (selFortnight == 2 && (dbFn.includes("16") || dbFn.includes("अखेर") || dbFn.includes("२"))) || (selFortnight == 1 && (dbFn.includes("15") || dbFn.includes("१"))));
+                            } else if (freq === 'weekly') {
+                                matchFreq = (dbFn == selWeek || dbFn === `0${selWeek}` || dbFn.includes(String(selWeek)));
+                            } else if (freq === 'daily') {
+                                matchFreq = (dbFn == selDaily || dbFn === `0${selDaily}` || dbFn.includes(String(selDaily)));
+                            }
+                            
                             return matchY && matchM && matchFreq;
                         });
                     } else {
@@ -749,7 +739,7 @@
                                 if (isProgressive && f.type === 'number') {
                                     let sumProg = 0;
                                     getProgressiveMonthsList(selMonthNum, selYear).forEach(p => {
-                                        let pastRes = formResp.find(r => r.village_id === res.village_id && (Number(r.report_month) === p.month || String(r.report_month).trim() === monthNamesNumeric[p.month]) && Number(r.report_year) === p.year);
+                                        let pastRes = formResp.find(r => String(r.village_id) === String(res.village_id) && (Number(r.report_month) === p.month || String(r.report_month).trim() === monthNamesNumeric[p.month]) && Number(r.report_year) === p.year);
                                         if(pastRes && pastRes.response_data && pastRes.response_data[f.id] && !pastRes.response_data.is_nil) {
                                             sumProg += parseFloat(pastRes.response_data[f.id].value) || 0;
                                         }
@@ -911,7 +901,7 @@
                 l2 = "प्रगत अहवाल";
                 l3 = `${formName} | ${period}`;
             } else if (role === 'phc_admin') {
-                let phcObj = masterData.phcs.find(p => p.id === user.phc_id);
+                let phcObj = masterData.phcs.find(p => String(p.id) === String(user.phc_id));
                 let phcName = phcObj ? (phcObj.name || phcObj.phc_name) : "प्राथमिक आरोग्य केंद्र";
                 l1 = `प्राथमिक आरोग्य केंद्र ${phcName}`;
                 l2 = `${formName}`;
@@ -923,7 +913,7 @@
                 let scName = scObj ? scObj.name : "उपकेंद्र";
                 
                 if (role === 'बाह्य रुग्ण विभाग सेविका') {
-                     let phcObj = masterData.phcs.find(p => p.id === user.phc_id);
+                     let phcObj = masterData.phcs.find(p => String(p.id) === String(user.phc_id));
                      let phcName = phcObj ? (phcObj.name || phcObj.phc_name) : "";
                      scName = `PHC ${phcName} (OPD)`;
                 }
@@ -1029,6 +1019,9 @@
                     } else if (groupType === "SubCenterFlat") {
                         dataRowsToRender = rows.sort((a,b) => a.subcenter.localeCompare(b.subcenter) || a.employee.localeCompare(b.employee) || a.village.localeCompare(b.village));
                     }
+
+                    let totalBaseCols = groupType === 'SubCenterFlat' ? (showPop ? 6 : 4) : (showPop ? 4 : 2); 
+                    let totalColumnsCount = totalBaseCols; columns.forEach(c => { totalColumnsCount += (rep.isProg && c.type === 'number') ? 2 : 1; });
 
                     let l1Row = `<tr><th rowspan="${rep.isProg?4:3}" class="border p-2">अ.क्र.</th><th rowspan="${rep.isProg?4:3}" class="border p-2">उपकेंद्र</th>`;
                     if (groupType === 'SubCenterFlat') {
@@ -1164,22 +1157,16 @@
                                         k = m;
                                     } else {
                                         let mult2 = (rep.isProg && c2.type === 'number') ? 2 : 1;
-                                        if(mult2 === 2) { 
-                                            l2Row += `<th colspan="2" rowspan="2" class="border p-2 text-xs">${c2.l3}</th>`; l4Row += `<th class="border p-1 bg-yellow-50 text-[10px]">मासिक</th><th class="border p-1 bg-orange-50 text-[10px]">प्रगत</th>`; 
-                                        } else { 
-                                            l2Row += `<th rowspan="${rep.isProg?3:2}" class="border p-2 text-xs">${c2.l3}</th>`; 
-                                        }
+                                        if(mult2 === 2) { l2Row += `<th colspan="2" rowspan="2" class="border p-2 text-xs">${c2.l3}</th>`; l4Row += `<th class="border p-1 bg-yellow-50 text-[10px]">मासिक</th><th class="border p-1 bg-orange-50 text-[10px]">प्रगत</th>`; } 
+                                        else { l2Row += `<th rowspan="${rep.isProg?3:2}" class="border p-2 text-xs">${c2.l3}</th>`; }
                                         k++;
                                     }
                                 }
                                 i = j;
                             } else {
                                 let mult = (rep.isProg && c.type === 'number') ? 2 : 1;
-                                if(mult === 2) { 
-                                    l1Row += `<th colspan="2" rowspan="3" class="border p-2 text-xs">${c.l3}</th>`; l4Row += `<th class="border p-1 bg-yellow-50 text-[10px]">मासिक</th><th class="border p-1 bg-orange-50 text-[10px]">प्रगत</th>`; 
-                                } else { 
-                                    l1Row += `<th rowspan="${rep.isProg?4:3}" class="border p-2 text-xs">${c.l3}</th>`; 
-                                }
+                                if(mult === 2) { l1Row += `<th colspan="2" rowspan="3" class="border p-2 text-xs">${c.l3}</th>`; l4Row += `<th class="border p-1 bg-yellow-50 text-[10px]">मासिक</th><th class="border p-1 bg-orange-50 text-[10px]">प्रगत</th>`; } 
+                                else { l1Row += `<th rowspan="${rep.isProg?4:3}" class="border p-2 text-xs">${c.l3}</th>`; }
                                 i++;
                             }
                         }
@@ -1717,14 +1704,7 @@
                 }
 
                 let ws = XLSX.utils.aoa_to_sheet(sheetData); ws["!merges"] = merges;
-                let finalColLimit = 0;
-                
-                if (groupType === "SubCenterConsolidated") {
-                    finalColLimit = 2 + (rows.length * (rep.isProg ? 2 : 1)) + (rep.isProg ? 2 : 1);
-                } else {
-                    let baseC = groupType === 'SubCenterFlat' ? (showPop ? 6 : 4) : (showPop ? 4 : 2);
-                    finalColLimit = baseC; columns.forEach(c => { finalColLimit += (rep.isProg && c.type === 'number') ? 2 : 1; });
-                }
+                let finalColLimit = sheetData[3] ? sheetData[3].length : 60;
 
                 for(let R=0; R<sheetData.length; R++) {
                     for(let C=0; C<finalColLimit; C++) { 
@@ -1837,19 +1817,26 @@
                     if (user.role === 'phc_admin' && u.phc_id !== user.phc_id) return;
                     if (!isAdminRole && String(u.mobile_number).trim() !== String(user.mobile).trim()) return;
 
-                    let scObj = masterData.subCenters.find(s => s.id === u.sub_center_id);
+                    let scObj = masterData.subCenters.find(s => String(s.id) === String(u.sub_center_id));
                     let scName = scObj ? scObj.name : "Unknown";
                     if (isAdminRole && filterSubCenter !== "सर्व" && scName !== filterSubCenter) return;
 
-                    let userVillages = masterData.villages.filter(v => v.sub_center_id === u.sub_center_id);
+                    let userVillages = masterData.villages.filter(v => String(v.sub_center_id) === String(u.sub_center_id));
                     userVillages.forEach(v => {
                         let isFilled = masterData.filledStats.some(h => {
-                            if (h.form_id !== f.id || h.village_id !== v.id) return false;
+                            if (String(h.form_id) !== String(f.id) || String(h.village_id) !== String(v.id)) return false;
                             
+                            // 🟢 वैयक्तिक फॉर्म तपासणी
+                            let mode = f.data_entry_mode || 'shared';
+                            if (mode === 'individual' && String(h.employee_id) !== String(u.id)) return false;
+
                             if (freq === 'onetime') return true; 
                             
                             let rYear = parseInt(h.report_year);
-                            if (isNaN(rYear) || rYear === 0) rYear = new Date(h.created_at).getFullYear();
+                            if (isNaN(rYear) || rYear === 0) {
+                                if(h.created_at) rYear = new Date(h.created_at).getFullYear();
+                                else rYear = parseInt(selYear);
+                            }
                             let matchY = (rYear === parseInt(selYear));
 
                             let mStr = String(h.report_month).trim().toLowerCase();
@@ -1860,7 +1847,8 @@
                                     if (mStr.includes(mName.toLowerCase())) { dbMonthNum = mNum; break; }
                                 }
                                 if (isNaN(dbMonthNum) || dbMonthNum === 0) {
-                                    dbMonthNum = new Date(h.created_at).getMonth() + 1;
+                                    if(h.created_at) dbMonthNum = new Date(h.created_at).getMonth() + 1;
+                                    else dbMonthNum = parseInt(selMonthNum);
                                 }
                             }
                             let matchM = (dbMonthNum === parseInt(selMonthNum));
