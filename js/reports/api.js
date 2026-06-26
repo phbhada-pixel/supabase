@@ -1,67 +1,83 @@
 async function loadInitialMasterData() {
-    document.getElementById('reportLoader').classList.remove('hidden');
+            document.getElementById('reportLoader').classList.remove('hidden');
 
-    try {
-        const { data: pData } = await supabaseClient.from('phcs').select('*');
-        masterData.phcs = pData || [];
+            try {
+                const { data: pData } = await supabaseClient.from('phcs').select('*');
+                masterData.phcs = pData || [];
 
-        let scQuery = supabaseClient.from('sub_centers').select('*').order('name');
-        if (user.role === 'phc_admin' && user.phc_id) {
-            scQuery = scQuery.eq('phc_id', user.phc_id);
-        }
-        const { data: scData } = await scQuery;
-        masterData.subCenters = scData || [];
+                let scQuery = supabaseClient.from('sub_centers').select('*').order('name');
+                if (user.role === 'phc_admin' && user.phc_id) {
+                    scQuery = scQuery.eq('phc_id', user.phc_id);
+                }
+                const { data: scData } = await scQuery;
+                masterData.subCenters = scData || [];
 
-        let scFilter = document.getElementById('reportSubCenterFilter');
-        if (scFilter) {
-            scFilter.innerHTML = '<option value="सर्व">सर्व उपकेंद्र (All Sub-centers)</option>';
-            masterData.subCenters.forEach(sc => { 
-                scFilter.innerHTML += `<option value="${sc.name}">${sc.name}</option>`; 
-            });
-        }
+                let scFilter = document.getElementById('reportSubCenterFilter');
+                if (scFilter) {
+                    scFilter.innerHTML = '<option value="सर्व">सर्व उपकेंद्र (All Sub-centers)</option>';
+                    masterData.subCenters.forEach(sc => { 
+                        scFilter.innerHTML += `<option value="${sc.name}">${sc.name}</option>`; 
+                    });
+                }
 
-        let vQuery = supabaseClient.from('villages').select('*').order('name');
-        if (user.role === 'phc_admin') {
-            let scIds = masterData.subCenters.map(s => s.id);
-            if (scIds.length > 0) vQuery = vQuery.in('sub_center_id', scIds);
-            else vQuery = vQuery.eq('sub_center_id', '00000000-0000-0000-0000-000000000000');
-        }
-        const { data: vData } = await vQuery;
-        masterData.villages = vData || [];
+                let vQuery = supabaseClient.from('villages').select('*').order('name');
+                if (user.role === 'phc_admin') {
+                    let scIds = masterData.subCenters.map(s => s.id);
+                    if (scIds.length > 0) vQuery = vQuery.in('sub_center_id', scIds);
+                    else vQuery = vQuery.eq('sub_center_id', '00000000-0000-0000-0000-000000000000');
+                }
+                const { data: vData } = await vQuery;
+                masterData.villages = vData || [];
 
-        let eQuery = supabaseClient.from('employees').select('*').order('full_name');
-        if (user.role === 'phc_admin' && user.phc_id) eQuery = eQuery.eq('phc_id', user.phc_id);
-        const { data: empData } = await eQuery;
-        masterData.employees = empData || [];
+                let eQuery = supabaseClient.from('employees').select('*').order('full_name');
+                if (user.role === 'phc_admin' && user.phc_id) eQuery = eQuery.eq('phc_id', user.phc_id);
+                const { data: empData } = await eQuery;
+                masterData.employees = empData || [];
 
-        const { data: formData, error: formErr } = await supabaseClient.from('dynamic_forms').select('*').eq('is_active', true);
-        if (formErr) throw formErr;
+                const { data: formData, error: formErr } = await supabaseClient.from('dynamic_forms').select('*').eq('is_active', true);
+                if (formErr) throw formErr;
 
-        let userRoleStr = String(user.role).trim().toUpperCase();
-        let isAdminRole = ['ADMIN', 'TALUKA_ADMIN', 'PHC_ADMIN'].includes(userRoleStr);
+                let userRoleStr = String(user.role).trim().toUpperCase();
+                let isAdminRole = ['ADMIN', 'TALUKA_ADMIN', 'PHC_ADMIN'].includes(userRoleStr);
 
-        let filteredForms = (formData || []).filter(form => {
-            let allowedRoles = form.allowed_roles ? String(form.allowed_roles).trim().toUpperCase() : "ALL";
-            if (isAdminRole || allowedRoles === "ALL") return true;
-            let rolesArr = allowedRoles.split(',').map(r => r.trim());
-            return rolesArr.includes(userRoleStr);
-        });
+                let filteredForms = (formData || []).filter(form => {
+                    let allowedRoles = form.allowed_roles ? String(form.allowed_roles).trim().toUpperCase() : "ALL";
+                    if (isAdminRole || allowedRoles === "ALL") return true;
+                    let rolesArr = allowedRoles.split(',').map(r => r.trim());
+                    return rolesArr.includes(userRoleStr);
+                });
 
-        masterData.forms = filteredForms;
-        populateFormsDropdown();
+                masterData.forms = filteredForms;
+                populateFormsDropdown();
 
-        const { data: respData } = await supabaseClient.from('form_responses').select('id, form_id, village_id, employee_id, report_month, report_year, report_fortnight, created_at');
-        masterData.filledStats = respData || [];
+                // 🟢 1000 लिमिट बायपास: लूप वापरून सर्व रेकॉर्ड्स ओढण्याची पद्धत
+                let allFilledStats = [];
+                let from = 0; let step = 1000; let fetching = true;
 
-    } catch(e) { 
-        console.error(e); 
-        alert("माहिती लोड करण्यात त्रुटी: " + e.message); 
-    }
+                while(fetching) {
+                    const { data: respData, error: respErr } = await supabaseClient
+                        .from('form_responses')
+                        .select('id, form_id, village_id, employee_id, report_month, report_year, report_fortnight, created_at')
+                        .range(from, from + step - 1);
+                    
+                    if (respErr) throw respErr;
+                    if (respData && respData.length > 0) {
+                        allFilledStats = allFilledStats.concat(respData);
+                        from += step;
+                        if (respData.length < step) fetching = false;
+                    } else {
+                        fetching = false;
+                    }
+                }
+                masterData.filledStats = allFilledStats || [];
 
-    document.getElementById('reportLoader').classList.add('hidden');
-}
+            } catch(e) { 
+                console.error(e); 
+                alert("माहिती लोड करण्यात त्रुटी: " + e.message); 
+            }
 
-async function fetchReportData() {
+            document.getElementById('reportLoader').classList.add('hidden');
+        }async function fetchReportData() {
     let selectedIDs = getSelectedReportIDs(); 
     if(selectedIDs.length === 0) { alert("कृपया किमान एक अहवाल निवडा!"); return; }
 
