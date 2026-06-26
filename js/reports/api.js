@@ -77,293 +77,329 @@ async function loadInitialMasterData() {
             }
 
             document.getElementById('reportLoader').classList.add('hidden');
-        }async function fetchReportData() {
-    let selectedIDs = getSelectedReportIDs(); 
-    if(selectedIDs.length === 0) { alert("कृपया किमान एक अहवाल निवडा!"); return; }
-
-    let freqFilterEl = document.getElementById('frequencyFilter');
-    let freqFilter = freqFilterEl ? freqFilterEl.value : 'all';
-
-    let formsToProcess = selectedIDs.includes("ALL") ? masterData.forms.filter(f => {
-        let freq = f.schema_json && f.schema_json.frequency ? f.schema_json.frequency : (f.form_type === 'fortnightly' ? 'fortnightly' : 'monthly');
-        if (freqFilter === 'all') return true;
-        return freq === freqFilter;
-    }) : masterData.forms.filter(f => selectedIDs.includes(f.id));
-    
-    let periodType = document.getElementById('periodType').value;
-    let query = supabaseClient.from('form_responses').select('*').limit(10000); 
-    
-    let periodText = "";
-    let selMonthNum = 0, selYear = 0;
-    let selMonthName = ""; 
-    let selFortnight = "1", selWeek = "1", selDaily = "1";
-
-    if (periodType === 'monthly') {
-        selMonthName = document.getElementById('reportMonth').value; 
-        selMonthNum = monthNamesMarathi[selMonthName]; 
-        selYear = document.getElementById('reportYear').value;
-        periodText = `${selMonthName} ${selYear}`;
-        
-        let fnDiv = document.getElementById('fortnightInputs');
-        if (fnDiv && !fnDiv.classList.contains('hidden')) {
-            selFortnight = document.getElementById('reportFortnight').value || "1";
-            periodText += ` (पंधरवाडा: ${selFortnight == "1" ? '१ ते १५' : '१६ ते अखेर'})`;
-        }
-        
-        let wkDiv = document.getElementById('weekInputs');
-        if (wkDiv && !wkDiv.classList.contains('hidden')) {
-            selWeek = document.getElementById('reportWeek').value || "1";
-            periodText += ` (आठवडा: ${selWeek})`;
-        }
-        
-        let dyDiv = document.getElementById('dailyInputs');
-        if (dyDiv && !dyDiv.classList.contains('hidden')) {
-            selDaily = document.getElementById('reportDaily').value || "1";
-            periodText += ` (तारीख: ${selDaily})`;
-        }
-    } else {
-        let sDate = document.getElementById('startDate').value;
-        let eDate = document.getElementById('endDate').value;
-        if(!sDate || !eDate) { alert("कृपया सुरुवातीची व शेवटची तारीख निवडा!"); return; }
-        
-        query = query.gte('created_at', sDate + 'T00:00:00.000Z').lte('created_at', eDate + 'T23:59:59.999Z');
-        periodText = `${formatDateToDDMMYYYY(sDate)} ते ${formatDateToDDMMYYYY(eDate)}`;
-    }
-
-    let filterSubCenter = document.getElementById('reportSubCenterFilter').value; 
-    let groupType = document.getElementById('reportGroupFilter').value;
-
-    if (user.role !== 'admin' && user.role !== 'taluka_admin' && user.role !== 'phc_admin') {
-        groupType = 'Village';
-    }
-
-    document.getElementById('reportLoader').classList.remove('hidden'); 
-    document.getElementById('reportContentArea').classList.add('hidden'); 
-    document.getElementById('reportTableContainer').innerHTML = "";
-
-    try {
-        if(!selectedIDs.includes("ALL")) query = query.in('form_id', formsToProcess.map(f=>f.id));
-
-        const { data: dbData, error } = await query; 
-        document.getElementById('reportLoader').classList.add('hidden');
-        
-        if (error || !dbData || dbData.length === 0) { 
-            alert(`⚠️ डेटाबेसमध्ये कोणताही डेटा सापडला नाही. तुमचे इंटरनेट तपासा किंवा फिल्टर तपासा.`); 
-            return; 
         }
 
-        windowDbData = dbData; 
-        let finalReports = [];
+async function fetchReportData() {
+            let selectedIDs = getSelectedReportIDs(); 
+            if(selectedIDs.length === 0) { alert("कृपया किमान एक अहवाल निवडा!"); return; }
 
-        formsToProcess.forEach(formObj => {
-            let formResp = dbData.filter(r => String(r.form_id) === String(formObj.id)); 
-            if(formResp.length === 0) return;
+            let freqFilterEl = document.getElementById('frequencyFilter');
+            let freqFilter = freqFilterEl ? freqFilterEl.value : 'all';
+
+            let formsToProcess = selectedIDs.includes("ALL") ? masterData.forms.filter(f => {
+                let freq = f.schema_json && f.schema_json.frequency ? f.schema_json.frequency : (f.form_type === 'fortnightly' ? 'fortnightly' : 'monthly');
+                if (freqFilter === 'all') return true;
+                return freq === freqFilter;
+            }) : masterData.forms.filter(f => selectedIDs.includes(f.id));
             
-            const allFields = formObj.schema_json.fields || [];
-            const validDataFields = allFields.filter(f => f.type !== 'group_header');
-            const isProgressive = formObj.form_type === 'progressive';
+            let periodType = document.getElementById('periodType').value;
             
-            let freq = formObj.schema_json && formObj.schema_json.frequency ? formObj.schema_json.frequency : (formObj.form_type === 'fortnightly' ? 'fortnightly' : 'monthly');
-
-            let fieldMetaList = validDataFields.map(f => {
-                let chain = getFieldHierarchyChain(allFields, f);
-                return { id: f.id, label: f.label, type: f.type, formula: f.formula, l1: chain[0] || "", l2: chain[1] || "", l3: f.label };
-            });
-
-            let fData = [];
-            let currentMonthResp = [];
+            let periodText = "";
+            let selMonthNum = 0, selYear = 0;
+            let selMonthName = ""; 
             
+            let selFortnight = "1", selWeek = "1", selDaily = "1";
+            let sDate = "", eDate = "";
+
             if (periodType === 'monthly') {
-                currentMonthResp = formResp.filter(r => {
-                    if (freq === 'onetime') return true; 
-
-                    let dbMonth = String(r.report_month).trim().toLowerCase();
-                    let rYear = parseInt(r.report_year);
-                    if (isNaN(rYear) || rYear === 0) {
-                        if(r.created_at) rYear = new Date(r.created_at).getFullYear();
-                        else rYear = parseInt(selYear); 
-                    }
-                    let matchY = (rYear === parseInt(selYear));
-
-                    let matchM = false;
-                    if (dbMonth == selMonthNum || dbMonth === `0${selMonthNum}`) matchM = true;
-                    else if (selMonthName && dbMonth.includes(selMonthName.toLowerCase())) matchM = true;
-                    else if (monthNamesNumeric[selMonthNum] && dbMonth.includes(monthNamesNumeric[selMonthNum].toLowerCase())) matchM = true;
-                    
-                    if (!matchM && (dbMonth === "null" || dbMonth === "" || dbMonth === "nan")) {
-                        if (r.created_at) {
-                            let cMonth = new Date(r.created_at).getMonth() + 1;
-                            matchM = (cMonth === parseInt(selMonthNum));
-                        }
-                    }
-
-                    let dbFn = String(r.report_fortnight).trim();
-                    if(dbFn === "null" || dbFn === "undefined" || dbFn === "" || dbFn === "NaN" || dbFn === "0") dbFn = "1";
-
-                    let matchFreq = true;
-                    if (freq === 'fortnightly') {
-                        matchFreq = (dbFn == selFortnight || dbFn === `0${selFortnight}` || (selFortnight == 2 && (dbFn.includes("16") || dbFn.includes("अखेर") || dbFn.includes("२"))) || (selFortnight == 1 && (dbFn.includes("15") || dbFn.includes("१"))));
-                    } else if (freq === 'weekly') {
-                        matchFreq = (dbFn == selWeek || dbFn === `0${selWeek}` || dbFn.includes(String(selWeek)));
-                    } else if (freq === 'daily') {
-                        matchFreq = (dbFn == selDaily || dbFn === `0${selDaily}` || dbFn.includes(String(selDaily)));
-                    }
-                    
-                    return matchY && matchM && matchFreq;
-                });
+                selMonthName = document.getElementById('reportMonth').value; 
+                selMonthNum = monthNamesMarathi[selMonthName]; 
+                selYear = document.getElementById('reportYear').value;
+                periodText = `${selMonthName} ${selYear}`;
+                
+                let fnDiv = document.getElementById('fortnightInputs');
+                if (fnDiv && !fnDiv.classList.contains('hidden')) {
+                    selFortnight = document.getElementById('reportFortnight').value || "1";
+                    periodText += ` (पंधरवाडा: ${selFortnight == "1" ? '१ ते १५' : '१६ ते अखेर'})`;
+                }
+                
+                let wkDiv = document.getElementById('weekInputs');
+                if (wkDiv && !wkDiv.classList.contains('hidden')) {
+                    selWeek = document.getElementById('reportWeek').value || "1";
+                    periodText += ` (आठवडा: ${selWeek})`;
+                }
+                
+                let dyDiv = document.getElementById('dailyInputs');
+                if (dyDiv && !dyDiv.classList.contains('hidden')) {
+                    selDaily = document.getElementById('reportDaily').value || "1";
+                    periodText += ` (तारीख: ${selDaily})`;
+                }
             } else {
-                currentMonthResp = formResp; 
+                sDate = document.getElementById('startDate').value;
+                eDate = document.getElementById('endDate').value;
+                if(!sDate || !eDate) { alert("कृपया सुरुवातीची व शेवटची तारीख निवडा!"); return; }
+                periodText = `${formatDateToDDMMYYYY(sDate)} ते ${formatDateToDDMMYYYY(eDate)}`;
             }
 
-            currentMonthResp.forEach(res => {
+            let filterSubCenter = document.getElementById('reportSubCenterFilter').value; 
+            let groupType = document.getElementById('reportGroupFilter').value;
+
+            if (user.role !== 'admin' && user.role !== 'taluka_admin' && user.role !== 'phc_admin') {
+                groupType = 'Village';
+            }
+
+            document.getElementById('reportLoader').classList.remove('hidden'); 
+            document.getElementById('reportContentArea').classList.add('hidden'); 
+            document.getElementById('reportTableContainer').innerHTML = "";
+
+            try {
+                // 🟢 1000 लिमिट बायपास: लूप वापरून सर्व रेकॉर्ड्स ओढण्याची पद्धत
+                let allDbData = [];
+                let from = 0; let step = 1000; let fetching = true;
+
+                while(fetching) {
+                    let query = supabaseClient.from('form_responses').select('*').range(from, from + step - 1);
+                    
+                    if(!selectedIDs.includes("ALL")) {
+                        query = query.in('form_id', formsToProcess.map(f=>f.id));
+                    }
+                    if (periodType === 'custom') {
+                        query = query.gte('created_at', sDate + 'T00:00:00.000Z').lte('created_at', eDate + 'T23:59:59.999Z');
+                    }
+
+                    const { data: dbDataChunk, error } = await query; 
+                    if (error) throw error;
+                    
+                    if (dbDataChunk && dbDataChunk.length > 0) {
+                        allDbData = allDbData.concat(dbDataChunk);
+                        from += step;
+                        if (dbDataChunk.length < step) fetching = false;
+                    } else {
+                        fetching = false;
+                    }
+                }
+
+                const dbData = allDbData;
+                document.getElementById('reportLoader').classList.add('hidden');
                 
-                if (formObj.form_type === 'list') {
-                    if (res.response_data && res.response_data.is_nil === true) return;
+                if (!dbData || dbData.length === 0) { 
+                    alert(`⚠️ डेटाबेसमध्ये कोणताही डेटा सापडला नाही. तुमचे इंटरनेट तपासा किंवा फिल्टर तपासा.`); 
+                    return; 
+                }
 
-                    let isStringNil = false;
-                    for (let key in res.response_data) {
-                        if (res.response_data[key] && typeof res.response_data[key].value === 'string') {
-                            let v = res.response_data[key].value.trim().toLowerCase();
-                            if (v === 'निरंक' || v.includes('निरंक') || v.includes('nil report') || v === 'nil') {
-                                isStringNil = true; break;
+                windowDbData = dbData; 
+                let finalReports = [];
+
+                formsToProcess.forEach(formObj => {
+                    let formResp = dbData.filter(r => String(r.form_id) === String(formObj.id)); 
+                    if(formResp.length === 0) return;
+                    
+                    const allFields = formObj.schema_json.fields || [];
+                    const validDataFields = allFields.filter(f => f.type !== 'group_header');
+                    const isProgressive = formObj.form_type === 'progressive';
+                    
+                    let freq = formObj.schema_json && formObj.schema_json.frequency ? formObj.schema_json.frequency : (formObj.form_type === 'fortnightly' ? 'fortnightly' : 'monthly');
+
+                    let fieldMetaList = validDataFields.map(f => {
+                        let chain = getFieldHierarchyChain(allFields, f);
+                        return { id: f.id, label: f.label, type: f.type, formula: f.formula, l1: chain[0] || "", l2: chain[1] || "", l3: f.label };
+                    });
+
+                    let fData = [];
+                    let currentMonthResp = [];
+                    
+                    if (periodType === 'monthly') {
+                        currentMonthResp = formResp.filter(r => {
+                            if (freq === 'onetime') return true; 
+
+                            let rYear = parseInt(r.report_year);
+                            if (isNaN(rYear) || rYear === 0) {
+                                if(r.created_at) rYear = new Date(r.created_at).getFullYear();
+                                else rYear = parseInt(selYear); 
                             }
-                        }
-                    }
-                    if (isStringNil) return;
-                }
+                            let matchY = (rYear === parseInt(selYear));
 
-                let isAdminRole = ['admin', 'taluka_admin', 'phc_admin'].includes(user.role);
-                if (!isAdminRole) {
-                    if (String(res.employee_id) !== String(user.id)) return;
-                }
-
-                let villageObj = masterData.villages.find(v => String(v.id) === String(res.village_id));
-                let empObj = masterData.employees.find(e => String(e.id) === String(res.employee_id));
-                let scObj = villageObj ? masterData.subCenters.find(s => String(s.id) === String(villageObj.sub_center_id)) : null;
-
-                if (user.role === 'phc_admin') {
-                    if (!scObj || String(scObj.phc_id) !== String(user.phc_id)) return;
-                }
-
-                let scName = scObj ? scObj.name : '-';
-                if(isAdminRole && filterSubCenter !== "सर्व" && scName !== filterSubCenter) return;
-
-                let vName = villageObj ? villageObj.name : '-';
-                let pop = 0; let houses = 0;
-                if (formObj.form_type === 'subcenter') {
-                    vName = "🏢 संपूर्ण उपकेंद्र (Subcenter Level)";
-                } else if (villageObj) {
-                    pop = villageObj.population || 0;
-                    houses = villageObj.total_houses || 0;
-                }
-
-                let row = { 
-                    response_id: res.id, report_month: res.report_month, report_year: res.report_year,
-                    month: periodText, year: '', subcenter: scName, village: vName, 
-                    employee: empObj?empObj.full_name:'-', 
-                    population: pop, houses: houses,
-                    values: {} 
-                };
-
-                validDataFields.forEach(f => {
-                    if (!f.formula || String(f.formula).trim() === "") {
-                        let monthlyVal = '';
-                        
-                        if(res.response_data && res.response_data.is_nil) {
-                            monthlyVal = 'निरंक';
-                        } else if(res.response_data && res.response_data[f.id]) {
-                            monthlyVal = res.response_data[f.id].value;
-                        }
-
-                        if (f.type === 'date' && monthlyVal && String(monthlyVal).trim() !== '' && monthlyVal !== 'निरंक') {
-                            monthlyVal = formatDateToDDMMYYYY(monthlyVal);
-                        }
-
-                        if (isProgressive && f.type === 'number') {
-                            let sumProg = 0;
-                            getProgressiveMonthsList(selMonthNum, selYear).forEach(p => {
-                                let pastRes = formResp.find(r => String(r.village_id) === String(res.village_id) && (Number(r.report_month) === p.month || String(r.report_month).trim() === monthNamesNumeric[p.month]) && Number(r.report_year) === p.year);
-                                if(pastRes && pastRes.response_data && pastRes.response_data[f.id] && !pastRes.response_data.is_nil) {
-                                    sumProg += parseFloat(pastRes.response_data[f.id].value) || 0;
+                            let mStr = String(r.report_month).trim().toLowerCase();
+                            let dbMonthNum = parseInt(mStr);
+                            
+                            if (isNaN(dbMonthNum) || dbMonthNum === 0) {
+                                for (const [mName, mNum] of Object.entries(monthNamesMarathi)) {
+                                    if (mStr.includes(mName.toLowerCase())) { dbMonthNum = mNum; break; }
                                 }
-                            });
-                            row.values[f.id] = { M: formatNumberDecimals(monthlyVal), P: formatNumberDecimals(sumProg) };
-                        } else { 
-                            row.values[f.id] = formatNumberDecimals(monthlyVal); 
-                        }
-                    }
-                });
+                                if (isNaN(dbMonthNum) || dbMonthNum === 0) {
+                                    if (r.created_at) dbMonthNum = new Date(r.created_at).getMonth() + 1;
+                                    else dbMonthNum = parseInt(selMonthNum);
+                                }
+                            }
+                            let matchM = (dbMonthNum === parseInt(selMonthNum));
 
-                validDataFields.forEach(f => {
-                    if (f.formula && String(f.formula).trim() !== "") {
-                        let evalRowFormula = (type) => {
-                            let formulaStr = String(f.formula).toLowerCase().trim();
-                            validDataFields.forEach(af => {
-                                if (!af.formula || String(af.formula).trim() === "") {
-                                    let ph = `[${af.id.toLowerCase()}]`;
-                                    if(formulaStr.includes(ph)) {
-                                        let val = 0; let afVal = row.values[af.id];
-                                        if (typeof afVal === 'object' && afVal !== null) { val = parseFloat(afVal[type]) || 0; } 
-                                        else { val = parseFloat(afVal) || 0; }
-                                        formulaStr = formulaStr.replaceAll(ph, val);
+                            let fnStr = String(r.report_fortnight).trim();
+                            let dbFn = 1; 
+                            
+                            if (fnStr.includes("2") || fnStr.includes("२") || fnStr.includes("16") || fnStr.includes("१६") || fnStr.includes("अखेर") || fnStr.includes("दुसरा")) {
+                                dbFn = 2;
+                            } else if (fnStr.includes("3") || fnStr.includes("३") || fnStr.includes("तिसरा")) {
+                                dbFn = 3;
+                            } else if (fnStr.includes("4") || fnStr.includes("४") || fnStr.includes("चौथा")) {
+                                dbFn = 4;
+                            } else if (fnStr.includes("5") || fnStr.includes("५") || fnStr.includes("पाचवा")) {
+                                dbFn = 5;
+                            } else if (freq === 'daily') {
+                                let pFn = parseInt(fnStr);
+                                if (!isNaN(pFn) && pFn > 0) dbFn = pFn;
+                            } else {
+                                dbFn = 1;
+                            }
+
+                            let matchFreq = true;
+                            if (freq === 'fortnightly') {
+                                matchFreq = (dbFn === parseInt(selFortnight));
+                            } else if (freq === 'weekly') {
+                                matchFreq = (dbFn === parseInt(selWeek));
+                            } else if (freq === 'daily') {
+                                matchFreq = (dbFn === parseInt(selDaily));
+                            }
+                            
+                            return matchY && matchM && matchFreq;
+                        });
+                    } else {
+                        currentMonthResp = formResp; 
+                    }
+
+                    currentMonthResp.forEach(res => {
+                        
+                        if (formObj.form_type === 'list') {
+                            if (res.response_data && res.response_data.is_nil === true) return;
+
+                            let isStringNil = false;
+                            for (let key in res.response_data) {
+                                if (res.response_data[key] && typeof res.response_data[key].value === 'string') {
+                                    let v = res.response_data[key].value.trim().toLowerCase();
+                                    if (v === 'निरंक' || v.includes('निरंक') || v.includes('nil report') || v === 'nil') {
+                                        isStringNil = true; break;
                                     }
                                 }
-                            });
-                            try {
-                                if (/^[0-9.+\-*/() ]+$/.test(formulaStr)) {
-                                    let res = eval(formulaStr); 
-                                    return isNaN(res) || !isFinite(res) ? 0 : res;
-                                }
-                            } catch(e) {}
-                            return 0;
+                            }
+                            if (isStringNil) return;
+                        }
+
+                        let isAdminRole = ['admin', 'taluka_admin', 'phc_admin'].includes(user.role);
+                        if (!isAdminRole) {
+                            if (String(res.employee_id) !== String(user.id)) return;
+                        }
+
+                        let villageObj = masterData.villages.find(v => String(v.id) === String(res.village_id));
+                        let empObj = masterData.employees.find(e => String(e.id) === String(res.employee_id));
+                        let scObj = villageObj ? masterData.subCenters.find(s => String(s.id) === String(villageObj.sub_center_id)) : null;
+
+                        if (user.role === 'phc_admin') {
+                            if (!scObj || String(scObj.phc_id) !== String(user.phc_id)) return;
+                        }
+
+                        let scName = scObj ? scObj.name : '-';
+                        if(isAdminRole && filterSubCenter !== "सर्व" && scName !== filterSubCenter) return;
+
+                        let vName = villageObj ? villageObj.name : '-';
+                        let pop = 0; let houses = 0;
+                        if (formObj.form_type === 'subcenter') {
+                            vName = "🏢 संपूर्ण उपकेंद्र (Subcenter Level)";
+                        } else if (villageObj) {
+                            pop = villageObj.population || 0;
+                            houses = villageObj.total_houses || 0;
+                        }
+
+                        let row = { 
+                            response_id: res.id, report_month: res.report_month, report_year: res.report_year,
+                            month: periodText, year: '', subcenter: scName, village: vName, 
+                            employee: empObj?empObj.full_name:'-', 
+                            population: pop, houses: houses,
+                            values: {} 
                         };
 
-                        if (isProgressive && f.type === 'number') {
-                            row.values[f.id] = { M: formatNumberDecimals(evalRowFormula('M')), P: formatNumberDecimals(evalRowFormula('P')) };
-                        } else {
-                            row.values[f.id] = formatNumberDecimals(evalRowFormula('M'));
+                        validDataFields.forEach(f => {
+                            if (!f.formula || String(f.formula).trim() === "") {
+                                let monthlyVal = '';
+                                
+                                if(res.response_data && res.response_data.is_nil) {
+                                    monthlyVal = 'निरंक';
+                                } else if(res.response_data && res.response_data[f.id]) {
+                                    monthlyVal = res.response_data[f.id].value;
+                                }
+
+                                if (f.type === 'date' && monthlyVal && String(monthlyVal).trim() !== '' && monthlyVal !== 'निरंक') {
+                                    monthlyVal = formatDateToDDMMYYYY(monthlyVal);
+                                }
+
+                                if (isProgressive && f.type === 'number') {
+                                    let sumProg = 0;
+                                    getProgressiveMonthsList(selMonthNum, selYear).forEach(p => {
+                                        let pastRes = formResp.find(r => String(r.village_id) === String(res.village_id) && (Number(r.report_month) === p.month || String(r.report_month).trim() === monthNamesNumeric[p.month]) && Number(r.report_year) === p.year);
+                                        if(pastRes && pastRes.response_data && pastRes.response_data[f.id] && !pastRes.response_data.is_nil) {
+                                            sumProg += parseFloat(pastRes.response_data[f.id].value) || 0;
+                                        }
+                                    });
+                                    row.values[f.id] = { M: formatNumberDecimals(monthlyVal), P: formatNumberDecimals(sumProg) };
+                                } else { 
+                                    row.values[f.id] = formatNumberDecimals(monthlyVal); 
+                                }
+                            }
+                        });
+
+                        validDataFields.forEach(f => {
+                            if (f.formula && String(f.formula).trim() !== "") {
+                                let evalRowFormula = (type) => {
+                                    let formulaStr = String(f.formula).toLowerCase().trim();
+                                    validDataFields.forEach(af => {
+                                        if (!af.formula || String(af.formula).trim() === "") {
+                                            let ph = `[${af.id.toLowerCase()}]`;
+                                            if(formulaStr.includes(ph)) {
+                                                let val = 0; let afVal = row.values[af.id];
+                                                if (typeof afVal === 'object' && afVal !== null) { val = parseFloat(afVal[type]) || 0; } 
+                                                else { val = parseFloat(afVal) || 0; }
+                                                formulaStr = formulaStr.replaceAll(ph, val);
+                                            }
+                                        }
+                                    });
+                                    try {
+                                        if (/^[0-9.+\-*/() ]+$/.test(formulaStr)) {
+                                            let res = eval(formulaStr); 
+                                            return isNaN(res) || !isFinite(res) ? 0 : res;
+                                        }
+                                    } catch(e) {}
+                                    return 0;
+                                };
+
+                                if (isProgressive && f.type === 'number') {
+                                    row.values[f.id] = { M: formatNumberDecimals(evalRowFormula('M')), P: formatNumberDecimals(evalRowFormula('P')) };
+                                } else {
+                                    row.values[f.id] = formatNumberDecimals(evalRowFormula('M'));
+                                }
+                            }
+                        });
+
+                        fData.push(row);
+                    });
+
+                    if(fData.length > 0) {
+                        let shouldShowPop = false;
+                        if (formObj.schema_json && formObj.schema_json.show_population === true) {
+                            shouldShowPop = true;
                         }
+                        
+                        let finalPeriodText = periodText;
+                        if(freq === 'onetime') finalPeriodText = "संपूर्ण अहवाल (All Time)";
+
+                        finalReports.push({ 
+                            formName: formObj.form_name, 
+                            formType: formObj.form_type, 
+                            fields: fieldMetaList, 
+                            rows: fData, 
+                            isProg: isProgressive, 
+                            periodText: finalPeriodText,
+                            showPopConfig: shouldShowPop
+                        });
                     }
                 });
 
-                fData.push(row);
-            });
-
-            if(fData.length > 0) {
-                let shouldShowPop = false;
-                if (formObj.schema_json && formObj.schema_json.show_population === true) {
-                    shouldShowPop = true;
+                if(finalReports.length > 0) { 
+                    currentReports = finalReports; 
+                    renderMultipleTables(finalReports, groupType); 
+                    document.getElementById('reportContentArea').classList.remove('hidden'); 
+                } else { 
+                    alert(`⚠️ तुम्ही निवडलेल्या कालावधीचा डेटा फिल्टरमुळे लपवला जात आहे.\n\nकृपया खात्री करा की तुम्ही निवडलेले 'उपकेंद्र' आणि 'वर्ष' अचूक आहेत.`); 
                 }
-                
-                let finalPeriodText = periodText;
-                if(freq === 'onetime') finalPeriodText = "संपूर्ण अहवाल (All Time)";
-
-                console.log("REPORT:", formObj.form_name);
-                console.log("ROWS:", fData.length);
-                console.log("FIRST ROW:", fData[0]);
-
-                finalReports.push({ 
-                    formName: formObj.form_name, 
-                    formType: formObj.form_type, 
-                    fields: fieldMetaList, 
-                    rows: fData, 
-                    isProg: isProgressive, 
-                    periodText: finalPeriodText,
-                    showPopConfig: shouldShowPop
-                });
-            }
-        });
-
-        if(finalReports.length > 0) { 
-            currentReports = finalReports; 
-            renderMultipleTables(finalReports, groupType); 
-            document.getElementById('reportContentArea').classList.remove('hidden'); 
-        } else { 
-            alert(`⚠️ तुम्ही निवडलेल्या कालावधीचा डेटा फिल्टरमुळे लपवला जात आहे.\n\nकृपया खात्री करा की तुम्ही निवडलेले 'उपकेंद्र' आणि 'वर्ष' अचूक आहेत.`); 
+            } catch(e) { alert("एरर: " + e.message); }
         }
-    } catch(e) { alert("एरर: " + e.message); }
-}        
-
 async function deleteResponse(responseId) {
     if(!confirm("तुम्हाला खात्री आहे का? हा डेटा कायमचा डिलीट होईल!")) return;
     document.getElementById('reportLoader').classList.remove('hidden');
