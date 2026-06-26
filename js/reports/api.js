@@ -322,6 +322,10 @@ async function fetchReportData() {
                 let finalPeriodText = periodText;
                 if(freq === 'onetime') finalPeriodText = "संपूर्ण अहवाल (All Time)";
 
+                console.log("REPORT:", formObj.form_name);
+                console.log("ROWS:", fData.length);
+                console.log("FIRST ROW:", fData[0]);
+
                 finalReports.push({ 
                     formName: formObj.form_name, 
                     formType: formObj.form_type, 
