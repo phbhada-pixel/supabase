@@ -410,30 +410,41 @@ async function deleteResponse(responseId) {
     else { alert("✅ डेटा डिलीट झाला!"); fetchReportData(); }
 }
 
-async function saveEditResponse() {
-    if(!currentEditResponseId) return;
-    let response = windowDbData.find(r => r.id === currentEditResponseId);
-    let formObj = masterData.forms.find(f => f.id === currentEditFormId);
-    
-    let allFields = formObj.schema_json.fields.filter(f => f.type !== 'group_header' && (!f.formula || String(f.formula).trim() === ""));
-    
-    let newData = { ...response.response_data };
-    allFields.forEach(f => {
-        let el = document.getElementById(`edit_f_${f.id}`);
-        if(el) {
-            newData[f.id] = { value: el.value };
+        async function saveEditResponse() {
+            if(!currentEditResponseId) return;
+
+            // 🟢 अतिशय महत्त्वाचा बदल: ID ला आधी सुरक्षित व्हेरिएबलमध्ये सेव्ह करून ठेवा
+            let updateId = currentEditResponseId; 
+
+            let response = windowDbData.find(r => r.id === updateId);
+            let formObj = masterData.forms.find(f => f.id === currentEditFormId);
+            
+            let allFields = formObj.schema_json.fields.filter(f => f.type !== 'group_header' && (!f.formula || String(f.formula).trim() === ""));
+            
+            let newData = { ...response.response_data };
+            allFields.forEach(f => {
+                let el = document.getElementById(`edit_f_${f.id}`);
+                if(el) {
+                    newData[f.id] = { value: el.value };
+                }
+            });
+            
+            document.getElementById('reportLoader').classList.remove('hidden');
+            
+            // आता बॉक्स बंद केला तरी आपला 'updateId' सुरक्षित राहील
+            closeEditModal();
+            
+            // 🟢 इथे 'currentEditResponseId' ऐवजी सुरक्षित ठेवलेला 'updateId' वापरा
+            const { error } = await supabaseClient
+                .from('form_responses')
+                .update({ response_data: newData })
+                .eq('id', updateId); 
+            
+            if(error) alert("अपडेट करताना त्रुटी: " + error.message);
+            else {
+                alert("✅ डेटा यशस्वीरीत्या अपडेट झाला!");
+                fetchReportData();
+            }
+            document.getElementById('reportLoader').classList.add('hidden');
         }
-    });
-    
-    document.getElementById('reportLoader').classList.remove('hidden');
-    closeEditModal();
-    
-    const { error } = await supabaseClient.from('form_responses').update({ response_data: newData }).eq('id', currentEditResponseId);
-    
-    if(error) alert("अपडेट करताना त्रुटी: " + error.message);
-    else {
-        alert("✅ डेटा यशस्वीरीत्या अपडेट झाला!");
-        fetchReportData();
-    }
-    document.getElementById('reportLoader').classList.add('hidden');
-}
+
