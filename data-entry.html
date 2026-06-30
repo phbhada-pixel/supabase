@@ -76,7 +76,7 @@
                 </select>
                 
                 <div class="flex flex-col md:flex-row justify-between items-start md:items-center mt-2 gap-2">
-                    <p id="villageHint" class="text-[10px] text-green-600 hidden font-bold">✓ फक्त राहिलेली गावे दाखवली आहेत.</p>
+                    <p id="villageHint" class="text-[10px] text-green-600 hidden font-bold">✓ काही अहवाल भरून झाले आहेत.</p>
                     
                     <button type="button" id="btnNilAllReport" onclick="submitNilForAll()" class="hidden w-full md:w-auto bg-gray-600 text-white px-3 py-2 md:py-1 rounded text-sm md:text-xs font-bold hover:bg-gray-700 shadow-md transition transform hover:scale-105">
                         🚫 सर्व राहिलेल्या गावांचा 'निरंक' भरा
@@ -125,6 +125,7 @@
         let onetimeResponses = []; 
 
         let globalPendingVillages = []; 
+        let globalNilVillages = []; // 🟢 नवीन: निरंक रिपोर्टसाठीची वेगळी यादी
         let currentPendingVillages = []; 
         let currentDataFields = []; 
         let currentFormObj = null;
@@ -278,7 +279,6 @@
                         if (isFilled) filledCount++;
                     });
                     if (filledCount >= userVillages.length) showForm = false;
-
                 } else if (form.form_type !== 'list' && userVillages.length > 0) {
                     let filledCount = 0;
                     userVillages.forEach(v => {
@@ -293,8 +293,8 @@
                         if (isFilled) filledCount++;
                     });
                     if (filledCount >= userVillages.length) showForm = false; 
-                } else if (form.form_type === 'list' && userVillages.length > 0) {
-                    // 🟢 'यादी' प्रकारच्या फॉर्मसाठी 'निरंक (NIL)' अहवाल भरला तरी तो 'hide' होणार नाही.
+                } else if (form.form_type === 'list') {
+                    // 🟢 'list' फॉर्म कधीच लपवायचा नाही
                     showForm = true;
                 }
 
@@ -348,6 +348,7 @@
 
             currentFormObj = allFormsMap[formId];
             globalPendingVillages = [];
+            globalNilVillages = []; // 🟢 फक्त पेंडिंग निरंक रिपोर्टसाठीची यादी
             let hiddenCount = 0;
             
             let freq = currentFormObj.schema_json && currentFormObj.schema_json.frequency ? currentFormObj.schema_json.frequency : (currentFormObj.form_type === 'fortnightly' ? 'fortnightly' : 'monthly');
@@ -405,41 +406,62 @@
                 );
                 
                 if (!isFilled && userVillages.length > 0) {
-                    globalPendingVillages.push({ ...userVillages[0], name: "🏢 संपूर्ण उपकेंद्र (Subcenter Level)" });
+                    let vData = { ...userVillages[0], name: "🏢 संपूर्ण उपकेंद्र (Subcenter Level)" };
+                    globalPendingVillages.push(vData);
+                    globalNilVillages.push(vData);
                 } else if (isFilled) {
                     hiddenCount++;
                 }
             } else if (freq === 'onetime') {
                 userVillages.forEach(v => {
                     let isFilled = false;
-                    // 🟢 यादी (List) प्रकारात गावे कधीच लपवायची नाहीत
                     if (currentFormObj.form_type === 'list') {
-                        isFilled = false;
+                        isFilled = false; // 🟢 'List' फॉर्म गाव लपवणार नाही
                     } else {
                         isFilled = onetimeResponses.some(r => 
                             r.form_id === formId && r.village_id === v.id && 
                             (currentFormObj.data_entry_mode === 'shared' ? true : r.employee_id === loggedInUser.id)
                         );
                     }
-                    if (!isFilled) globalPendingVillages.push(v);
-                    else hiddenCount++;
+                    
+                    if (!isFilled) {
+                        globalPendingVillages.push(v);
+                        globalNilVillages.push(v);
+                    } else {
+                        hiddenCount++;
+                    }
                 });
             } else {
                 userVillages.forEach(v => {
                     let isFilled = false;
                     
-                    // 🟢 यादी (List) प्रकारात गावे कधीच लपवायची नाहीत (येथेच खरा बदल आहे)
+                    // डेटा तपासणी
+                    let hasDataMatch = currentMonthResponses.some(r => 
+                        r.form_id === formId && r.village_id === v.id && 
+                        (currentFormObj.data_entry_mode === 'shared' ? true : r.employee_id === loggedInUser.id) &&
+                        ((freq === 'daily' && r.report_fortnight === pVal) ||
+                         (freq === 'weekly' && r.report_fortnight === pVal) ||
+                         (freq === 'fortnightly' && r.report_fortnight === pVal) ||
+                         (freq !== 'daily' && freq !== 'weekly' && freq !== 'fortnightly'))
+                    );
+                    
+                    // निरंक (NIL) तपासणी
+                    let hasNilMatch = currentMonthResponses.some(r => 
+                        r.form_id === formId && r.village_id === v.id && 
+                        r.response_data && r.response_data.is_nil === true &&
+                        ((freq === 'daily' && r.report_fortnight === pVal) ||
+                         (freq === 'weekly' && r.report_fortnight === pVal) ||
+                         (freq === 'fortnightly' && r.report_fortnight === pVal) ||
+                         (freq !== 'daily' && freq !== 'weekly' && freq !== 'fortnightly'))
+                    );
+
                     if (currentFormObj.form_type === 'list') {
-                        isFilled = false;
+                        isFilled = false; // 🟢 ड्रॉपडाऊनमध्ये गाव नेहमी दिसेल
+                        // पण जर आधीच डेटा किंवा NIL भरला असेल, तर 'निरंक बटण' साठी यादीत टाकू नका
+                        if (!hasNilMatch && !hasDataMatch) globalNilVillages.push(v); 
                     } else {
-                        isFilled = currentMonthResponses.some(r => 
-                            r.form_id === formId && r.village_id === v.id && 
-                            (currentFormObj.data_entry_mode === 'shared' ? true : r.employee_id === loggedInUser.id) &&
-                            ((freq === 'daily' && r.report_fortnight === pVal) ||
-                             (freq === 'weekly' && r.report_fortnight === pVal) ||
-                             (freq === 'fortnightly' && r.report_fortnight === pVal) ||
-                             (freq !== 'daily' && freq !== 'weekly' && freq !== 'fortnightly'))
-                        );
+                        isFilled = hasDataMatch;
+                        if (!isFilled) globalNilVillages.push(v);
                     }
 
                     if (!isFilled) globalPendingVillages.push(v);
@@ -456,14 +478,16 @@
                 globalPendingVillages.forEach(v => {
                     vSelect.innerHTML += `<option value="${v.id}">${v.name}</option>`;
                 });
-                
+            }
+            
+            // 🟢 'निरंक बटण' फक्त उरलेल्या गावांसाठी (globalNilVillages) दिसेल
+            if (globalNilVillages.length > 0) {
                 btnNilAll.classList.remove('hidden');
                 if (currentFormObj.form_type === 'subcenter') {
                     btnNilAll.innerText = "🚫 निरंक (NIL) रिपोर्ट भरा";
                 } else {
-                    btnNilAll.innerText = `🚫 सर्व राहिलेल्या (${globalPendingVillages.length}) गावांचा 'निरंक' भरा`;
+                    btnNilAll.innerText = `🚫 राहिलेल्या (${globalNilVillages.length}) गावांचा 'निरंक' भरा`;
                 }
-
             } else {
                 btnNilAll.classList.add('hidden');
             }
@@ -480,6 +504,40 @@
                 renderFormFields();
             }
         }
+
+        window.calculateFormulas = function(vid) {
+            if(!currentFormObj) return;
+            const allFields = currentFormObj.schema_json.fields;
+            const formulaFields = allFields.filter(f => f.formula && String(f.formula).trim() !== "");
+            
+            formulaFields.forEach(f => {
+                let formulaStr = String(f.formula).toLowerCase().trim();
+                
+                allFields.forEach(af => {
+                    if (!af.formula || String(af.formula).trim() === "") {
+                        let ph = `[${af.id.toLowerCase()}]`;
+                        if (formulaStr.includes(ph)) {
+                            let el = document.getElementById(`${af.id}_v${vid}`);
+                            let val = el && el.value !== "" ? parseFloat(el.value) : 0;
+                            if (isNaN(val)) val = 0;
+                            formulaStr = formulaStr.split(ph).join(val); 
+                        }
+                    }
+                });
+                
+                try {
+                    if (/^[0-9.+\-*/() ]+$/.test(formulaStr)) {
+                        let res = eval(formulaStr);
+                        let finalRes = isNaN(res) || !isFinite(res) ? 0 : res;
+                        let targetEl = document.getElementById(`${f.id}_v${vid}`);
+                        if (targetEl) {
+                            targetEl.value = Number.isInteger(finalRes) ? finalRes : parseFloat(finalRes.toFixed(2));
+                        }
+                    }
+                } catch(e) {}
+            });
+        };
+
         function evaluateValidationFormula(formulaStr, vid, fields) {
             let fStr = String(formulaStr).toLowerCase().trim();
             if (fStr.includes('[')) {
@@ -680,20 +738,21 @@
             }
         }
 
+        // 🟢 सर्व गावांचा एकत्रित 'निरंक (NIL)' सबमिट करण्यासाठीचे फंक्शन
         async function submitNilForAll() {
             const formId = document.getElementById('formSelect').value;
             const repMonth = document.getElementById('reportMonth').value;
             const repYear = document.getElementById('reportYear').value;
             const periodVal = document.getElementById('dynamicPeriodValue') ? document.getElementById('dynamicPeriodValue').value : "1";
 
-            if (!formId || globalPendingVillages.length === 0) {
+            if (!formId || globalNilVillages.length === 0) {
                 alert("फॉर्म निवडलेला नाही किंवा सर्व गावांची माहिती आधीच भरली आहे.");
                 return;
             }
 
             let confirmMsg = currentFormObj.form_type === 'subcenter' 
                 ? "तुम्हाला खात्री आहे की या उपकेंद्रासाठी 'निरंक (NIL)' अहवाल भरायचा आहे?" 
-                : `तुम्हाला खात्री आहे की सर्व राहिलेल्या ${globalPendingVillages.length} गावांसाठी 'निरंक (NIL)' अहवाल भरायचा आहे?\n(यानंतर या कालावधीत या गावांची नोंद करता येणार नाही)`;
+                : `तुम्हाला खात्री आहे की सर्व राहिलेल्या ${globalNilVillages.length} गावांसाठी 'निरंक (NIL)' अहवाल भरायचा आहे?\n(यानंतर या कालावधीत या गावांची नोंद करता येणार नाही)`;
 
             if(!confirm(confirmMsg)) return;
 
@@ -708,7 +767,7 @@
             let isOnetime = freq === 'onetime';
             let targetFortnight = (freq === 'fortnightly' || freq === 'weekly' || freq === 'daily') ? parseInt(periodVal) : 0;
 
-            globalPendingVillages.forEach(v => {
+            globalNilVillages.forEach(v => {
                 let pLoad = {
                     form_id: formId,
                     village_id: v.id,
