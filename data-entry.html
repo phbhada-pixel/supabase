@@ -64,15 +64,24 @@
             <div id="dynamicPeriodDiv" class="hidden md:col-span-2">
                 <label id="dynamicPeriodLabel" class="block text-orange-700 font-bold mb-2 text-sm">कालावधी <span class="text-red-500">*</span></label>
                 <select id="dynamicPeriodValue" onchange="handleMonthYearChange()" class="w-full p-2.5 border-2 border-orange-400 rounded bg-orange-50 font-bold text-orange-900 text-base shadow-sm">
-                    </select>
+                </select>
             </div>
 
             <div class="md:col-span-2" id="villageDivWrapper">
-                <label class="block text-gray-700 font-bold mb-2 text-sm">गाव / कार्यक्षेत्र निवडा <span class="text-red-500">*</span></label>
+                <label class="block text-gray-700 font-bold mb-2 text-sm flex justify-between items-end">
+                    <span>गाव / कार्यक्षेत्र निवडा <span class="text-red-500">*</span></span>
+                </label>
                 <select id="villageSelect" onchange="renderFormFields()" class="w-full p-2.5 border-2 border-green-400 rounded bg-green-50 font-extrabold text-green-900 shadow-sm text-base disabled:opacity-50">
                     <option value="">-- आधी फॉर्म निवडा --</option>
                 </select>
-                <p id="villageHint" class="text-[10px] text-green-600 mt-1 hidden font-bold">✓ फक्त राहिलेली गावे दाखवली आहेत.</p>
+                
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center mt-2 gap-2">
+                    <p id="villageHint" class="text-[10px] text-green-600 hidden font-bold">✓ काही अहवाल भरून झाले आहेत.</p>
+                    
+                    <button type="button" id="btnNilAllReport" onclick="submitNilForAll()" class="hidden w-full md:w-auto bg-gray-600 text-white px-3 py-2 md:py-1 rounded text-sm md:text-xs font-bold hover:bg-gray-700 shadow-md transition transform hover:scale-105">
+                        🚫 सर्व राहिलेल्या गावांचा 'निरंक' भरा
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -83,10 +92,6 @@
             </div>
 
             <div class="flex flex-col md:flex-row justify-center md:justify-end gap-3 border-t pt-4" id="actionButtonsContainer">
-                <button type="button" id="btnNilReport" onclick="submitData(true, false)" class="hidden w-full md:w-auto bg-gray-500 text-white px-6 py-4 md:py-3 rounded-lg font-extrabold text-lg shadow-xl hover:bg-gray-600 transition transform hover:scale-105">
-                    🚫 निरंक (NIL) रिपोर्ट
-                </button>
-
                 <button type="button" id="btnSaveAndAddMore" onclick="submitData(false, true)" class="hidden w-full md:w-auto bg-blue-600 text-white px-6 py-4 md:py-3 rounded-lg font-extrabold text-lg shadow-xl hover:bg-blue-700 transition transform hover:scale-105">
                     ➕ सेव्ह करून आणखी जोडा
                 </button>
@@ -120,6 +125,7 @@
         let onetimeResponses = []; 
 
         let globalPendingVillages = []; 
+        let globalNilVillages = []; // 🟢 नवीन: निरंक रिपोर्टसाठीची वेगळी यादी
         let currentPendingVillages = []; 
         let currentDataFields = []; 
         let currentFormObj = null;
@@ -228,8 +234,8 @@
         async function handleMonthYearChange() {
             document.getElementById('dynamicFieldsContainer').innerHTML = '<p class="text-center text-blue-500 font-bold py-10 text-lg">महिना/कालावधी बदलला आहे, डेटा तपासला जात आहे...</p>';
             document.getElementById('submitBtn').classList.add('hidden');
-            document.getElementById('btnNilReport').classList.add('hidden');
             document.getElementById('btnSaveAndAddMore').classList.add('hidden');
+            document.getElementById('btnNilAllReport').classList.add('hidden');
             document.getElementById('villageSelect').innerHTML = '<option value="">-- आधी फॉर्म निवडा --</option>';
             document.getElementById('villageHint').classList.add('hidden');
 
@@ -248,7 +254,6 @@
             fSelect.innerHTML = '<option value="">-- फॉर्म निवडा --</option>';
             allFormsMap = {};
 
-            // 🟢 सिलेक्ट केलेला वारंवारता प्रकार (दैनिक, आठवडी, पंधरवाडी)
             let periodVal = parseInt(document.getElementById('dynamicPeriodValue') ? document.getElementById('dynamicPeriodValue').value : "1") || 1;
 
             allowedForms.forEach(form => {
@@ -274,7 +279,6 @@
                         if (isFilled) filledCount++;
                     });
                     if (filledCount >= userVillages.length) showForm = false;
-
                 } else if (form.form_type !== 'list' && userVillages.length > 0) {
                     let filledCount = 0;
                     userVillages.forEach(v => {
@@ -289,20 +293,9 @@
                         if (isFilled) filledCount++;
                     });
                     if (filledCount >= userVillages.length) showForm = false; 
-                } else if (form.form_type === 'list' && userVillages.length > 0) {
-                    let nilCount = 0;
-                    userVillages.forEach(v => {
-                        let isNil = currentMonthResponses.some(r => 
-                            r.form_id === form.id && r.village_id === v.id && 
-                            r.response_data && r.response_data.is_nil === true &&
-                            ((freq === 'daily' && r.report_fortnight === periodVal) ||
-                             (freq === 'weekly' && r.report_fortnight === periodVal) ||
-                             (freq === 'fortnightly' && r.report_fortnight === periodVal) ||
-                             (freq !== 'daily' && freq !== 'weekly' && freq !== 'fortnightly'))
-                        );
-                        if (isNil) nilCount++;
-                    });
-                    if (nilCount >= userVillages.length) showForm = false;
+                } else if (form.form_type === 'list') {
+                    // 🟢 'list' फॉर्म कधीच लपवायचा नाही
+                    showForm = true;
                 }
 
                 if (showForm) {
@@ -328,6 +321,7 @@
                 fSelect.value = "";
                 document.getElementById('villageSelect').innerHTML = '<option value="">-- आधी फॉर्म निवडा --</option>';
                 document.getElementById('villageHint').classList.add('hidden');
+                document.getElementById('btnNilAllReport').classList.add('hidden');
                 document.getElementById('dynamicFieldsContainer').innerHTML = '<p class="text-center text-gray-400 font-bold py-10 text-lg">कृपया वरून फॉर्म आणि गाव निवडा.</p>';
                 document.getElementById('dynamicPeriodDiv').classList.add('hidden');
             }
@@ -338,10 +332,11 @@
             const container = document.getElementById('dynamicFieldsContainer');
             const vSelect = document.getElementById('villageSelect');
             const vHint = document.getElementById('villageHint');
+            const btnNilAll = document.getElementById('btnNilAllReport');
 
             document.getElementById('submitBtn').classList.add('hidden');
-            document.getElementById('btnNilReport').classList.add('hidden');
             document.getElementById('btnSaveAndAddMore').classList.add('hidden');
+            btnNilAll.classList.add('hidden');
             container.innerHTML = '<p class="text-center text-gray-400 font-bold py-10 text-lg">कृपया गाव / कार्यक्षेत्र निवडा.</p>';
 
             if (!formId) {
@@ -353,11 +348,11 @@
 
             currentFormObj = allFormsMap[formId];
             globalPendingVillages = [];
+            globalNilVillages = []; // 🟢 फक्त पेंडिंग निरंक रिपोर्टसाठीची यादी
             let hiddenCount = 0;
             
             let freq = currentFormObj.schema_json && currentFormObj.schema_json.frequency ? currentFormObj.schema_json.frequency : (currentFormObj.form_type === 'fortnightly' ? 'fortnightly' : 'monthly');
 
-            // 🟢 स्मार्ट कालावधी (Dynamic Period Logic)
             let dDiv = document.getElementById('dynamicPeriodDiv');
             let dLabel = document.getElementById('dynamicPeriodLabel');
             let dSelect = document.getElementById('dynamicPeriodValue');
@@ -411,41 +406,62 @@
                 );
                 
                 if (!isFilled && userVillages.length > 0) {
-                    globalPendingVillages.push({ ...userVillages[0], name: "🏢 संपूर्ण उपकेंद्र (Subcenter Level)" });
+                    let vData = { ...userVillages[0], name: "🏢 संपूर्ण उपकेंद्र (Subcenter Level)" };
+                    globalPendingVillages.push(vData);
+                    globalNilVillages.push(vData);
                 } else if (isFilled) {
                     hiddenCount++;
                 }
             } else if (freq === 'onetime') {
                 userVillages.forEach(v => {
-                    let isFilled = onetimeResponses.some(r => 
-                        r.form_id === formId && r.village_id === v.id && 
-                        (currentFormObj.data_entry_mode === 'shared' ? true : r.employee_id === loggedInUser.id)
-                    );
-                    if (!isFilled) globalPendingVillages.push(v);
-                    else hiddenCount++;
+                    let isFilled = false;
+                    if (currentFormObj.form_type === 'list') {
+                        isFilled = false; // 🟢 'List' फॉर्म गाव लपवणार नाही
+                    } else {
+                        isFilled = onetimeResponses.some(r => 
+                            r.form_id === formId && r.village_id === v.id && 
+                            (currentFormObj.data_entry_mode === 'shared' ? true : r.employee_id === loggedInUser.id)
+                        );
+                    }
+                    
+                    if (!isFilled) {
+                        globalPendingVillages.push(v);
+                        globalNilVillages.push(v);
+                    } else {
+                        hiddenCount++;
+                    }
                 });
             } else {
                 userVillages.forEach(v => {
                     let isFilled = false;
                     
+                    // डेटा तपासणी
+                    let hasDataMatch = currentMonthResponses.some(r => 
+                        r.form_id === formId && r.village_id === v.id && 
+                        (currentFormObj.data_entry_mode === 'shared' ? true : r.employee_id === loggedInUser.id) &&
+                        ((freq === 'daily' && r.report_fortnight === pVal) ||
+                         (freq === 'weekly' && r.report_fortnight === pVal) ||
+                         (freq === 'fortnightly' && r.report_fortnight === pVal) ||
+                         (freq !== 'daily' && freq !== 'weekly' && freq !== 'fortnightly'))
+                    );
+                    
+                    // निरंक (NIL) तपासणी
+                    let hasNilMatch = currentMonthResponses.some(r => 
+                        r.form_id === formId && r.village_id === v.id && 
+                        r.response_data && r.response_data.is_nil === true &&
+                        ((freq === 'daily' && r.report_fortnight === pVal) ||
+                         (freq === 'weekly' && r.report_fortnight === pVal) ||
+                         (freq === 'fortnightly' && r.report_fortnight === pVal) ||
+                         (freq !== 'daily' && freq !== 'weekly' && freq !== 'fortnightly'))
+                    );
+
                     if (currentFormObj.form_type === 'list') {
-                        isFilled = currentMonthResponses.some(r => 
-                            r.form_id === formId && r.village_id === v.id && 
-                            r.response_data && r.response_data.is_nil === true &&
-                            ((freq === 'daily' && r.report_fortnight === pVal) ||
-                             (freq === 'weekly' && r.report_fortnight === pVal) ||
-                             (freq === 'fortnightly' && r.report_fortnight === pVal) ||
-                             (freq !== 'daily' && freq !== 'weekly' && freq !== 'fortnightly'))
-                        );
+                        isFilled = false; // 🟢 ड्रॉपडाऊनमध्ये गाव नेहमी दिसेल
+                        // पण जर आधीच डेटा किंवा NIL भरला असेल, तर 'निरंक बटण' साठी यादीत टाकू नका
+                        if (!hasNilMatch && !hasDataMatch) globalNilVillages.push(v); 
                     } else {
-                        isFilled = currentMonthResponses.some(r => 
-                            r.form_id === formId && r.village_id === v.id && 
-                            (currentFormObj.data_entry_mode === 'shared' ? true : r.employee_id === loggedInUser.id) &&
-                            ((freq === 'daily' && r.report_fortnight === pVal) ||
-                             (freq === 'weekly' && r.report_fortnight === pVal) ||
-                             (freq === 'fortnightly' && r.report_fortnight === pVal) ||
-                             (freq !== 'daily' && freq !== 'weekly' && freq !== 'fortnightly'))
-                        );
+                        isFilled = hasDataMatch;
+                        if (!isFilled) globalNilVillages.push(v);
                     }
 
                     if (!isFilled) globalPendingVillages.push(v);
@@ -462,6 +478,18 @@
                 globalPendingVillages.forEach(v => {
                     vSelect.innerHTML += `<option value="${v.id}">${v.name}</option>`;
                 });
+            }
+            
+            // 🟢 'निरंक बटण' फक्त उरलेल्या गावांसाठी (globalNilVillages) दिसेल
+            if (globalNilVillages.length > 0) {
+                btnNilAll.classList.remove('hidden');
+                if (currentFormObj.form_type === 'subcenter') {
+                    btnNilAll.innerText = "🚫 निरंक (NIL) रिपोर्ट भरा";
+                } else {
+                    btnNilAll.innerText = `🚫 राहिलेल्या (${globalNilVillages.length}) गावांचा 'निरंक' भरा`;
+                }
+            } else {
+                btnNilAll.classList.add('hidden');
             }
 
             if (hiddenCount > 0) {
@@ -540,13 +568,11 @@
             const vid = document.getElementById('villageSelect').value;
             const container = document.getElementById('dynamicFieldsContainer');
             const submitBtn = document.getElementById('submitBtn');
-            const btnNilReport = document.getElementById('btnNilReport');
             const btnSaveAndAddMore = document.getElementById('btnSaveAndAddMore');
 
             if (!vid) {
                 container.innerHTML = '<p class="text-center text-gray-400 font-bold py-10 text-lg">कृपया गाव / कार्यक्षेत्र निवडा.</p>';
                 submitBtn.classList.add('hidden');
-                btnNilReport.classList.add('hidden');
                 btnSaveAndAddMore.classList.add('hidden');
                 return;
             }
@@ -704,13 +730,76 @@
             let freq = currentFormObj.schema_json && currentFormObj.schema_json.frequency ? currentFormObj.schema_json.frequency : (currentFormObj.form_type === 'fortnightly' ? 'fortnightly' : 'monthly');
             
             if (currentFormObj.form_type === 'list' || freq === 'fortnightly' || freq === 'weekly' || freq === 'daily') {
-                btnNilReport.classList.remove('hidden');
                 btnSaveAndAddMore.classList.remove('hidden');
                 submitBtn.innerHTML = "💾 सेव्ह करा आणि बाहेर पडा";
             } else {
-                btnNilReport.classList.add('hidden');
                 btnSaveAndAddMore.classList.add('hidden');
                 submitBtn.innerHTML = "💾 माहिती सेव्ह करा";
+            }
+        }
+
+        // 🟢 सर्व गावांचा एकत्रित 'निरंक (NIL)' सबमिट करण्यासाठीचे फंक्शन
+        async function submitNilForAll() {
+            const formId = document.getElementById('formSelect').value;
+            const repMonth = document.getElementById('reportMonth').value;
+            const repYear = document.getElementById('reportYear').value;
+            const periodVal = document.getElementById('dynamicPeriodValue') ? document.getElementById('dynamicPeriodValue').value : "1";
+
+            if (!formId || globalNilVillages.length === 0) {
+                alert("फॉर्म निवडलेला नाही किंवा सर्व गावांची माहिती आधीच भरली आहे.");
+                return;
+            }
+
+            let confirmMsg = currentFormObj.form_type === 'subcenter' 
+                ? "तुम्हाला खात्री आहे की या उपकेंद्रासाठी 'निरंक (NIL)' अहवाल भरायचा आहे?" 
+                : `तुम्हाला खात्री आहे की सर्व राहिलेल्या ${globalNilVillages.length} गावांसाठी 'निरंक (NIL)' अहवाल भरायचा आहे?\n(यानंतर या कालावधीत या गावांची नोंद करता येणार नाही)`;
+
+            if(!confirm(confirmMsg)) return;
+
+            let btn = document.getElementById('btnNilAllReport');
+            if(btn) btn.disabled = true;
+
+            document.getElementById('loaderText').innerText = "सर्व गावांसाठी निरंक रिपोर्ट सेव्ह होत आहे...";
+            document.getElementById('loader').classList.remove('hidden');
+
+            let payloads = [];
+            let freq = currentFormObj.schema_json && currentFormObj.schema_json.frequency ? currentFormObj.schema_json.frequency : (currentFormObj.form_type === 'fortnightly' ? 'fortnightly' : 'monthly');
+            let isOnetime = freq === 'onetime';
+            let targetFortnight = (freq === 'fortnightly' || freq === 'weekly' || freq === 'daily') ? parseInt(periodVal) : 0;
+
+            globalNilVillages.forEach(v => {
+                let pLoad = {
+                    form_id: formId,
+                    village_id: v.id,
+                    employee_id: loggedInUser.id,
+                    report_month: isOnetime ? 0 : parseInt(repMonth),
+                    report_year: isOnetime ? 0 : parseInt(repYear),
+                    report_fortnight: targetFortnight,
+                    response_data: { is_nil: true }
+                };
+                payloads.push(pLoad);
+            });
+
+            try {
+                const { error } = await supabaseClient.from('form_responses').insert(payloads);
+                document.getElementById('loader').classList.add('hidden');
+                if(btn) btn.disabled = false;
+
+                if (error) {
+                    alert("माहिती सेव्ह करताना त्रुटी आली: " + error.message);
+                } else {
+                    if (freq === 'onetime') {
+                        onetimeResponses.push(...payloads);
+                    } else {
+                        currentMonthResponses.push(...payloads);
+                    }
+                    alert(`✅ उत्कृष्ट! निरंक (NIL) अहवाल यशस्वीरीत्या सबमिट झाला!`);
+                    updateFormDropdown(); 
+                }
+            } catch (err) {
+                document.getElementById('loader').classList.add('hidden');
+                if(btn) btn.disabled = false;
+                alert("नेटवर्क किंवा सिस्टीम एरर: " + err.message);
             }
         }
 
@@ -722,60 +811,92 @@
 
             if (!formId || currentPendingVillages.length === 0) return;
 
-            if (!isNilReport) {
-                const formEl = document.getElementById('dynamicDataForm');
-                if (!formEl.checkValidity()) { formEl.reportValidity(); return; }
+            const btnSubmit = document.getElementById('submitBtn');
+            const btnAddMore = document.getElementById('btnSaveAndAddMore');
+            if(btnSubmit) btnSubmit.disabled = true;
+            if(btnAddMore) btnAddMore.disabled = true;
 
-                for (let v of currentPendingVillages) {
-                    for (let f of currentDataFields) {
-                        let el = document.getElementById(`${f.id}_v${v.id}`);
-                        if (!el || el.value === "") continue;
+            const formEl = document.getElementById('dynamicDataForm');
+            if (!formEl.checkValidity()) { 
+                formEl.reportValidity(); 
+                if(btnSubmit) btnSubmit.disabled = false;
+                if(btnAddMore) btnAddMore.disabled = false;
+                return; 
+            }
 
-                        let val = parseFloat(el.value);
-                        if (isNaN(val)) continue;
+            for (let v of currentPendingVillages) {
+                for (let f of currentDataFields) {
+                    let el = document.getElementById(`${f.id}_v${v.id}`);
+                    if (!el || el.value === "") continue;
 
-                        if (f.max && String(f.max).trim() !== "") {
-                            let maxVal = evaluateValidationFormula(f.max, v.id, currentDataFields);
-                            if (maxVal !== null && val > maxVal) {
-                                alert(`⚠️ चूक: ${v.name} साठी '${f.label}' मधील आकडा ${maxVal} पेक्षा जास्त असू शकत नाही!`);
-                                el.focus();
-                                return;
-                            }
+                    let val = parseFloat(el.value);
+                    if (isNaN(val)) continue;
+
+                    if (f.max && String(f.max).trim() !== "") {
+                        let maxVal = evaluateValidationFormula(f.max, v.id, currentDataFields);
+                        if (maxVal !== null && val > maxVal) {
+                            alert(`⚠️ चूक: ${v.name} साठी '${f.label}' मधील आकडा ${maxVal} पेक्षा जास्त असू शकत नाही!`);
+                            el.focus();
+                            if(btnSubmit) btnSubmit.disabled = false;
+                            if(btnAddMore) btnAddMore.disabled = false;
+                            return;
                         }
+                    }
 
-                        if (f.min && String(f.min).trim() !== "") {
-                            let minVal = evaluateValidationFormula(f.min, v.id, currentDataFields);
-                            if (minVal !== null && val < minVal) {
-                                alert(`⚠️ चूक: ${v.name} साठी '${f.label}' मधील आकडा ${minVal} पेक्षा कमी असू शकत नाही!`);
-                                el.focus();
-                                return;
-                            }
+                    if (f.min && String(f.min).trim() !== "") {
+                        let minVal = evaluateValidationFormula(f.min, v.id, currentDataFields);
+                        if (minVal !== null && val < minVal) {
+                            alert(`⚠️ चूक: ${v.name} साठी '${f.label}' मधील आकडा ${minVal} पेक्षा कमी असू शकत नाही!`);
+                            el.focus();
+                            if(btnSubmit) btnSubmit.disabled = false;
+                            if(btnAddMore) btnAddMore.disabled = false;
+                            return;
                         }
                     }
                 }
-            } else {
-                if(!confirm("तुम्हाला खात्री आहे की या गावासाठी या कालावधीची माहिती 'निरंक (NIL)' आहे?\n(यानंतर या कालावधीत या गावाची नोंद करता येणार नाही)")) return;
             }
 
-            document.getElementById('loaderText').innerText = "डेटा सुरक्षित सेव्ह होत आहे...";
+            document.getElementById('loaderText').innerText = "डेटा तपासला व सुरक्षित सेव्ह होत आहे...";
             document.getElementById('loader').classList.remove('hidden');
 
             let payloads = [];
             let freq = currentFormObj.schema_json && currentFormObj.schema_json.frequency ? currentFormObj.schema_json.frequency : (currentFormObj.form_type === 'fortnightly' ? 'fortnightly' : 'monthly');
+            let isOnetime = freq === 'onetime';
+            let targetFortnight = (freq === 'fortnightly' || freq === 'weekly' || freq === 'daily') ? parseInt(periodVal) : 0;
+
+            if (currentFormObj.form_type !== 'list') {
+                const villageIds = currentPendingVillages.map(v => v.id);
+                const { data: existingRecords, error: checkError } = await supabaseClient
+                    .from('form_responses')
+                    .select('id, village_id')
+                    .eq('form_id', formId)
+                    .eq('report_month', isOnetime ? 0 : parseInt(repMonth))
+                    .eq('report_year', isOnetime ? 0 : parseInt(repYear))
+                    .eq('report_fortnight', targetFortnight)
+                    .in('village_id', villageIds);
+
+                if (checkError) {
+                    document.getElementById('loader').classList.add('hidden');
+                    alert("डेटा तपासताना त्रुटी आली: " + checkError.message);
+                    if(btnSubmit) btnSubmit.disabled = false;
+                    if(btnAddMore) btnAddMore.disabled = false;
+                    return;
+                }
+
+                if (existingRecords && existingRecords.length > 0) {
+                    document.getElementById('loader').classList.add('hidden');
+                    alert("⚠️ सावधगिरी: तुम्ही निवडलेल्या गावांपैकी काहींचा अहवाल आधीच सिस्टीममध्ये सबमिट झाला आहे! कृपया एकाच महिन्याचा डेटा दोनदा भरू नका.");
+                    await handleMonthYearChange();
+                    return;
+                }
+            }
 
             currentPendingVillages.forEach(v => {
                 let responseDataObj = {};
-                
-                if (isNilReport) {
-                    responseDataObj = { is_nil: true };
-                } else {
-                    currentDataFields.forEach(f => {
-                        let el = document.getElementById(`${f.id}_v${v.id}`);
-                        responseDataObj[f.id] = { value: el ? el.value : "" };
-                    });
-                }
-
-                let isOnetime = freq === 'onetime';
+                currentDataFields.forEach(f => {
+                    let el = document.getElementById(`${f.id}_v${v.id}`);
+                    responseDataObj[f.id] = { value: el ? el.value : "" };
+                });
 
                 let pLoad = {
                     form_id: formId,
@@ -783,15 +904,9 @@
                     employee_id: loggedInUser.id,
                     report_month: isOnetime ? 0 : parseInt(repMonth),
                     report_year: isOnetime ? 0 : parseInt(repYear),
+                    report_fortnight: targetFortnight,
                     response_data: responseDataObj
                 };
-                
-                if (freq === 'fortnightly' || freq === 'weekly' || freq === 'daily') {
-                    pLoad.report_fortnight = parseInt(periodVal);
-                } else {
-                    pLoad.report_fortnight = 0;
-                }
-
                 payloads.push(pLoad);
             });
 
@@ -802,18 +917,16 @@
 
                 if (error) {
                     alert("माहिती सेव्ह करताना त्रुटी आली: " + error.message);
+                    if(btnSubmit) btnSubmit.disabled = false;
+                    if(btnAddMore) btnAddMore.disabled = false;
                 } else {
-                    
                     if (freq === 'onetime') {
                         onetimeResponses.push(...payloads);
                     } else {
                         currentMonthResponses.push(...payloads);
                     }
 
-                    if (isNilReport) {
-                        alert(`✅ उत्कृष्ट! ${currentPendingVillages.map(v=>v.name).join(', ')} चा निरंक (NIL) अहवाल यशस्वीरीत्या सबमिट झाला!`);
-                        updateFormDropdown(); 
-                    } else if (isAddMore) {
+                    if (isAddMore) {
                         alert("✅ माहिती सेव्ह झाली! तुम्ही या गावासाठी पुढची नोंद करू शकता.");
                         document.getElementById('dynamicDataForm').reset();
                         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -822,6 +935,8 @@
                         }, 100);
                         
                         if(currentFormObj.form_type !== 'list') updateFormDropdown(); 
+                        if(btnSubmit) btnSubmit.disabled = false;
+                        if(btnAddMore) btnAddMore.disabled = false;
                     } else {
                         alert("✅ माहिती यशस्वीरीत्या सेव्ह झाली!");
                         window.location.href = "dashboard.html"; 
@@ -830,6 +945,8 @@
             } catch (err) {
                 document.getElementById('loader').classList.add('hidden');
                 alert("नेटवर्क किंवा सिस्टीम एरर: " + err.message);
+                if(btnSubmit) btnSubmit.disabled = false;
+                if(btnAddMore) btnAddMore.disabled = false;
             }
         }
     </script>
