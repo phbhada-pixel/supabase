@@ -33,7 +33,24 @@ async function loadInitialMasterData() {
                 if (user.role === 'phc_admin' && user.phc_id) eQuery = eQuery.eq('phc_id', user.phc_id);
                 const { data: empData } = await eQuery;
                 masterData.employees = empData || [];
-
+// --- Role Filter Loading Logic ---
+if (['admin', 'taluka_admin', 'phc_admin'].includes(String(user.role).trim().toLowerCase())) {
+    let roleFilterDiv = document.getElementById('roleFilterDiv');
+    let roleSelect = document.getElementById('reportRoleFilter');
+    
+    if (roleFilterDiv && roleSelect && masterData.employees.length > 0) {
+        roleFilterDiv.classList.remove('hidden'); // अॅडमिनला फिल्टर दिसेल
+        
+        // कर्मचाऱ्यांच्या लिस्टमधून युनिक पदे (Unique Roles) शोधून काढणे
+        let uniqueRoles = [...new Set(masterData.employees.map(e => String(e.role).trim()))].filter(r => r && r !== 'null');
+        
+        roleSelect.innerHTML = '<option value="सर्व">सर्व पदे (All Roles)</option>';
+        uniqueRoles.forEach(r => {
+            roleSelect.innerHTML += `<option value="${r}">${r}</option>`;
+        });
+    }
+}
+// ---------------------------------
                 const { data: formData, error: formErr } = await supabaseClient.from('dynamic_forms').select('*').eq('is_active', true);
                 if (formErr) throw formErr;
 
