@@ -411,10 +411,16 @@
                 }
             } else if (freq === 'onetime') {
                 userVillages.forEach(v => {
-                    let isFilled = onetimeResponses.some(r => 
-                        r.form_id === formId && r.village_id === v.id && 
-                        (currentFormObj.data_entry_mode === 'shared' ? true : r.employee_id === loggedInUser.id)
-                    );
+                    let isFilled = false;
+                    // 🟢 यादी (List) प्रकारात गावे कधीच लपवायची नाहीत
+                    if (currentFormObj.form_type === 'list') {
+                        isFilled = false;
+                    } else {
+                        isFilled = onetimeResponses.some(r => 
+                            r.form_id === formId && r.village_id === v.id && 
+                            (currentFormObj.data_entry_mode === 'shared' ? true : r.employee_id === loggedInUser.id)
+                        );
+                    }
                     if (!isFilled) globalPendingVillages.push(v);
                     else hiddenCount++;
                 });
@@ -422,15 +428,9 @@
                 userVillages.forEach(v => {
                     let isFilled = false;
                     
+                    // 🟢 यादी (List) प्रकारात गावे कधीच लपवायची नाहीत (येथेच खरा बदल आहे)
                     if (currentFormObj.form_type === 'list') {
-                        isFilled = currentMonthResponses.some(r => 
-                            r.form_id === formId && r.village_id === v.id && 
-                            r.response_data && r.response_data.is_nil === true &&
-                            ((freq === 'daily' && r.report_fortnight === pVal) ||
-                             (freq === 'weekly' && r.report_fortnight === pVal) ||
-                             (freq === 'fortnightly' && r.report_fortnight === pVal) ||
-                             (freq !== 'daily' && freq !== 'weekly' && freq !== 'fortnightly'))
-                        );
+                        isFilled = false;
                     } else {
                         isFilled = currentMonthResponses.some(r => 
                             r.form_id === formId && r.village_id === v.id && 
@@ -480,40 +480,6 @@
                 renderFormFields();
             }
         }
-
-        window.calculateFormulas = function(vid) {
-            if(!currentFormObj) return;
-            const allFields = currentFormObj.schema_json.fields;
-            const formulaFields = allFields.filter(f => f.formula && String(f.formula).trim() !== "");
-            
-            formulaFields.forEach(f => {
-                let formulaStr = String(f.formula).toLowerCase().trim();
-                
-                allFields.forEach(af => {
-                    if (!af.formula || String(af.formula).trim() === "") {
-                        let ph = `[${af.id.toLowerCase()}]`;
-                        if (formulaStr.includes(ph)) {
-                            let el = document.getElementById(`${af.id}_v${vid}`);
-                            let val = el && el.value !== "" ? parseFloat(el.value) : 0;
-                            if (isNaN(val)) val = 0;
-                            formulaStr = formulaStr.split(ph).join(val); 
-                        }
-                    }
-                });
-                
-                try {
-                    if (/^[0-9.+\-*/() ]+$/.test(formulaStr)) {
-                        let res = eval(formulaStr);
-                        let finalRes = isNaN(res) || !isFinite(res) ? 0 : res;
-                        let targetEl = document.getElementById(`${f.id}_v${vid}`);
-                        if (targetEl) {
-                            targetEl.value = Number.isInteger(finalRes) ? finalRes : parseFloat(finalRes.toFixed(2));
-                        }
-                    }
-                } catch(e) {}
-            });
-        };
-
         function evaluateValidationFormula(formulaStr, vid, fields) {
             let fStr = String(formulaStr).toLowerCase().trim();
             if (fStr.includes('[')) {
