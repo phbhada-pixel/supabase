@@ -64,7 +64,7 @@
             <div id="dynamicPeriodDiv" class="hidden md:col-span-2">
                 <label id="dynamicPeriodLabel" class="block text-orange-700 font-bold mb-2 text-sm">कालावधी <span class="text-red-500">*</span></label>
                 <select id="dynamicPeriodValue" onchange="handleMonthYearChange()" class="w-full p-2.5 border-2 border-orange-400 rounded bg-orange-50 font-bold text-orange-900 text-base shadow-sm">
-                    </select>
+                </select>
             </div>
 
             <div class="md:col-span-2" id="villageDivWrapper">
@@ -75,7 +75,6 @@
                     <option value="">-- आधी फॉर्म निवडा --</option>
                 </select>
                 
-                <!-- 🟢 नवीन: निरंक बटन आता वर गावाच्या खाली असेल -->
                 <div class="flex flex-col md:flex-row justify-between items-start md:items-center mt-2 gap-2">
                     <p id="villageHint" class="text-[10px] text-green-600 hidden font-bold">✓ फक्त राहिलेली गावे दाखवली आहेत.</p>
                     
@@ -295,19 +294,8 @@
                     });
                     if (filledCount >= userVillages.length) showForm = false; 
                 } else if (form.form_type === 'list' && userVillages.length > 0) {
-                    let nilCount = 0;
-                    userVillages.forEach(v => {
-                        let isNil = currentMonthResponses.some(r => 
-                            r.form_id === form.id && r.village_id === v.id && 
-                            r.response_data && r.response_data.is_nil === true &&
-                            ((freq === 'daily' && r.report_fortnight === periodVal) ||
-                             (freq === 'weekly' && r.report_fortnight === periodVal) ||
-                             (freq === 'fortnightly' && r.report_fortnight === periodVal) ||
-                             (freq !== 'daily' && freq !== 'weekly' && freq !== 'fortnightly'))
-                        );
-                        if (isNil) nilCount++;
-                    });
-                    if (nilCount >= userVillages.length) showForm = false;
+                    // 🟢 'यादी' प्रकारच्या फॉर्मसाठी 'निरंक (NIL)' अहवाल भरला तरी तो 'hide' होणार नाही.
+                    showForm = true;
                 }
 
                 if (showForm) {
@@ -469,7 +457,6 @@
                     vSelect.innerHTML += `<option value="${v.id}">${v.name}</option>`;
                 });
                 
-                // 🟢 डायनॅमिक निरंक बटण (सगळ्या गावांचा एकत्रित NIL भरायला)
                 btnNilAll.classList.remove('hidden');
                 if (currentFormObj.form_type === 'subcenter') {
                     btnNilAll.innerText = "🚫 निरंक (NIL) रिपोर्ट भरा";
@@ -727,7 +714,6 @@
             }
         }
 
-        // 🟢 नवीन: सर्व गावांचा एकत्रित 'निरंक (NIL)' सबमिट करण्यासाठीचे फंक्शन
         async function submitNilForAll() {
             const formId = document.getElementById('formSelect').value;
             const repMonth = document.getElementById('reportMonth').value;
