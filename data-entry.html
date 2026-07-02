@@ -125,7 +125,7 @@
         let onetimeResponses = []; 
 
         let globalPendingVillages = []; 
-        let globalNilVillages = []; // 🟢 नवीन: निरंक रिपोर्टसाठीची वेगळी यादी
+        let globalNilVillages = []; 
         let currentPendingVillages = []; 
         let currentDataFields = []; 
         let currentFormObj = null;
@@ -294,7 +294,6 @@
                     });
                     if (filledCount >= userVillages.length) showForm = false; 
                 } else if (form.form_type === 'list') {
-                    // 🟢 'list' फॉर्म कधीच लपवायचा नाही
                     showForm = true;
                 }
 
@@ -348,7 +347,7 @@
 
             currentFormObj = allFormsMap[formId];
             globalPendingVillages = [];
-            globalNilVillages = []; // 🟢 फक्त पेंडिंग निरंक रिपोर्टसाठीची यादी
+            globalNilVillages = []; 
             let hiddenCount = 0;
             
             let freq = currentFormObj.schema_json && currentFormObj.schema_json.frequency ? currentFormObj.schema_json.frequency : (currentFormObj.form_type === 'fortnightly' ? 'fortnightly' : 'monthly');
@@ -357,7 +356,6 @@
             let dLabel = document.getElementById('dynamicPeriodLabel');
             let dSelect = document.getElementById('dynamicPeriodValue');
 
-            let currentPeriodVal = dSelect.value || "1";
             let prevPeriodType = dSelect.getAttribute('data-type') || "";
 
             if (freq === 'onetime') {
@@ -370,12 +368,44 @@
                 document.getElementById('reportYear').parentElement.classList.remove('opacity-30', 'pointer-events-none');
                 
                 if (freq === 'daily') {
-                    if(prevPeriodType !== 'daily') {
-                        dLabel.innerHTML = 'तारीख (Day) <span class="text-red-500">*</span>';
-                        let opts = ''; for(let i=1; i<=31; i++) opts += `<option value="${i}">${i} तारीख</option>`;
-                        dSelect.innerHTML = opts; dSelect.value = "1";
-                        dSelect.setAttribute('data-type', 'daily');
+                    // 🟢 कडक नियम: फक्त काल, आज आणि उद्या (Yesterday, Today, Tomorrow)
+                    dLabel.innerHTML = 'तारीख (Day) <span class="text-red-500">*</span>';
+                    
+                    let todayObj = new Date();
+                    let yestObj = new Date(); yestObj.setDate(todayObj.getDate() - 1);
+                    let tomObj = new Date(); tomObj.setDate(todayObj.getDate() + 1);
+                    
+                    let allowedDays = [
+                        { d: yestObj, l: 'काल (Yesterday)' },
+                        { d: todayObj, l: 'आज (Today)' },
+                        { d: tomObj, l: 'उद्या (Tomorrow)' }
+                    ];
+
+                    let selM = parseInt(document.getElementById('reportMonth').value);
+                    let selY = parseInt(document.getElementById('reportYear').value);
+                    
+                    let opts = '';
+                    let defaultVal = '';
+                    allowedDays.forEach(obj => {
+                        if((obj.d.getMonth() + 1) === selM && obj.d.getFullYear() === selY) {
+                            let dayVal = obj.d.getDate();
+                            opts += `<option value="${dayVal}">${dayVal} तारीख - ${obj.l}</option>`;
+                            if (obj.l.includes('आज')) defaultVal = dayVal.toString();
+                        }
+                    });
+
+                    if(opts === '') {
+                        opts = `<option value="0">-- या महिन्यात अहवाल उपलब्ध नाही --</option>`;
                     }
+                    
+                    dSelect.innerHTML = opts;
+                    if(defaultVal !== '') {
+                        dSelect.value = defaultVal;
+                    } else if (dSelect.options.length > 0) {
+                        dSelect.value = dSelect.options[0].value;
+                    }
+                    
+                    dSelect.setAttribute('data-type', 'daily');
                     dDiv.classList.remove('hidden');
                 } else if (freq === 'weekly') {
                     if(prevPeriodType !== 'weekly') {
@@ -397,7 +427,15 @@
                 }
             }
 
-            let pVal = parseInt(dSelect.value) || 1;
+            let pVal = parseInt(dSelect.value);
+            if(isNaN(pVal)) pVal = 1;
+
+            // 🟢 दैनिक अहवाल काल-आज-उद्या पेक्षा वेगळा महिना निवडल्यास ब्लॉक करा
+            if (freq === 'daily' && dSelect.value === "0") {
+                vSelect.innerHTML = '<option value="">-- अवैध महिना --</option>';
+                container.innerHTML = '<p class="text-center text-red-500 font-bold py-10 text-lg">⚠️ दैनिक अहवाल फक्त काल, आज आणि उद्यासाठी (Yesterday, Today, Tomorrow) भरता येतो. कृपया चालू महिना निवडा.</p>';
+                return;
+            }
 
             if (currentFormObj.form_type === 'subcenter') {
                 let isFilled = currentMonthResponses.some(r => 
@@ -416,7 +454,7 @@
                 userVillages.forEach(v => {
                     let isFilled = false;
                     if (currentFormObj.form_type === 'list') {
-                        isFilled = false; // 🟢 'List' फॉर्म गाव लपवणार नाही
+                        isFilled = false; 
                     } else {
                         isFilled = onetimeResponses.some(r => 
                             r.form_id === formId && r.village_id === v.id && 
@@ -435,7 +473,6 @@
                 userVillages.forEach(v => {
                     let isFilled = false;
                     
-                    // डेटा तपासणी
                     let hasDataMatch = currentMonthResponses.some(r => 
                         r.form_id === formId && r.village_id === v.id && 
                         (currentFormObj.data_entry_mode === 'shared' ? true : r.employee_id === loggedInUser.id) &&
@@ -445,7 +482,6 @@
                          (freq !== 'daily' && freq !== 'weekly' && freq !== 'fortnightly'))
                     );
                     
-                    // निरंक (NIL) तपासणी
                     let hasNilMatch = currentMonthResponses.some(r => 
                         r.form_id === formId && r.village_id === v.id && 
                         r.response_data && r.response_data.is_nil === true &&
@@ -456,8 +492,7 @@
                     );
 
                     if (currentFormObj.form_type === 'list') {
-                        isFilled = false; // 🟢 ड्रॉपडाऊनमध्ये गाव नेहमी दिसेल
-                        // पण जर आधीच डेटा किंवा NIL भरला असेल, तर 'निरंक बटण' साठी यादीत टाकू नका
+                        isFilled = false; 
                         if (!hasNilMatch && !hasDataMatch) globalNilVillages.push(v); 
                     } else {
                         isFilled = hasDataMatch;
@@ -480,7 +515,6 @@
                 });
             }
             
-            // 🟢 'निरंक बटण' फक्त उरलेल्या गावांसाठी (globalNilVillages) दिसेल
             if (globalNilVillages.length > 0) {
                 btnNilAll.classList.remove('hidden');
                 if (currentFormObj.form_type === 'subcenter') {
@@ -492,7 +526,7 @@
                 btnNilAll.classList.add('hidden');
             }
 
-            if (hiddenCount > 0) {
+            if (hiddenCount > 0 && currentFormObj.form_type !== 'list') {
                 vHint.innerText = `✓ ${hiddenCount} अहवाल भरून झाले आहेत (ते लपवले आहेत).`;
                 vHint.classList.remove('hidden');
             } else {
@@ -738,7 +772,6 @@
             }
         }
 
-        // 🟢 सर्व गावांचा एकत्रित 'निरंक (NIL)' सबमिट करण्यासाठीचे फंक्शन
         async function submitNilForAll() {
             const formId = document.getElementById('formSelect').value;
             const repMonth = document.getElementById('reportMonth').value;
