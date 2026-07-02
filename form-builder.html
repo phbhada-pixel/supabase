@@ -19,14 +19,12 @@
 
     <div class="max-w-5xl mx-auto bg-white p-6 rounded-lg shadow-md border-t-4 border-green-500">
 
-        <!-- 🟢 सुधारणा: आता ६ रकाने केले आहेत (वारंवारता जोडण्यासाठी) -->
         <div class="grid grid-cols-1 md:grid-cols-6 gap-4 mb-6 pb-6 border-b">
             <div>
                 <label class="block text-gray-700 font-bold mb-2 text-sm">अहवाल/फॉर्मचे नाव</label>
                 <input type="text" id="formName" class="w-full p-2 border rounded font-bold text-gray-800" placeholder="उदा. रुग्ण नोंदणी">
             </div>
-            
-            <!-- 🟢 हा तुमचा मूळ फॉर्म प्रकार (तसाच ठेवला आहे) -->
+
             <div>
                 <label class="block text-gray-700 font-bold mb-2 text-sm">फॉर्मचा प्रकार (Type)</label>
                 <select id="formType" class="w-full p-2 border rounded bg-white font-bold text-blue-700">
@@ -38,13 +36,13 @@
                 </select>
             </div>
 
-            <!-- 🟢 नवीन: फॉर्म भरण्याची वारंवारता (Frequency) -->
             <div>
                 <label class="block text-gray-700 font-bold mb-2 text-sm">वारंवारता (Frequency)</label>
                 <select id="formFrequency" class="w-full p-2 border rounded bg-yellow-50 font-bold text-yellow-900 border-yellow-300">
-                    <option value="monthly">मासिक (Monthly)</option>
-                    <option value="fortnightly">पंधरवाडा (Fortnightly)</option>
+                    <option value="daily">दैनिक (Daily)</option>
                     <option value="weekly">आठवडी (Weekly)</option>
+                    <option value="fortnightly">पंधरवाडा (Fortnightly)</option>
+                    <option value="monthly" selected>मासिक (Monthly)</option>
                     <option value="onetime">एकदाच (One-Time)</option>
                 </select>
             </div>
@@ -143,11 +141,9 @@
                 }
             }
 
-            // 🟢 वारंवारता सेट करणे
             if (data.schema_json && data.schema_json.frequency) {
                 document.getElementById('formFrequency').value = data.schema_json.frequency;
             } else {
-                // जुन्या फॉर्म्ससाठी बॅकवर्ड कॉम्पॅटिबिलिटी
                 if(data.form_type === 'fortnightly') document.getElementById('formFrequency').value = 'fortnightly';
                 else document.getElementById('formFrequency').value = 'monthly';
             }
@@ -294,9 +290,9 @@
             const schema = { 
                 fields: [],
                 show_population: document.getElementById('showPopConfig').checked,
-                frequency: document.getElementById('formFrequency').value // 🟢 वारंवारता सेव्ह केली
+                frequency: document.getElementById('formFrequency').value 
             };
-            
+
             const allBoxes = document.getElementById('fieldsContainer').querySelectorAll('[id$="_box"]');
 
             allBoxes.forEach(box => {
