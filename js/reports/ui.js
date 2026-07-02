@@ -13,7 +13,7 @@ function togglePeriodInputs() {
         document.getElementById('monthlyInputs').classList.remove('hidden');
         document.getElementById('customDateInputs').classList.add('hidden');
         updateMultiSelectText();
-        if (typeof updateDailyDropdown === 'function') updateDailyDropdown(); // 🟢 नवीन बदल: महिना बदलल्यावर तारीख अपडेट होईल
+        if (typeof updateDailyDropdown === 'function') updateDailyDropdown(); 
     }
 }
 
@@ -540,7 +540,7 @@ function closeEditModal() {
     currentEditFormId = null;
 }
 
-// 🟢 नवीन कोड: ड्रॉपडाऊनमध्ये तारखा आपोआप लोड करण्यासाठी
+// 🟢 नवीन आणि अचूक कोड: आजची तारीख (Current Date) बाय-डिफॉल्ट सिलेक्ट करण्यासाठी
 function updateDailyDropdown() {
     let monthSelect = document.getElementById('reportMonth');
     let yearSelect = document.getElementById('reportYear');
@@ -556,11 +556,11 @@ function updateDailyDropdown() {
     let mNum = months[selMonthName] || (new Date().getMonth() + 1);
     
     let daysInMonth = new Date(selYear, mNum, 0).getDate();
-    let currentVal = dailySelect.value;
+    let userSelected = dailySelect.getAttribute('data-user-selected');
     
     dailySelect.innerHTML = '';
     
-    // पूर्ण महिन्याच्या तारखा DD-MM-YYYY फॉरमॅटमध्ये बनवणे
+    // पूर्ण महिन्याच्या तारखा DD-MM-YYYY फॉरमॅटमध्ये ड्रॉपडाऊनसाठी बनवणे
     for(let i=1; i<=daysInMonth; i++) {
         let dStr = i < 10 ? '0'+i : i;
         let mStr = mNum < 10 ? '0'+mNum : mNum;
@@ -568,15 +568,16 @@ function updateDailyDropdown() {
         dailySelect.innerHTML += `<option value="${i}">${dateStr}</option>`;
     }
     
-    if (currentVal && currentVal <= daysInMonth) {
-        dailySelect.value = currentVal;
+    let today = new Date();
+    let isCurrentMonth = ((today.getMonth() + 1) === mNum && today.getFullYear() === selYear);
+    
+    // 🟢 जर चालू महिना निवडलेला असेल, तर आजचीच तारीख थेट सिलेक्ट करा
+    if (userSelected && parseInt(userSelected) <= daysInMonth) {
+        dailySelect.value = userSelected;
+    } else if (isCurrentMonth) {
+        dailySelect.value = today.getDate().toString();
     } else {
-        let today = new Date();
-        if ((today.getMonth() + 1) === mNum && today.getFullYear() === selYear) {
-            dailySelect.value = today.getDate();
-        } else {
-            dailySelect.value = "1";
-        }
+        dailySelect.value = "1";
     }
 }
 
@@ -585,8 +586,17 @@ document.addEventListener("DOMContentLoaded", () => {
     setTimeout(() => {
         let mSel = document.getElementById('reportMonth');
         let ySel = document.getElementById('reportYear');
-        if (mSel) mSel.addEventListener('change', updateDailyDropdown);
-        if (ySel) ySel.addEventListener('change', updateDailyDropdown);
+        let dSel = document.getElementById('reportDaily');
+        
+        // महिना किंवा वर्ष बदलल्यास जुनी निवडलेली तारीख क्लिअर करा
+        if (mSel) mSel.addEventListener('change', () => { if(dSel) dSel.removeAttribute('data-user-selected'); updateDailyDropdown(); });
+        if (ySel) ySel.addEventListener('change', () => { if(dSel) dSel.removeAttribute('data-user-selected'); updateDailyDropdown(); });
+        
+        if (dSel) {
+            dSel.addEventListener('change', function() {
+                this.setAttribute('data-user-selected', this.value);
+            });
+        }
         updateDailyDropdown();
     }, 500);
 });
