@@ -368,17 +368,17 @@
                 document.getElementById('reportYear').parentElement.classList.remove('opacity-30', 'pointer-events-none');
                 
                 if (freq === 'daily') {
-                    // 🟢 कडक नियम: फक्त काल, आज आणि उद्या (Yesterday, Today, Tomorrow)
-                    dLabel.innerHTML = 'तारीख (Day) <span class="text-red-500">*</span>';
+                    // 🟢 सुधारणा: 'काल, आज, उद्या' ऐवजी प्रत्यक्ष तारीख दाखवणे
+                    dLabel.innerHTML = 'तारीख निवडा <span class="text-red-500">*</span>';
                     
                     let todayObj = new Date();
                     let yestObj = new Date(); yestObj.setDate(todayObj.getDate() - 1);
                     let tomObj = new Date(); tomObj.setDate(todayObj.getDate() + 1);
                     
                     let allowedDays = [
-                        { d: yestObj, l: 'काल (Yesterday)' },
-                        { d: todayObj, l: 'आज (Today)' },
-                        { d: tomObj, l: 'उद्या (Tomorrow)' }
+                        { d: yestObj, type: 'yesterday' },
+                        { d: todayObj, type: 'today' },
+                        { d: tomObj, type: 'tomorrow' }
                     ];
 
                     let selM = parseInt(document.getElementById('reportMonth').value);
@@ -389,8 +389,14 @@
                     allowedDays.forEach(obj => {
                         if((obj.d.getMonth() + 1) === selM && obj.d.getFullYear() === selY) {
                             let dayVal = obj.d.getDate();
-                            opts += `<option value="${dayVal}">${dayVal} तारीख - ${obj.l}</option>`;
-                            if (obj.l.includes('आज')) defaultVal = dayVal.toString();
+                            let monthVal = obj.d.getMonth() + 1;
+                            let yearVal = obj.d.getFullYear();
+                            
+                            // DD-MM-YYYY फॉरमॅट तयार करणे
+                            let displayDate = `${dayVal < 10 ? '0' + dayVal : dayVal}-${monthVal < 10 ? '0' + monthVal : monthVal}-${yearVal}`;
+                            
+                            opts += `<option value="${dayVal}">${displayDate}</option>`;
+                            if (obj.type === 'today') defaultVal = dayVal.toString();
                         }
                     });
 
@@ -430,10 +436,9 @@
             let pVal = parseInt(dSelect.value);
             if(isNaN(pVal)) pVal = 1;
 
-            // 🟢 दैनिक अहवाल काल-आज-उद्या पेक्षा वेगळा महिना निवडल्यास ब्लॉक करा
             if (freq === 'daily' && dSelect.value === "0") {
                 vSelect.innerHTML = '<option value="">-- अवैध महिना --</option>';
-                container.innerHTML = '<p class="text-center text-red-500 font-bold py-10 text-lg">⚠️ दैनिक अहवाल फक्त काल, आज आणि उद्यासाठी (Yesterday, Today, Tomorrow) भरता येतो. कृपया चालू महिना निवडा.</p>';
+                container.innerHTML = '<p class="text-center text-red-500 font-bold py-10 text-lg">⚠️ दैनिक अहवाल फक्त काल, आज आणि उद्याच्या तारखेसाठीच भरता येतो. कृपया चालू महिना निवडा.</p>';
                 return;
             }
 
