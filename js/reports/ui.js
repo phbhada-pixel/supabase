@@ -228,6 +228,12 @@ function renderMultipleTables(reports, groupType) {
             rows.forEach((r) => {
                 let extra = showPop ? `<br/><span class="text-[10px] text-gray-600">लोक.: ${r.population || 0} | घरे: ${r.houses || 0}</span>` : '';
                 let vName = r.village ? `${r.village} <br/><span class="text-[10px] text-gray-500">(${r.subcenter})</span>${extra}` : "-";
+                
+                // 🟢 दुरुस्ती: उपकेंद्र फॉर्म असल्यास 'संपूर्ण उपकेंद्र' ऐवजी प्रत्यक्ष 'उपकेंद्राचे नाव' दाखवा
+                if (rep.formType === 'subcenter') {
+                    vName = `<span class="text-indigo-900 font-extrabold text-sm">${r.subcenter}</span>${extra}`;
+                }
+
                 l1Row += `<th colspan="${rep.isProg ? 2 : 1}" class="border p-2 bg-purple-100">${vName}</th>`;
                 if (rep.isProg) { l2Row += `<th class="border p-1 bg-yellow-50 text-[10px]">मासिक</th><th class="border p-1 bg-orange-50 text-[10px]">प्रगत</th></tr>`; }
             });
@@ -292,14 +298,15 @@ function renderMultipleTables(reports, groupType) {
                 dataRowsToRender = rows.sort((a,b) => a.subcenter.localeCompare(b.subcenter) || a.employee.localeCompare(b.employee) || a.village.localeCompare(b.village));
             }
 
-            let totalBaseCols = groupType === 'SubCenterFlat' ? (showPop ? 6 : 4) : (showPop ? 4 : 2); 
-            let totalColumnsCount = totalBaseCols; columns.forEach(c => { totalColumnsCount += (rep.isProg && c.type === 'number') ? 2 : 1; });
-
+            // 🟢 दुरुस्ती: 'उपकेंद्र' फॉर्म असल्यास 'गाव' कॉलम लपवा
             let l1Row = `<tr><th rowspan="${rep.isProg?4:3}" class="border p-2">अ.क्र.</th><th rowspan="${rep.isProg?4:3}" class="border p-2">उपकेंद्र</th>`;
             if (groupType === 'SubCenterFlat') {
-                l1Row += `<th rowspan="${rep.isProg?4:3}" class="border p-2">गाव/कार्यक्षेत्र</th>`;
+                if (rep.formType !== 'subcenter') {
+                    l1Row += `<th rowspan="${rep.isProg?4:3}" class="border p-2">गाव/कार्यक्षेत्र</th>`;
+                }
                 l1Row += `<th rowspan="${rep.isProg?4:3}" class="border p-2">कर्मचारी</th>`;
             }
+            
             if (showPop) {
                 l1Row += `<th rowspan="${rep.isProg?4:3}" class="border p-2 bg-yellow-50">लोकसंख्या</th>`;
                 l1Row += `<th rowspan="${rep.isProg?4:3}" class="border p-2 bg-yellow-50">कुटुंब संख्या</th>`;
@@ -352,11 +359,22 @@ function renderMultipleTables(reports, groupType) {
                     actionHtml = `<div class="mt-1 flex gap-1 justify-start no-print"><button onclick="openEditModal('${r.response_id}')" class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-[10px] font-bold shadow-sm hover:bg-blue-200">✏️</button><button onclick="deleteResponse('${r.response_id}')" class="bg-red-100 text-red-700 px-2 py-0.5 rounded text-[10px] font-bold shadow-sm hover:bg-red-200">🗑️</button></div>`;
                 }
 
-                tbodyHtml += `<tr class="hover:bg-gray-50 text-xs"><td class="border p-2 text-center font-bold">${rIdx+1}</td><td class="border p-2 font-bold text-gray-800 text-left">${r.subcenter}</td>`;
-                if(groupType === 'SubCenterFlat') {
-                    tbodyHtml += `<td class="border p-2 font-bold text-gray-800 text-left">${r.village} ${actionHtml}</td>`;
-                    tbodyHtml += `<td class="border p-2 font-medium text-gray-700 text-left">${r.employee}</td>`;
+                tbodyHtml += `<tr class="hover:bg-gray-50 text-xs"><td class="border p-2 text-center font-bold">${rIdx+1}</td>`;
+                
+                // 🟢 दुरुस्ती: उपकेंद्र फॉर्म असल्यास 'गाव' कॉलम लपवा आणि ॲक्शन बटन उपकेंद्राच्या नावासोबत द्या
+                if (groupType === 'SubCenterFlat') {
+                    if (rep.formType === 'subcenter') {
+                        tbodyHtml += `<td class="border p-2 font-bold text-gray-800 text-left">${r.subcenter} ${actionHtml}</td>`;
+                        tbodyHtml += `<td class="border p-2 font-medium text-gray-700 text-left">${r.employee}</td>`;
+                    } else {
+                        tbodyHtml += `<td class="border p-2 font-bold text-gray-800 text-left">${r.subcenter}</td>`;
+                        tbodyHtml += `<td class="border p-2 font-bold text-gray-800 text-left">${r.village} ${actionHtml}</td>`;
+                        tbodyHtml += `<td class="border p-2 font-medium text-gray-700 text-left">${r.employee}</td>`;
+                    }
+                } else {
+                    tbodyHtml += `<td class="border p-2 font-bold text-gray-800 text-left">${r.subcenter}</td>`;
                 }
+
                 if(showPop) {
                     tbodyHtml += `<td class="border p-2 text-center font-bold text-gray-700">${r.population || 0}</td>`;
                     tbodyHtml += `<td class="border p-2 text-center font-bold text-gray-700">${r.houses || 0}</td>`;
@@ -372,8 +390,11 @@ function renderMultipleTables(reports, groupType) {
 
             if (((user.role === 'admin' || user.role === 'taluka_admin' || user.role === 'phc_admin')) && rep.formType !== 'list') {
                 let phcTotals = calculateSmartTotals(dataRowsToRender, columns, rep.isProg);
-                let colspanTotal = groupType === 'SubCenterFlat' ? (showPop ? 6 : 4) : (showPop ? 4 : 2); 
-                tbodyHtml += `<tr class="bg-green-100 font-extrabold text-green-900 text-sm"><td class="border p-2 text-left" colspan="${colspanTotal}">एकूण Total</td>`;
+                
+                let totalBaseCols = groupType === 'SubCenterFlat' ? (showPop ? 6 : 4) : (showPop ? 4 : 2); 
+                if (groupType === 'SubCenterFlat' && rep.formType === 'subcenter') totalBaseCols -= 1; // गाव कॉलम नसल्याने एक कमी करा
+
+                tbodyHtml += `<tr class="bg-green-100 font-extrabold text-green-900 text-sm"><td class="border p-2 text-left" colspan="${totalBaseCols}">एकूण Total</td>`;
                 columns.forEach(c => {
                     let pVal = phcTotals[c.id];
                     if(rep.isProg && c.type === 'number') { tbodyHtml += `<td class="border p-2 text-center">${pVal.isNum ? formatNumberDecimals(pVal.M) : '-'}</td><td class="border p-2 text-center">${pVal.isNum ? formatNumberDecimals(pVal.P) : '-'}</td>`; }
@@ -398,7 +419,14 @@ function renderMultipleTables(reports, groupType) {
                     html += `<div style="margin-top:20px; margin-bottom:10px; background:#00705a; color:#ffffff; padding:10px; border-radius:4px; font-weight:bold; font-size:14px;">🏢 उपकेंद्र: ${scName} | 🧑‍⚕️ कर्मचारी: ${empName}</div>`;
                 }
 
-                let l1Row = `<tr><th rowspan="${rep.isProg?4:3}" class="border p-2">अ.क्र.</th><th rowspan="${rep.isProg?4:3}" class="border p-2">गाव/कार्यक्षेत्र</th>`;
+                // 🟢 दुरुस्ती: कर्मचारी अहवालातही उपकेंद्र फॉर्म असल्यास गाव लपवा
+                let l1Row = `<tr><th rowspan="${rep.isProg?4:3}" class="border p-2">अ.क्र.</th>`;
+                if (rep.formType !== 'subcenter') {
+                    l1Row += `<th rowspan="${rep.isProg?4:3}" class="border p-2">गाव/कार्यक्षेत्र</th>`;
+                } else {
+                    l1Row += `<th rowspan="${rep.isProg?4:3}" class="border p-2">उपकेंद्र</th>`;
+                }
+                
                 if (showPop) {
                     l1Row += `<th rowspan="${rep.isProg?4:3}" class="border p-2 bg-yellow-50">लोकसंख्या</th>`;
                     l1Row += `<th rowspan="${rep.isProg?4:3}" class="border p-2 bg-yellow-50">कुटुंब संख्या</th>`;
@@ -451,7 +479,14 @@ function renderMultipleTables(reports, groupType) {
                         actionHtml = `<div class="mt-1 flex gap-1 justify-start no-print"><button onclick="openEditModal('${r.response_id}')" class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-[10px] font-bold shadow-sm hover:bg-blue-200">✏️</button><button onclick="deleteResponse('${r.response_id}')" class="bg-red-100 text-red-700 px-2 py-0.5 rounded text-[10px] font-bold shadow-sm hover:bg-red-200">🗑️</button></div>`;
                     }
 
-                    tbodyHtml += `<tr class="hover:bg-gray-50 text-xs"><td class="border p-2 text-center font-bold">${rIdx+1}</td><td class="border p-2 font-bold text-gray-800 text-left">${r.village} ${actionHtml}</td>`;
+                    tbodyHtml += `<tr class="hover:bg-gray-50 text-xs"><td class="border p-2 text-center font-bold">${rIdx+1}</td>`;
+                    
+                    if (rep.formType === 'subcenter') {
+                        tbodyHtml += `<td class="border p-2 font-bold text-gray-800 text-left">${r.subcenter} ${actionHtml}</td>`;
+                    } else {
+                        tbodyHtml += `<td class="border p-2 font-bold text-gray-800 text-left">${r.village} ${actionHtml}</td>`;
+                    }
+
                     if(showPop) {
                         tbodyHtml += `<td class="border p-2 text-center font-bold text-gray-700">${r.population || 0}</td>`;
                         tbodyHtml += `<td class="border p-2 text-center font-bold text-gray-700">${r.houses || 0}</td>`;
@@ -540,7 +575,6 @@ function closeEditModal() {
     currentEditFormId = null;
 }
 
-// 🟢 नवीन आणि अचूक कोड: आजची तारीख (Current Date) बाय-डिफॉल्ट सिलेक्ट करण्यासाठी
 function updateDailyDropdown() {
     let monthSelect = document.getElementById('reportMonth');
     let yearSelect = document.getElementById('reportYear');
@@ -560,7 +594,6 @@ function updateDailyDropdown() {
     
     dailySelect.innerHTML = '';
     
-    // पूर्ण महिन्याच्या तारखा DD-MM-YYYY फॉरमॅटमध्ये ड्रॉपडाऊनसाठी बनवणे
     for(let i=1; i<=daysInMonth; i++) {
         let dStr = i < 10 ? '0'+i : i;
         let mStr = mNum < 10 ? '0'+mNum : mNum;
@@ -571,7 +604,6 @@ function updateDailyDropdown() {
     let today = new Date();
     let isCurrentMonth = ((today.getMonth() + 1) === mNum && today.getFullYear() === selYear);
     
-    // 🟢 जर चालू महिना निवडलेला असेल, तर आजचीच तारीख थेट सिलेक्ट करा
     if (userSelected && parseInt(userSelected) <= daysInMonth) {
         dailySelect.value = userSelected;
     } else if (isCurrentMonth) {
@@ -581,14 +613,12 @@ function updateDailyDropdown() {
     }
 }
 
-// पेज लोड झाल्यावर आणि महिना/वर्ष बदलल्यावर ड्रॉपडाऊन अपडेट करा
 document.addEventListener("DOMContentLoaded", () => {
     setTimeout(() => {
         let mSel = document.getElementById('reportMonth');
         let ySel = document.getElementById('reportYear');
         let dSel = document.getElementById('reportDaily');
         
-        // महिना किंवा वर्ष बदलल्यास जुनी निवडलेली तारीख क्लिअर करा
         if (mSel) mSel.addEventListener('change', () => { if(dSel) dSel.removeAttribute('data-user-selected'); updateDailyDropdown(); });
         if (ySel) ySel.addEventListener('change', () => { if(dSel) dSel.removeAttribute('data-user-selected'); updateDailyDropdown(); });
         
