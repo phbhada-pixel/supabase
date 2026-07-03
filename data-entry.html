@@ -241,10 +241,6 @@
 
             await fetchMonthResponses();
             updateFormDropdown();
-            
-            if(document.getElementById('formSelect').value) {
-                loadFormSchema();
-            }
         }
 
         function updateFormDropdown() {
@@ -263,7 +259,6 @@
 
                 let showForm = true;
                 
-                // 🟢 कडक नियम: 'List', 'दैनिक', 'आठवडी', 'पंधरवाडा' फॉर्म ड्रॉपडाऊनमधून कधीच लपवायचे नाहीत!
                 if (form.form_type === 'list' || freq === 'daily' || freq === 'weekly' || freq === 'fortnightly') {
                     showForm = true;
                 } else if (form.form_type === 'subcenter' && userVillages.length > 0) {
@@ -399,7 +394,6 @@
                         opts = `<option value="0">-- या महिन्यात अहवाल उपलब्ध नाही --</option>`;
                     }
 
-                    // 🟢 महत्त्वाची सुधारणा: जुनी निवडलेली तारीख लक्षात ठेवा
                     let previousVal = dSelect.value;
                     
                     dSelect.innerHTML = opts;
@@ -445,10 +439,15 @@
                 return;
             }
 
+            // 🟢 सर्वांत महत्त्वाचा बदल: उपकेंद्र स्तराच्या फॉर्मसाठी 'तारीख' तपासणे
             if (currentFormObj.form_type === 'subcenter') {
                 let isFilled = currentMonthResponses.some(r => 
                     r.form_id === formId && 
-                    (currentFormObj.data_entry_mode === 'shared' ? true : r.employee_id === loggedInUser.id)
+                    (currentFormObj.data_entry_mode === 'shared' ? true : r.employee_id === loggedInUser.id) &&
+                    ((freq === 'daily' && r.report_fortnight === pVal) ||
+                     (freq === 'weekly' && r.report_fortnight === pVal) ||
+                     (freq === 'fortnightly' && r.report_fortnight === pVal) ||
+                     (freq !== 'daily' && freq !== 'weekly' && freq !== 'fortnightly'))
                 );
                 
                 if (!isFilled && userVillages.length > 0) {
@@ -975,7 +974,7 @@
                             currentPendingVillages.forEach(vill => calculateFormulas(vill.id));
                         }, 100);
                         
-                        if(currentFormObj.form_type !== 'list') updateFormDropdown(); 
+                        updateFormDropdown(); 
                         if(btnSubmit) btnSubmit.disabled = false;
                         if(btnAddMore) btnAddMore.disabled = false;
                     } else {
