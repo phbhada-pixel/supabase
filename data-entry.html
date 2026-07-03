@@ -263,7 +263,10 @@
 
                 let showForm = true;
                 
-                if (form.form_type === 'subcenter' && userVillages.length > 0) {
+                // 🟢 कडक नियम: 'List', 'दैनिक', 'आठवडी', 'पंधरवाडा' फॉर्म ड्रॉपडाऊनमधून कधीच लपवायचे नाहीत!
+                if (form.form_type === 'list' || freq === 'daily' || freq === 'weekly' || freq === 'fortnightly') {
+                    showForm = true;
+                } else if (form.form_type === 'subcenter' && userVillages.length > 0) {
                     let isFilled = currentMonthResponses.some(r => 
                         r.form_id === form.id && 
                         (form.data_entry_mode === 'shared' ? true : r.employee_id === loggedInUser.id)
@@ -284,17 +287,11 @@
                     userVillages.forEach(v => {
                         let isFilled = currentMonthResponses.some(r => 
                             r.form_id === form.id && r.village_id === v.id && 
-                            (form.data_entry_mode === 'shared' ? true : r.employee_id === loggedInUser.id) &&
-                            ((freq === 'daily' && r.report_fortnight === periodVal) ||
-                             (freq === 'weekly' && r.report_fortnight === periodVal) ||
-                             (freq === 'fortnightly' && r.report_fortnight === periodVal) ||
-                             (freq !== 'daily' && freq !== 'weekly' && freq !== 'fortnightly'))
+                            (form.data_entry_mode === 'shared' ? true : r.employee_id === loggedInUser.id)
                         );
                         if (isFilled) filledCount++;
                     });
                     if (filledCount >= userVillages.length) showForm = false; 
-                } else if (form.form_type === 'list') {
-                    showForm = true;
                 }
 
                 if (showForm) {
@@ -368,7 +365,6 @@
                 document.getElementById('reportYear').parentElement.classList.remove('opacity-30', 'pointer-events-none');
                 
                 if (freq === 'daily') {
-                    // 🟢 सुधारणा: 'काल, आज, उद्या' ऐवजी प्रत्यक्ष तारीख दाखवणे
                     dLabel.innerHTML = 'तारीख निवडा <span class="text-red-500">*</span>';
                     
                     let todayObj = new Date();
@@ -392,7 +388,6 @@
                             let monthVal = obj.d.getMonth() + 1;
                             let yearVal = obj.d.getFullYear();
                             
-                            // DD-MM-YYYY फॉरमॅट तयार करणे
                             let displayDate = `${dayVal < 10 ? '0' + dayVal : dayVal}-${monthVal < 10 ? '0' + monthVal : monthVal}-${yearVal}`;
                             
                             opts += `<option value="${dayVal}">${displayDate}</option>`;
@@ -403,9 +398,17 @@
                     if(opts === '') {
                         opts = `<option value="0">-- या महिन्यात अहवाल उपलब्ध नाही --</option>`;
                     }
+
+                    // 🟢 महत्त्वाची सुधारणा: जुनी निवडलेली तारीख लक्षात ठेवा
+                    let previousVal = dSelect.value;
                     
                     dSelect.innerHTML = opts;
-                    if(defaultVal !== '') {
+
+                    let hasPrevVal = Array.from(dSelect.options).some(opt => opt.value === previousVal);
+
+                    if (prevPeriodType === 'daily' && hasPrevVal && previousVal !== "0") {
+                        dSelect.value = previousVal;
+                    } else if(defaultVal !== '') {
                         dSelect.value = defaultVal;
                     } else if (dSelect.options.length > 0) {
                         dSelect.value = dSelect.options[0].value;
