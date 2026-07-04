@@ -476,7 +476,7 @@ function downloadConsolidatedExcel() {
 function generatePendingReport() {
     let periodType = document.getElementById('periodType').value;
     if (periodType === 'custom') {
-        alert("अपूर्ण यादी (Pending Report) शोधण्यासाठी कृपया 'महिन्यानुसार' कालावधी निवडा. कस्टम तारखांसाठी हे उपलब्ध नाही.");
+        alert("अप्राप्त यादी (Pending Report) शोधण्यासाठी कृपया 'महिन्यानुसार' कालावधी निवडा. कस्टम तारखांसाठी हे उपलब्ध नाही.");
         return;
     }
 
@@ -676,7 +676,7 @@ function generatePendingReport() {
     downArea.innerHTML = `<div class="no-print flex justify-end gap-2 mb-3"><button onclick="copyPendingListText()" class="bg-gray-600 text-white px-4 py-2 rounded text-xs font-bold shadow">📋 यादी कॉपी करा</button><button onclick="window.print()" class="bg-red-600 text-white px-4 py-2 rounded text-xs font-bold shadow">🖨️ प्रिंट काढा</button></div>`;
 
     let phcHeader = "तालुका आरोग्य प्रणाली";
-    if (user.role === 'phc_admin') phcHeader = "तुमची अपूर्ण यादी";
+    if (user.role === 'phc_admin') phcHeader = "तुमची अप्राप्त यादी";
     if (filterSubCenter !== 'सर्व') phcHeader += ` (उपकेंद्र: ${filterSubCenter})`;
 
     let isFnVisible = document.getElementById('fortnightInputs') && !document.getElementById('fortnightInputs').classList.contains('hidden');
@@ -696,7 +696,7 @@ function generatePendingReport() {
         periodDisplay += ` (दिनांक: ${fullDateStr})`;
     }
 
-    let html = `<div id="pdfExportArea" class="pdf-container"><div style="text-align:center; border-bottom: 2px solid var(--primary); padding-bottom:10px; margin-bottom:20px;"><h2 style="margin:0; color:var(--primary); font-size:24px;">${phcHeader}</h2><h3 style="margin:5px 0 0 0; color:#444; font-size:18px;">अपूर्ण अहवाल यादी - कालावधी: ${periodDisplay}</h3></div>`;
+    let html = `<div id="pdfExportArea" class="pdf-container"><div style="text-align:center; border-bottom: 2px solid var(--primary); padding-bottom:10px; margin-bottom:20px;"><h2 style="margin:0; color:var(--primary); font-size:24px;">${phcHeader}</h2><h3 style="margin:5px 0 0 0; color:#444; font-size:18px;">अप्राप्त अहवाल यादी - कालावधी: ${periodDisplay}</h3></div>`;
 
     if(rawPendingData.length === 0) { 
         html = `<h3 style="text-align:center; color:green; padding:30px; font-weight:bold;">🎉 उत्कृष्ट! तुमचे सर्व अहवाल पूर्ण भरले आहेत.</h3>`; 
@@ -755,7 +755,7 @@ function generatePendingReport() {
                                 <tr>
                                     <th style="border: 1px solid #ccc; padding: 8px; width:10%; text-align:center;">अ.क्र.</th>
                                     <th style="border: 1px solid #ccc; padding: 8px; text-align:left; width:45%;">प्रलंबित अहवाल (फॉर्म)</th>
-                                    <th style="border: 1px solid #ccc; padding: 8px; text-align:left; width:45%;">अपूर्ण गावे / कार्यक्षेत्र</th>
+                                    <th style="border: 1px solid #ccc; padding: 8px; text-align:left; width:45%;">अप्राप्त गावे / कार्यक्षेत्र</th>
                                 </tr>
                             </thead>
                             <tbody>${rowsHtml}</tbody>
@@ -774,7 +774,7 @@ function generatePendingReport() {
 
         sortedFormKeys.forEach(fName => {
             let pbClass = isFirstPending ? "" : "page-break"; isFirstPending = false;
-            html += `<div class="${pbClass}"><div class="pdf-group-header" style="background:#f8f9fa; color:#c0392b; padding:10px; font-weight:bold; font-size:16px; margin-top:10px; border:1px solid #ddd;">📄 फॉर्म: ${fName}</div><table class="report-table pending-data-table" style="width:100%; border-collapse:collapse; margin-bottom:30px;"><thead style="background:#f4f7f6;"><tr><th style="border: 1px solid #ccc; padding: 8px; width:10%; text-align:center;">अ.क्र.</th><th style="border: 1px solid #ccc; padding: 8px; text-align:left;">अहवाल प्रलंबित असणारे कर्मचारी (उपकेंद्र) - अपूर्ण गावे</th></tr></thead><tbody>`;
+            html += `<div class="${pbClass}"><div class="pdf-group-header" style="background:#f8f9fa; color:#c0392b; padding:10px; font-weight:bold; font-size:16px; margin-top:10px; border:1px solid #ddd;">📄 फॉर्म: ${fName}</div><table class="report-table pending-data-table" style="width:100%; border-collapse:collapse; margin-bottom:30px;"><thead style="background:#f4f7f6;"><tr><th style="border: 1px solid #ccc; padding: 8px; width:10%; text-align:center;">अ.क्र.</th><th style="border: 1px solid #ccc; padding: 8px; text-align:left;">अहवाल प्रलंबित असणारे कर्मचारी (उपकेंद्र) - अप्राप्त गावे</th></tr></thead><tbody>`;
 
             let empMap = {}; 
             groupedByForm[fName].forEach(p => { 
