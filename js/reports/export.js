@@ -610,6 +610,240 @@ function generatePendingReport() {
     let isFirstPending = true;
 
     if (pendingGroupType === 'employee') {
+function generatePendingReport() {
+    let periodType = document.getElementById('periodType').value;
+    if (periodType === 'custom') {
+        alert("अपूर्ण यादी (Pending Report) शोधण्यासाठी कृपया 'महिन्यानुसार' कालावधी निवडा. कस्टम तारखांसाठी हे उपलब्ध नाही.");
+        return;
+    }
+
+    const selMonth = document.getElementById('reportMonth').value;
+    const selMonthNum = monthNamesMarathi[selMonth];
+    const selYear = document.getElementById('reportYear').value;
+
+    let selFortnight = document.getElementById('reportFortnight') ? document.getElementById('reportFortnight').value : "1";
+    let selWeek = document.getElementById('reportWeek') ? document.getElementById('reportWeek').value : "1";
+    let selDaily = document.getElementById('reportDaily') ? document.getElementById('reportDaily').value : "1";
+
+    let selectedIDs = getSelectedReportIDs();
+    if (selectedIDs.length === 0) { alert("कृपया किमान एक अहवाल निवडा!"); return; }
+
+    let filterSubCenter = document.getElementById('reportSubCenterFilter').value;
+    let pendingGroupType = document.getElementById('pendingGroupFilter').value;
+
+    let freqFilterEl = document.getElementById('frequencyFilter');
+    let freqFilter = freqFilterEl ? freqFilterEl.value : 'all';
+
+    let formsToCheck = masterData.forms.filter(f => {
+        let freq = f.schema_json && f.schema_json.frequency ? f.schema_json.frequency : (f.form_type === 'fortnightly' ? 'fortnightly' : 'monthly');
+        if (freqFilter === 'all') return true;
+        return freq === freqFilter;
+    });
+
+    if(!selectedIDs.includes("ALL")) formsToCheck = formsToCheck.filter(f => selectedIDs.includes(f.id));
+
+    let rawPendingData = [];
+
+    formsToCheck.forEach(f => {
+        let freq = f.schema_json && f.schema_json.frequency ? f.schema_json.frequency : (f.form_type === 'fortnightly' ? 'fortnightly' : 'monthly');
+
+        masterData.employees.forEach(u => {
+            let empRole = String(u.role).toUpperCase().trim();
+            if (['ADMIN', 'TALUKA_ADMIN', 'PHC_ADMIN'].includes(empRole)) return;
+            if (!u.sub_center_id || u.sub_center_id === '00000000-0000-0000-0000-000000000000') return;
+
+            if (f.allowed_roles && f.allowed_roles.toUpperCase() !== 'ALL') {
+                let allowedArray = f.allowed_roles.split(',').map(r => r.trim().toUpperCase());
+                if (!allowedArray.includes(empRole)) return; 
+            }
+
+            let isAdminRole = ['admin', 'taluka_admin', 'phc_admin'].includes(user.role);
+
+            if (user.role === 'phc_admin' && u.phc_id !== user.phc_id) return;
+            if (!isAdminRole && String(u.mobile_number).trim() !== String(user.mobile).trim()) return;
+
+            let scObj = masterData.subCenters.find(s => String(s.id) === String(u.sub_center_id));
+            let scName = scObj ? scObj.name : "Unknown";
+            if (isAdminRole && filterSubCenter !== "सर्व" && scName !== filterSubCenter) return;
+
+            // 🟢 दुरुस्ती: 'उपकेंद्र' फॉर्मसाठी गावनिहाय लूप न चालवता, थेट एकदाच तपासा
+            if (f.form_type === 'subcenter') {
+                let isFilled = masterData.filledStats.some(h => {
+                    if (String(h.form_id) !== String(f.id)) return false;
+
+                    let mode = f.data_entry_mode || 'shared';
+                    if (mode === 'individual' && String(h.employee_id) !== String(u.id)) return false;
+
+                    if (freq === 'onetime') return true; 
+
+                    let rYear = parseInt(h.report_year);
+                    if (isNaN(rYear) || rYear === 0) {
+                        if(h.created_at) rYear = new Date(h.created_at).getFullYear();
+                        else rYear = parseInt(selYear);
+                    }
+                    let matchY = (rYear === parseInt(selYear));
+
+                    let mStr = String(h.report_month).trim().toLowerCase();
+                    let dbMonthNum = parseInt(mStr);
+
+                    if (isNaN(dbMonthNum) || dbMonthNum === 0) {
+                        for (const [mName, mNum] of Object.entries(monthNamesMarathi)) {
+                            if (mStr.includes(mName.toLowerCase())) { dbMonthNum = mNum; break; }
+                        }
+                        if (isNaN(dbMonthNum) || dbMonthNum === 0) {
+                            if(h.created_at) dbMonthNum = new Date(h.created_at).getMonth() + 1;
+                            else dbMonthNum = parseInt(selMonthNum);
+                        }
+                    }
+                    let matchM = (dbMonthNum === parseInt(selMonthNum));
+
+                    let fnStr = String(h.report_fortnight).trim();
+                    let dbFn = 1; 
+
+                    if (fnStr.includes("2") || fnStr.includes("२") || fnStr.includes("16") || fnStr.includes("१६") || fnStr.includes("अखेर") || fnStr.includes("दुसरा")) {
+                        dbFn = 2;
+                    } else if (fnStr.includes("3") || fnStr.includes("३") || fnStr.includes("तिसरा")) {
+                        dbFn = 3;
+                    } else if (fnStr.includes("4") || fnStr.includes("४") || fnStr.includes("चौथा")) {
+                        dbFn = 4;
+                    } else if (fnStr.includes("5") || fnStr.includes("५") || fnStr.includes("पाचवा")) {
+                        dbFn = 5;
+                    } else if (freq === 'daily') {
+                        let pFn = parseInt(fnStr);
+                        if (!isNaN(pFn) && pFn > 0) dbFn = pFn;
+                    } else {
+                        dbFn = 1;
+                    }
+
+                    let matchFreq = true;
+                    if (freq === 'fortnightly') matchFreq = (dbFn === parseInt(selFortnight));
+                    else if (freq === 'weekly') matchFreq = (dbFn === parseInt(selWeek));
+                    else if (freq === 'daily') matchFreq = (dbFn === parseInt(selDaily));
+
+                    return matchM && matchY && matchFreq;
+                });
+
+                // जर अहवाल भरला नसेल, तर गावाची नावे न दाखवता फक्त "संपूर्ण उपकेंद्र" दाखवा.
+                if (!isFilled) {
+                    rawPendingData.push({
+                        formName: f.form_name,
+                        empName: u.full_name,
+                        role: u.role,
+                        sc: scName,
+                        village: "🏢 संपूर्ण उपकेंद्र (Subcenter Level)" // 🟢 थेट नाव
+                    });
+                }
+            } else {
+                // इतर सर्व प्रकारच्या फॉर्म्ससाठी गावनिहाय तपासणी (जुने लॉजिक तसेच्या तसे)
+                let userVillages = masterData.villages.filter(v => String(v.sub_center_id) === String(u.sub_center_id));
+                userVillages.forEach(v => {
+                    let isFilled = masterData.filledStats.some(h => {
+                        if (String(h.form_id) !== String(f.id) || String(h.village_id) !== String(v.id)) return false;
+
+                        let mode = f.data_entry_mode || 'shared';
+                        if (mode === 'individual' && String(h.employee_id) !== String(u.id)) return false;
+
+                        if (freq === 'onetime') return true; 
+
+                        let rYear = parseInt(h.report_year);
+                        if (isNaN(rYear) || rYear === 0) {
+                            if(h.created_at) rYear = new Date(h.created_at).getFullYear();
+                            else rYear = parseInt(selYear);
+                        }
+                        let matchY = (rYear === parseInt(selYear));
+
+                        let mStr = String(h.report_month).trim().toLowerCase();
+                        let dbMonthNum = parseInt(mStr);
+
+                        if (isNaN(dbMonthNum) || dbMonthNum === 0) {
+                            for (const [mName, mNum] of Object.entries(monthNamesMarathi)) {
+                                if (mStr.includes(mName.toLowerCase())) { dbMonthNum = mNum; break; }
+                            }
+                            if (isNaN(dbMonthNum) || dbMonthNum === 0) {
+                                if(h.created_at) dbMonthNum = new Date(h.created_at).getMonth() + 1;
+                                else dbMonthNum = parseInt(selMonthNum);
+                            }
+                        }
+                        let matchM = (dbMonthNum === parseInt(selMonthNum));
+
+                        let fnStr = String(h.report_fortnight).trim();
+                        let dbFn = 1; 
+
+                        if (fnStr.includes("2") || fnStr.includes("२") || fnStr.includes("16") || fnStr.includes("१६") || fnStr.includes("अखेर") || fnStr.includes("दुसरा")) {
+                            dbFn = 2;
+                        } else if (fnStr.includes("3") || fnStr.includes("३") || fnStr.includes("तिसरा")) {
+                            dbFn = 3;
+                        } else if (fnStr.includes("4") || fnStr.includes("४") || fnStr.includes("चौथा")) {
+                            dbFn = 4;
+                        } else if (fnStr.includes("5") || fnStr.includes("५") || fnStr.includes("पाचवा")) {
+                            dbFn = 5;
+                        } else if (freq === 'daily') {
+                            let pFn = parseInt(fnStr);
+                            if (!isNaN(pFn) && pFn > 0) dbFn = pFn;
+                        } else {
+                            dbFn = 1;
+                        }
+
+                        let matchFreq = true;
+                        if (freq === 'fortnightly') matchFreq = (dbFn === parseInt(selFortnight));
+                        else if (freq === 'weekly') matchFreq = (dbFn === parseInt(selWeek));
+                        else if (freq === 'daily') matchFreq = (dbFn === parseInt(selDaily));
+
+                        return matchM && matchY && matchFreq;
+                    });
+
+                    if (!isFilled) {
+                        rawPendingData.push({
+                            formName: f.form_name,
+                            empName: u.full_name,
+                            role: u.role,
+                            sc: scName,
+                            village: v.name
+                        });
+                    }
+                });
+            }
+        });
+    });
+
+    let container = document.getElementById('reportTableContainer'); let downArea = document.getElementById('downloadButtonsArea');
+    downArea.innerHTML = `<div class="no-print flex justify-end gap-2 mb-3"><button onclick="copyPendingListText()" class="bg-gray-600 text-white px-4 py-2 rounded text-xs font-bold shadow">📋 यादी कॉपी करा</button><button onclick="window.print()" class="bg-red-600 text-white px-4 py-2 rounded text-xs font-bold shadow">🖨️ प्रिंट काढा</button></div>`;
+
+    let phcHeader = "तालुका आरोग्य प्रणाली";
+    if (user.role === 'phc_admin') phcHeader = "तुमची अपूर्ण यादी";
+    if (filterSubCenter !== 'सर्व') phcHeader += ` (उपकेंद्र: ${filterSubCenter})`;
+
+    let isFnVisible = document.getElementById('fortnightInputs') && !document.getElementById('fortnightInputs').classList.contains('hidden');
+    let isWnVisible = document.getElementById('weekInputs') && !document.getElementById('weekInputs').classList.contains('hidden');
+    let isDyVisible = document.getElementById('dailyInputs') && !document.getElementById('dailyInputs').classList.contains('hidden');
+    let isOnetime = freqFilter === 'onetime';
+
+    // 🟢 पेंडिंग रिपोर्टच्या हेडिंगमध्ये पूर्ण तारीख दाखवण्यासाठी बदल
+    let periodDisplay = isOnetime ? "संपूर्ण अहवाल (All Time)" : `${selMonth} ${selYear}`;
+    if(isFnVisible && !isOnetime) periodDisplay += ` (पंधरवाडा: ${selFortnight == "1" ? '१ ते १५ तारीख' : '१६ ते महिनाअखेर'})`;
+    if(isWnVisible && !isOnetime) periodDisplay += ` (आठवडा: ${selWeek})`;
+    
+    if(isDyVisible && !isOnetime) {
+        let dVal = parseInt(selDaily);
+        let mVal = parseInt(selMonthNum);
+        let yVal = parseInt(selYear);
+        let fullDateStr = `${dVal < 10 ? '0'+dVal : dVal}-${mVal < 10 ? '0'+mVal : mVal}-${yVal}`;
+        periodDisplay += ` (दिनांक: ${fullDateStr})`;
+    }
+
+    let html = `<div id="pdfExportArea" class="pdf-container"><div style="text-align:center; border-bottom: 2px solid var(--primary); padding-bottom:10px; margin-bottom:20px;"><h2 style="margin:0; color:var(--primary); font-size:24px;">${phcHeader}</h2><h3 style="margin:5px 0 0 0; color:#444; font-size:18px;">अपूर्ण अहवाल यादी - कालावधी: ${periodDisplay}</h3></div>`;
+
+    if(rawPendingData.length === 0) { 
+        html = `<h3 style="text-align:center; color:green; padding:30px; font-weight:bold;">🎉 उत्कृष्ट! तुमचे सर्व अहवाल पूर्ण भरले आहेत.</h3>`; 
+        downArea.innerHTML = ""; 
+        container.innerHTML = html + `</div>`; 
+        document.getElementById('reportContentArea').classList.remove('hidden');
+        return;
+    }
+
+    let isFirstPending = true;
+
+    if (pendingGroupType === 'employee') {
         let groupedByEmp = {};
         rawPendingData.forEach(item => {
             let key = item.empName + "###" + item.sc + "###" + item.role;
@@ -618,11 +852,11 @@ function generatePendingReport() {
         });
 
         let sortedEmpKeys = Object.keys(groupedByEmp).sort();
-        
+
         sortedEmpKeys.forEach(empKey => {
             let pbClass = isFirstPending ? "" : "page-break"; isFirstPending = false;
             let [empName, scName, empRole] = empKey.split("###");
-            
+
             let formMap = {};
             groupedByEmp[empKey].forEach(p => {
                 if(!formMap[p.formName]) formMap[p.formName] = [];
@@ -636,7 +870,7 @@ function generatePendingReport() {
             Object.keys(formMap).sort().forEach(fName => {
                 let villagesStr = formMap[fName].join(", ");
                 noticeDataArr.push(`${fName} (${villagesStr})`);
-                
+
                 rowsHtml += `<tr>
                     <td style="border: 1px solid #ccc; padding: 8px; text-align:center; font-weight:bold;">${idx++}</td>
                     <td style="border: 1px solid #ccc; padding: 8px; text-align:left; font-size:15px; font-weight:bold; color:#0056b3;">${fName}</td>
@@ -656,14 +890,14 @@ function generatePendingReport() {
                                 <tr>
                                     <th style="border: 1px solid #ccc; padding: 8px; width:10%; text-align:center;">अ.क्र.</th>
                                     <th style="border: 1px solid #ccc; padding: 8px; text-align:left; width:45%;">प्रलंबित अहवाल (फॉर्म)</th>
-                                    <th style="border: 1px solid #ccc; padding: 8px; text-align:left; width:45%;">अपूर्ण गावे</th>
+                                    <th style="border: 1px solid #ccc; padding: 8px; text-align:left; width:45%;">अपूर्ण गावे / कार्यक्षेत्र</th>
                                 </tr>
                             </thead>
                             <tbody>${rowsHtml}</tbody>
                         </table>
                      </div>`;
         });
-        
+
     } else {
         let groupedByForm = {};
         rawPendingData.forEach(item => {
@@ -676,19 +910,19 @@ function generatePendingReport() {
         sortedFormKeys.forEach(fName => {
             let pbClass = isFirstPending ? "" : "page-break"; isFirstPending = false;
             html += `<div class="${pbClass}"><div class="pdf-group-header" style="background:#f8f9fa; color:#c0392b; padding:10px; font-weight:bold; font-size:16px; margin-top:10px; border:1px solid #ddd;">📄 फॉर्म: ${fName}</div><table class="report-table pending-data-table" style="width:100%; border-collapse:collapse; margin-bottom:30px;"><thead style="background:#f4f7f6;"><tr><th style="border: 1px solid #ccc; padding: 8px; width:10%; text-align:center;">अ.क्र.</th><th style="border: 1px solid #ccc; padding: 8px; text-align:left;">अहवाल प्रलंबित असणारे कर्मचारी (उपकेंद्र) - अपूर्ण गावे</th></tr></thead><tbody>`;
-            
+
             let empMap = {}; 
             groupedByForm[fName].forEach(p => { 
                 let key = p.empName + "###" + p.sc + "###" + p.role; 
                 if(!empMap[key]) empMap[key] = []; 
                 empMap[key].push(p.village); 
             });
-            
+
             let sortedKeys = Object.keys(empMap).sort();
             sortedKeys.forEach((key, idx) => {
                 let [empName, scName, empRole] = key.split("###"); 
                 let villagesStr = empMap[key].join(", ");
-                
+
                 let noticeDataStr = `${fName} (${villagesStr})`;
 
                 html += `<tr>
@@ -710,6 +944,7 @@ function generatePendingReport() {
     container.innerHTML = html + `</div>`; 
     document.getElementById('reportContentArea').classList.remove('hidden');
 }
+
 
 function copyPendingListText() {
     let textToCopy = `*अपूर्ण अहवाल यादी*\n\n`;
