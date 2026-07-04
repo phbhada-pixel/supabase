@@ -11,9 +11,19 @@ function downloadConsolidatedExcel() {
         let sheetData = []; let merges = []; let titleHeaderRows = []; let masterHeaderRows = []; let subTitleHeaderRows = []; let groupTotalRows = []; let phcTotalRows = [];
         let showPop = rep.showPopConfig === true;
 
+        let totalBaseCols = 2; 
+        if (groupType === 'SubCenterFlat') {
+            totalBaseCols = showPop ? 6 : 4;
+            if (rep.formType === 'subcenter') totalBaseCols -= 1; 
+        } else if (groupType === 'SubCenterSum') {
+            totalBaseCols = showPop ? 4 : 2;
+        } else {
+            totalBaseCols = showPop ? 4 : 2;
+        }
+
         if (groupType === "SubCenterConsolidated") {
             let verticalColCount = 2 + (rows.length * (rep.isProg ? 2 : 1)) + (rep.isProg ? 2 : 1);
-            
+
             let headInfo = getCustomHeader(rep);
             let startIdx = sheetData.length;
             sheetData.push([headInfo.l1]); titleHeaderRows.push(startIdx); merges.push({ s: { r: startIdx, c: 0 }, e: { r: startIdx, c: verticalColCount - 1 } });
@@ -32,10 +42,15 @@ function downloadConsolidatedExcel() {
             rows.forEach(r => {
                 let extra = showPop ? `\n(लोक.: ${r.population} | घरे: ${r.houses})` : '';
                 let vName = r.village ? `${r.village} (${r.subcenter})${extra}` : "-";
+                
+                if (rep.formType === 'subcenter') {
+                    vName = `${r.subcenter}${extra}`;
+                }
+
                 r1.push(vName); if(rep.isProg) r1.push("");
                 if(rep.isProg) { merges.push({ s: { r: startR, c: ccIdx }, e: { r: startR, c: ccIdx + 1 } }); r2.push("मासिक"); r2.push("प्रगत"); ccIdx += 2; } else { ccIdx += 1; }
             });
-            
+
             if(rep.formType !== 'list') {
                 r1.push("एकूण Total"); if(rep.isProg) r1.push("");
                 if(rep.isProg) { merges.push({ s: { r: startR, c: ccIdx }, e: { r: startR, c: ccIdx + 1 } }); r2.push("मासिक"); r2.push("प्रगत"); }
@@ -52,7 +67,7 @@ function downloadConsolidatedExcel() {
                 rows.forEach(r => {
                     let val = r.values[c.id]; let mObj = (typeof val === 'object' && val !== null) ? val.M : val;
                     rowData.push(mObj !== undefined && mObj !== "" ? (isNaN(Number(mObj)) ? String(mObj) : Number(mObj)) : 0);
-                    
+
                     if(rep.isProg) { 
                         let pObj = (typeof val === 'object' && val !== null) ? val.P : val; 
                         rowData.push(pObj !== undefined && pObj !== "" ? (isNaN(Number(pObj)) ? String(pObj) : Number(pObj)) : 0); 
@@ -77,12 +92,12 @@ function downloadConsolidatedExcel() {
                 Object.keys(scGroups).sort().forEach(sc => {
                     let scRows = scGroups[sc];
                     let scSmartTotals = calculateSmartTotals(scRows, columns, rep.isProg);
-                    
+
                     let sumPop = 0, sumHouses = 0;
                     scRows.forEach(sr => { sumPop += (parseInt(sr.population) || 0); sumHouses += (parseInt(sr.houses) || 0); });
-                    
+
                     let scNewRow = { subcenter: sc, village: "एकत्रित", employee: "-", population: sumPop, houses: sumHouses, values: {} };
-                    
+
                     columns.forEach((c, idx) => {
                         if (rep.formType === 'list') {
                             if (idx === 0) { scNewRow.values[c.id] = `एकूण नोंदी: ${scRows.length}`; } else { scNewRow.values[c.id] = '-'; }
@@ -99,7 +114,6 @@ function downloadConsolidatedExcel() {
                 dataRowsToRender = rows.sort((a,b) => a.subcenter.localeCompare(b.subcenter) || a.employee.localeCompare(b.employee) || a.village.localeCompare(b.village));
             }
 
-            let totalBaseCols = groupType === 'SubCenterFlat' ? (showPop ? 6 : 4) : (showPop ? 4 : 2); 
             let totalColumnsCount = totalBaseCols; columns.forEach(c => { totalColumnsCount += (rep.isProg && c.type === 'number') ? 2 : 1; });
 
             let headInfo = getCustomHeader(rep);
@@ -114,14 +128,16 @@ function downloadConsolidatedExcel() {
 
             let r1 = ["अ.क्र.", "उपकेंद्र"]; 
             if(groupType === 'SubCenterFlat') {
-                r1.push("गाव/कार्यक्षेत्र");
+                if (rep.formType !== 'subcenter') {
+                    r1.push("गाव/कार्यक्षेत्र"); 
+                }
                 r1.push("कर्मचारी");
             }
             if (showPop) {
                 r1.push("लोकसंख्या");
                 r1.push("कुटुंब संख्या");
             }
-            
+
             let r2 = []; let r3 = []; let r4 = rep.isProg ? [] : null;
 
             for(let x=0; x<totalBaseCols; x++) { r2.push(""); r3.push(""); if(rep.isProg) r4.push(""); }
@@ -197,14 +213,16 @@ function downloadConsolidatedExcel() {
             dataRowsToRender.forEach((r, rIdx) => {
                 let rowData = [rIdx + 1, r.subcenter];
                 if(groupType === 'SubCenterFlat') {
-                    rowData.push(r.village);
+                    if (rep.formType !== 'subcenter') {
+                        rowData.push(r.village); 
+                    }
                     rowData.push(r.employee);
                 }
                 if(showPop) {
                     rowData.push(r.population || 0);
                     rowData.push(r.houses || 0);
                 }
-                
+
                 columns.forEach(c => {
                     let val = r.values[c.id];
                     if(typeof val === 'object' && val !== null) { 
@@ -236,14 +254,13 @@ function downloadConsolidatedExcel() {
             let employeeGroups = {};
             rows.forEach(r => { let key = `${r.subcenter}###${r.employee}`; if(!employeeGroups[key]) employeeGroups[key] = []; employeeGroups[key].push(r); });
 
-            let totalBaseCols = showPop ? 4 : 2; 
             let totalColumnsCount = totalBaseCols; columns.forEach(c => { totalColumnsCount += (rep.isProg && c.type === 'number') ? 2 : 1; });
 
             let headInfo = getCustomHeader(rep);
             let startIdx = sheetData.length;
             sheetData.push([headInfo.l1]); titleHeaderRows.push(startIdx); merges.push({ s: { r: startIdx, c: 0 }, e: { r: startIdx, c: totalColumnsCount - 1 } });
             sheetData.push([headInfo.l2]); titleHeaderRows.push(startIdx+1); merges.push({ s: { r: startIdx+1, c: 0 }, e: { r: startIdx+1, c: totalColumnsCount - 1 } });
-            
+
             if(headInfo.l3 !== "") { 
                 sheetData.push([headInfo.l3]); titleHeaderRows.push(startIdx+2); merges.push({ s: { r: startIdx+2, c: 0 }, e: { r: startIdx+2, c: totalColumnsCount - 1 } }); 
             }
@@ -258,12 +275,12 @@ function downloadConsolidatedExcel() {
                 }
 
                 let startR = sheetData.length;
-                let r1 = ["अ.क्र.", "गाव/कार्यक्षेत्र"]; 
+                let r1 = ["अ.क्र.", rep.formType === 'subcenter' ? "उपकेंद्र" : "गाव/कार्यक्षेत्र"]; 
                 if (showPop) {
                     r1.push("लोकसंख्या");
                     r1.push("कुटुंब संख्या");
                 }
-                
+
                 let r2 = []; let r3 = []; let r4 = rep.isProg ? [] : null;
 
                 for(let x=0; x<totalBaseCols; x++) { r2.push(""); r3.push(""); if(rep.isProg) r4.push(""); }
@@ -339,12 +356,12 @@ function downloadConsolidatedExcel() {
                 if(rep.isProg) { sheetData.push(r4); subTitleHeaderRows.push(startR + 3); }
 
                 subRows.forEach((r, rIdx) => {
-                    let rowData = [rIdx + 1, r.village];
+                    let rowData = [rIdx + 1, rep.formType === 'subcenter' ? r.subcenter : r.village];
                     if(showPop) {
                         rowData.push(r.population || 0);
                         rowData.push(r.houses || 0);
                     }
-                    
+
                     columns.forEach(c => {
                         let val = r.values[c.id];
                         if(typeof val === 'object' && val !== null) { 
@@ -361,7 +378,7 @@ function downloadConsolidatedExcel() {
                     let groupTotals = calculateSmartTotals(subRows, columns, rep.isProg);
                     let gRow = ["गटाची एकूण बेरीज"];
                     for(let x=1; x<totalBaseCols; x++) gRow.push("");
-                    
+
                     columns.forEach(c => {
                         let gVal = groupTotals[c.id];
                         if(rep.isProg && c.type === 'number') { gRow.push(gVal.isNum ? Number(gVal.M) : '-'); gRow.push(gVal.isNum ? Number(gVal.P) : '-'); }
@@ -425,8 +442,8 @@ function downloadConsolidatedExcel() {
                     if (C === 1 || (groupType === 'SubCenterFlat' && C === 2)) { style.alignment.horizontal = "left"; style.font.bold = true; }
                     if (groupType === "SubCenterConsolidated" && C === 1) { style.alignment.horizontal = "left"; style.font.bold = true; }
 
-                    let offset = (groupType === "SubCenterConsolidated" || groupType === "SubCenterSum") ? 2 : (groupType === 'SubCenterFlat' ? 3 : 2);
-                    if (rep.isProg && C >= offset && C % 2 !== (offset%2)) style.fill = { fgColor: { rgb: "FFF9F2" } }; 
+                    let offset = (groupType === "SubCenterConsolidated") ? 2 : totalBaseCols;
+                    if (rep.isProg && C >= offset && (C - offset) % 2 === 1) style.fill = { fgColor: { rgb: "FFF9F2" } }; 
                 }
                 ws[cellRef].s = style;
             }
@@ -434,10 +451,12 @@ function downloadConsolidatedExcel() {
 
         let wscols = [{ wch: 6 }, { wch: 25 }];
         if(groupType === 'SubCenterFlat') {
-            wscols.push({ wch: 20 }); 
+            if (rep.formType !== 'subcenter') {
+                wscols.push({ wch: 20 }); 
+            }
             wscols.push({ wch: 25 }); 
         }
-        
+
         if (groupType !== "SubCenterConsolidated" && showPop) {
             wscols.push({ wch: 10 });
             wscols.push({ wch: 10 });
@@ -447,7 +466,7 @@ function downloadConsolidatedExcel() {
         for(let c=wscols.length; c<finalColLimit; c++) wscols.push({ wch: 14 });
         ws["!cols"] = wscols;
 
-        XLSX.utils.book_append_sheet(wb, ws, rep.formName.substring(0, 30));
+        XLSX.utils.book_append_sheet(wb, ws, rep.formName.substring(0, 30).replace(/[\\/*?:\[\]]/g, ''));
     });
 
     let dlName = `अहवाल_${document.getElementById('periodType').value === 'custom' ? 'Custom' : document.getElementById('reportMonth').value}_${document.getElementById('reportYear').value}.xlsx`;
@@ -464,17 +483,17 @@ function generatePendingReport() {
     const selMonth = document.getElementById('reportMonth').value;
     const selMonthNum = monthNamesMarathi[selMonth];
     const selYear = document.getElementById('reportYear').value;
-    
+
     let selFortnight = document.getElementById('reportFortnight') ? document.getElementById('reportFortnight').value : "1";
     let selWeek = document.getElementById('reportWeek') ? document.getElementById('reportWeek').value : "1";
     let selDaily = document.getElementById('reportDaily') ? document.getElementById('reportDaily').value : "1";
-    
+
     let selectedIDs = getSelectedReportIDs();
     if (selectedIDs.length === 0) { alert("कृपया किमान एक अहवाल निवडा!"); return; }
 
     let filterSubCenter = document.getElementById('reportSubCenterFilter').value;
     let pendingGroupType = document.getElementById('pendingGroupFilter').value;
-    
+
     let freqFilterEl = document.getElementById('frequencyFilter');
     let freqFilter = freqFilterEl ? freqFilterEl.value : 'all';
 
@@ -483,7 +502,7 @@ function generatePendingReport() {
         if (freqFilter === 'all') return true;
         return freq === freqFilter;
     });
-    
+
     if(!selectedIDs.includes("ALL")) formsToCheck = formsToCheck.filter(f => selectedIDs.includes(f.id));
 
     let rawPendingData = [];
@@ -495,7 +514,7 @@ function generatePendingReport() {
             let empRole = String(u.role).toUpperCase().trim();
             if (['ADMIN', 'TALUKA_ADMIN', 'PHC_ADMIN'].includes(empRole)) return;
             if (!u.sub_center_id || u.sub_center_id === '00000000-0000-0000-0000-000000000000') return;
-            
+
             if (f.allowed_roles && f.allowed_roles.toUpperCase() !== 'ALL') {
                 let allowedArray = f.allowed_roles.split(',').map(r => r.trim().toUpperCase());
                 if (!allowedArray.includes(empRole)) return; 
@@ -510,16 +529,21 @@ function generatePendingReport() {
             let scName = scObj ? scObj.name : "Unknown";
             if (isAdminRole && filterSubCenter !== "सर्व" && scName !== filterSubCenter) return;
 
-            let userVillages = masterData.villages.filter(v => String(v.sub_center_id) === String(u.sub_center_id));
-            userVillages.forEach(v => {
+            // 🟢 दुरुस्ती: 'उपकेंद्र' फॉर्मसाठी गावनिहाय लूप न चालवता, थेट एकदाच तपासा आणि फक्त 'त्याच' उपकेंद्राचा डेटा चेक करा
+            if (f.form_type === 'subcenter') {
+                
+                let scVillageIDs = masterData.villages.filter(v => String(v.sub_center_id) === String(u.sub_center_id)).map(v => String(v.id));
+
                 let isFilled = masterData.filledStats.some(h => {
-                    if (String(h.form_id) !== String(f.id) || String(h.village_id) !== String(v.id)) return false;
+                    if (String(h.form_id) !== String(f.id)) return false;
                     
+                    if (!scVillageIDs.includes(String(h.village_id))) return false;
+
                     let mode = f.data_entry_mode || 'shared';
                     if (mode === 'individual' && String(h.employee_id) !== String(u.id)) return false;
 
                     if (freq === 'onetime') return true; 
-                    
+
                     let rYear = parseInt(h.report_year);
                     if (isNaN(rYear) || rYear === 0) {
                         if(h.created_at) rYear = new Date(h.created_at).getFullYear();
@@ -529,7 +553,7 @@ function generatePendingReport() {
 
                     let mStr = String(h.report_month).trim().toLowerCase();
                     let dbMonthNum = parseInt(mStr);
-                    
+
                     if (isNaN(dbMonthNum) || dbMonthNum === 0) {
                         for (const [mName, mNum] of Object.entries(monthNamesMarathi)) {
                             if (mStr.includes(mName.toLowerCase())) { dbMonthNum = mNum; break; }
@@ -543,7 +567,7 @@ function generatePendingReport() {
 
                     let fnStr = String(h.report_fortnight).trim();
                     let dbFn = 1; 
-                    
+
                     if (fnStr.includes("2") || fnStr.includes("२") || fnStr.includes("16") || fnStr.includes("१६") || fnStr.includes("अखेर") || fnStr.includes("दुसरा")) {
                         dbFn = 2;
                     } else if (fnStr.includes("3") || fnStr.includes("३") || fnStr.includes("तिसरा")) {
@@ -563,7 +587,7 @@ function generatePendingReport() {
                     if (freq === 'fortnightly') matchFreq = (dbFn === parseInt(selFortnight));
                     else if (freq === 'weekly') matchFreq = (dbFn === parseInt(selWeek));
                     else if (freq === 'daily') matchFreq = (dbFn === parseInt(selDaily));
-                    
+
                     return matchM && matchY && matchFreq;
                 });
 
@@ -573,10 +597,78 @@ function generatePendingReport() {
                         empName: u.full_name,
                         role: u.role,
                         sc: scName,
-                        village: v.name
+                        village: "🏢 संपूर्ण उपकेंद्र (Subcenter Level)"
                     });
                 }
-            });
+            } else {
+                let userVillages = masterData.villages.filter(v => String(v.sub_center_id) === String(u.sub_center_id));
+                userVillages.forEach(v => {
+                    let isFilled = masterData.filledStats.some(h => {
+                        if (String(h.form_id) !== String(f.id) || String(h.village_id) !== String(v.id)) return false;
+
+                        let mode = f.data_entry_mode || 'shared';
+                        if (mode === 'individual' && String(h.employee_id) !== String(u.id)) return false;
+
+                        if (freq === 'onetime') return true; 
+
+                        let rYear = parseInt(h.report_year);
+                        if (isNaN(rYear) || rYear === 0) {
+                            if(h.created_at) rYear = new Date(h.created_at).getFullYear();
+                            else rYear = parseInt(selYear);
+                        }
+                        let matchY = (rYear === parseInt(selYear));
+
+                        let mStr = String(h.report_month).trim().toLowerCase();
+                        let dbMonthNum = parseInt(mStr);
+
+                        if (isNaN(dbMonthNum) || dbMonthNum === 0) {
+                            for (const [mName, mNum] of Object.entries(monthNamesMarathi)) {
+                                if (mStr.includes(mName.toLowerCase())) { dbMonthNum = mNum; break; }
+                            }
+                            if (isNaN(dbMonthNum) || dbMonthNum === 0) {
+                                if(h.created_at) dbMonthNum = new Date(h.created_at).getMonth() + 1;
+                                else dbMonthNum = parseInt(selMonthNum);
+                            }
+                        }
+                        let matchM = (dbMonthNum === parseInt(selMonthNum));
+
+                        let fnStr = String(h.report_fortnight).trim();
+                        let dbFn = 1; 
+
+                        if (fnStr.includes("2") || fnStr.includes("२") || fnStr.includes("16") || fnStr.includes("१६") || fnStr.includes("अखेर") || fnStr.includes("दुसरा")) {
+                            dbFn = 2;
+                        } else if (fnStr.includes("3") || fnStr.includes("३") || fnStr.includes("तिसरा")) {
+                            dbFn = 3;
+                        } else if (fnStr.includes("4") || fnStr.includes("४") || fnStr.includes("चौथा")) {
+                            dbFn = 4;
+                        } else if (fnStr.includes("5") || fnStr.includes("५") || fnStr.includes("पाचवा")) {
+                            dbFn = 5;
+                        } else if (freq === 'daily') {
+                            let pFn = parseInt(fnStr);
+                            if (!isNaN(pFn) && pFn > 0) dbFn = pFn;
+                        } else {
+                            dbFn = 1;
+                        }
+
+                        let matchFreq = true;
+                        if (freq === 'fortnightly') matchFreq = (dbFn === parseInt(selFortnight));
+                        else if (freq === 'weekly') matchFreq = (dbFn === parseInt(selWeek));
+                        else if (freq === 'daily') matchFreq = (dbFn === parseInt(selDaily));
+
+                        return matchM && matchY && matchFreq;
+                    });
+
+                    if (!isFilled) {
+                        rawPendingData.push({
+                            formName: f.form_name,
+                            empName: u.full_name,
+                            role: u.role,
+                            sc: scName,
+                            village: v.name
+                        });
+                    }
+                });
+            }
         });
     });
 
@@ -591,14 +683,21 @@ function generatePendingReport() {
     let isWnVisible = document.getElementById('weekInputs') && !document.getElementById('weekInputs').classList.contains('hidden');
     let isDyVisible = document.getElementById('dailyInputs') && !document.getElementById('dailyInputs').classList.contains('hidden');
     let isOnetime = freqFilter === 'onetime';
-    
+
     let periodDisplay = isOnetime ? "संपूर्ण अहवाल (All Time)" : `${selMonth} ${selYear}`;
     if(isFnVisible && !isOnetime) periodDisplay += ` (पंधरवाडा: ${selFortnight == "1" ? '१ ते १५ तारीख' : '१६ ते महिनाअखेर'})`;
     if(isWnVisible && !isOnetime) periodDisplay += ` (आठवडा: ${selWeek})`;
-    if(isDyVisible && !isOnetime) periodDisplay += ` (तारीख: ${selDaily})`;
+    
+    if(isDyVisible && !isOnetime) {
+        let dVal = parseInt(selDaily);
+        let mVal = parseInt(selMonthNum);
+        let yVal = parseInt(selYear);
+        let fullDateStr = `${dVal < 10 ? '0'+dVal : dVal}-${mVal < 10 ? '0'+mVal : mVal}-${yVal}`;
+        periodDisplay += ` (दिनांक: ${fullDateStr})`;
+    }
 
     let html = `<div id="pdfExportArea" class="pdf-container"><div style="text-align:center; border-bottom: 2px solid var(--primary); padding-bottom:10px; margin-bottom:20px;"><h2 style="margin:0; color:var(--primary); font-size:24px;">${phcHeader}</h2><h3 style="margin:5px 0 0 0; color:#444; font-size:18px;">अपूर्ण अहवाल यादी - कालावधी: ${periodDisplay}</h3></div>`;
-    
+
     if(rawPendingData.length === 0) { 
         html = `<h3 style="text-align:center; color:green; padding:30px; font-weight:bold;">🎉 उत्कृष्ट! तुमचे सर्व अहवाल पूर्ण भरले आहेत.</h3>`; 
         downArea.innerHTML = ""; 
@@ -618,11 +717,11 @@ function generatePendingReport() {
         });
 
         let sortedEmpKeys = Object.keys(groupedByEmp).sort();
-        
+
         sortedEmpKeys.forEach(empKey => {
             let pbClass = isFirstPending ? "" : "page-break"; isFirstPending = false;
             let [empName, scName, empRole] = empKey.split("###");
-            
+
             let formMap = {};
             groupedByEmp[empKey].forEach(p => {
                 if(!formMap[p.formName]) formMap[p.formName] = [];
@@ -636,7 +735,7 @@ function generatePendingReport() {
             Object.keys(formMap).sort().forEach(fName => {
                 let villagesStr = formMap[fName].join(", ");
                 noticeDataArr.push(`${fName} (${villagesStr})`);
-                
+
                 rowsHtml += `<tr>
                     <td style="border: 1px solid #ccc; padding: 8px; text-align:center; font-weight:bold;">${idx++}</td>
                     <td style="border: 1px solid #ccc; padding: 8px; text-align:left; font-size:15px; font-weight:bold; color:#0056b3;">${fName}</td>
@@ -656,14 +755,14 @@ function generatePendingReport() {
                                 <tr>
                                     <th style="border: 1px solid #ccc; padding: 8px; width:10%; text-align:center;">अ.क्र.</th>
                                     <th style="border: 1px solid #ccc; padding: 8px; text-align:left; width:45%;">प्रलंबित अहवाल (फॉर्म)</th>
-                                    <th style="border: 1px solid #ccc; padding: 8px; text-align:left; width:45%;">अपूर्ण गावे</th>
+                                    <th style="border: 1px solid #ccc; padding: 8px; text-align:left; width:45%;">अपूर्ण गावे / कार्यक्षेत्र</th>
                                 </tr>
                             </thead>
                             <tbody>${rowsHtml}</tbody>
                         </table>
                      </div>`;
         });
-        
+
     } else {
         let groupedByForm = {};
         rawPendingData.forEach(item => {
@@ -676,19 +775,19 @@ function generatePendingReport() {
         sortedFormKeys.forEach(fName => {
             let pbClass = isFirstPending ? "" : "page-break"; isFirstPending = false;
             html += `<div class="${pbClass}"><div class="pdf-group-header" style="background:#f8f9fa; color:#c0392b; padding:10px; font-weight:bold; font-size:16px; margin-top:10px; border:1px solid #ddd;">📄 फॉर्म: ${fName}</div><table class="report-table pending-data-table" style="width:100%; border-collapse:collapse; margin-bottom:30px;"><thead style="background:#f4f7f6;"><tr><th style="border: 1px solid #ccc; padding: 8px; width:10%; text-align:center;">अ.क्र.</th><th style="border: 1px solid #ccc; padding: 8px; text-align:left;">अहवाल प्रलंबित असणारे कर्मचारी (उपकेंद्र) - अपूर्ण गावे</th></tr></thead><tbody>`;
-            
+
             let empMap = {}; 
             groupedByForm[fName].forEach(p => { 
                 let key = p.empName + "###" + p.sc + "###" + p.role; 
                 if(!empMap[key]) empMap[key] = []; 
                 empMap[key].push(p.village); 
             });
-            
+
             let sortedKeys = Object.keys(empMap).sort();
             sortedKeys.forEach((key, idx) => {
                 let [empName, scName, empRole] = key.split("###"); 
                 let villagesStr = empMap[key].join(", ");
-                
+
                 let noticeDataStr = `${fName} (${villagesStr})`;
 
                 html += `<tr>
@@ -715,12 +814,12 @@ function copyPendingListText() {
     let textToCopy = `*अपूर्ण अहवाल यादी*\n\n`;
     let tables = document.querySelectorAll('.pending-data-table'); if(tables.length === 0) return;
     let formHeaders = document.querySelectorAll('.pdf-group-header');
-    
+
     tables.forEach((table, tableIndex) => {
         let headerText = formHeaders[tableIndex] ? formHeaders[tableIndex].innerText : "अहवाल";
         headerText = headerText.replace('⚠️ नोटीस काढा', '').replace('⚠️ सर्व प्रलंबित अहवालांची नोटीस काढा', '').trim();
         textToCopy += `📌 *${headerText}*\n`;
-        
+
         table.querySelectorAll('tbody tr').forEach((row, rowIndex) => { 
             let cells = row.querySelectorAll('td'); 
             if(cells.length >= 2) {
@@ -739,9 +838,9 @@ function copyPendingListText() {
 function generateNotice(empName, empRole, scName, noticeDataStr) {
     const today = new Date().toLocaleDateString('mr-IN');
     const noticeWindow = window.open('', '_blank', 'width=900,height=800');
-    
+
     let pendingItems = noticeDataStr.split('|||');
-    
+
     let formsHtml = pendingItems.map((item, i) => {
         let parts = item.split(' (');
         let villages = parts[1] ? parts[1] : ''; 
