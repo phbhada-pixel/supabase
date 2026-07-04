@@ -811,7 +811,7 @@ function generatePendingReport() {
 }
 
 function copyPendingListText() {
-    let textToCopy = `*अपूर्ण अहवाल यादी*\n\n`;
+    let textToCopy = `*अप्राप्त अहवाल यादी*\n\n`;
     let tables = document.querySelectorAll('.pending-data-table'); if(tables.length === 0) return;
     let formHeaders = document.querySelectorAll('.pdf-group-header');
 
@@ -945,3 +945,4 @@ function generateNotice(empName, empRole, scName, noticeDataStr) {
     `);
     noticeWindow.document.close();
 }
+
