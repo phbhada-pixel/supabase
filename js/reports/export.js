@@ -1081,5 +1081,3 @@ function generateNotice(empName, empRole, scName, noticeDataStr) {
     `);
     noticeWindow.document.close();
 }
-
-    
