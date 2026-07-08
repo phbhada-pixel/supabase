@@ -812,8 +812,8 @@
                     form_id: formId,
                     village_id: v.id,
                     employee_id: loggedInUser.id,
-                    report_month: isOnetime ? 0 : parseInt(repMonth),
-                    report_year: isOnetime ? 0 : parseInt(repYear),
+                    report_month: parseInt(repMonth),
+                    report_year: parseInt(repYear),
                     report_fortnight: targetFortnight,
                     response_data: { is_nil: true }
                 };
