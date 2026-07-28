@@ -125,7 +125,7 @@
         let onetimeResponses = []; 
 
         let globalPendingVillages = []; 
-        let globalNilVillages = []; // 🟢 नवीन: निरंक रिपोर्टसाठीची वेगळी यादी
+        let globalNilVillages = []; 
         let currentPendingVillages = []; 
         let currentDataFields = []; 
         let currentFormObj = null;
@@ -263,10 +263,12 @@
 
                 let showForm = true;
                 
-                if (form.form_type === 'subcenter' && userVillages.length > 0) {
+                if (form.form_type === 'list' || freq === 'daily' || freq === 'weekly' || freq === 'fortnightly') {
+                    showForm = true;
+                } else if (form.form_type === 'subcenter' && userVillages.length > 0) {
                     let isFilled = currentMonthResponses.some(r => 
                         r.form_id === form.id && 
-                        (form.data_entry_mode === 'shared' ? true : r.employee_id === loggedInUser.id)
+                        (form.data_entry_mode === 'individual' ? r.employee_id === loggedInUser.id : true)
                     );
                     if (isFilled) showForm = false;
                 } else if (freq === 'onetime' && userVillages.length > 0) {
@@ -274,7 +276,7 @@
                     userVillages.forEach(v => {
                         let isFilled = onetimeResponses.some(r => 
                             r.form_id === form.id && r.village_id === v.id && 
-                            (form.data_entry_mode === 'shared' ? true : r.employee_id === loggedInUser.id)
+                            (form.data_entry_mode === 'individual' ? r.employee_id === loggedInUser.id : true)
                         );
                         if (isFilled) filledCount++;
                     });
@@ -284,18 +286,11 @@
                     userVillages.forEach(v => {
                         let isFilled = currentMonthResponses.some(r => 
                             r.form_id === form.id && r.village_id === v.id && 
-                            (form.data_entry_mode === 'shared' ? true : r.employee_id === loggedInUser.id) &&
-                            ((freq === 'daily' && r.report_fortnight === periodVal) ||
-                             (freq === 'weekly' && r.report_fortnight === periodVal) ||
-                             (freq === 'fortnightly' && r.report_fortnight === periodVal) ||
-                             (freq !== 'daily' && freq !== 'weekly' && freq !== 'fortnightly'))
+                            (form.data_entry_mode === 'individual' ? r.employee_id === loggedInUser.id : true)
                         );
                         if (isFilled) filledCount++;
                     });
                     if (filledCount >= userVillages.length) showForm = false; 
-                } else if (form.form_type === 'list') {
-                    // 🟢 'list' फॉर्म कधीच लपवायचा नाही
-                    showForm = true;
                 }
 
                 if (showForm) {
@@ -348,7 +343,7 @@
 
             currentFormObj = allFormsMap[formId];
             globalPendingVillages = [];
-            globalNilVillages = []; // 🟢 फक्त पेंडिंग निरंक रिपोर्टसाठीची यादी
+            globalNilVillages = []; 
             let hiddenCount = 0;
             
             let freq = currentFormObj.schema_json && currentFormObj.schema_json.frequency ? currentFormObj.schema_json.frequency : (currentFormObj.form_type === 'fortnightly' ? 'fortnightly' : 'monthly');
@@ -357,7 +352,6 @@
             let dLabel = document.getElementById('dynamicPeriodLabel');
             let dSelect = document.getElementById('dynamicPeriodValue');
 
-            let currentPeriodVal = dSelect.value || "1";
             let prevPeriodType = dSelect.getAttribute('data-type') || "";
 
             if (freq === 'onetime') {
@@ -370,12 +364,55 @@
                 document.getElementById('reportYear').parentElement.classList.remove('opacity-30', 'pointer-events-none');
                 
                 if (freq === 'daily') {
-                    if(prevPeriodType !== 'daily') {
-                        dLabel.innerHTML = 'तारीख (Day) <span class="text-red-500">*</span>';
-                        let opts = ''; for(let i=1; i<=31; i++) opts += `<option value="${i}">${i} तारीख</option>`;
-                        dSelect.innerHTML = opts; dSelect.value = "1";
-                        dSelect.setAttribute('data-type', 'daily');
+                    dLabel.innerHTML = 'तारीख निवडा <span class="text-red-500">*</span>';
+                    
+                    let todayObj = new Date();
+                    let yestObj = new Date(); yestObj.setDate(todayObj.getDate() - 1);
+                    let tomObj = new Date(); tomObj.setDate(todayObj.getDate() + 1);
+                    
+                    let allowedDays = [
+                        { d: yestObj, type: 'yesterday' },
+                        { d: todayObj, type: 'today' },
+                        { d: tomObj, type: 'tomorrow' }
+                    ];
+
+                    let selM = parseInt(document.getElementById('reportMonth').value);
+                    let selY = parseInt(document.getElementById('reportYear').value);
+                    
+                    let opts = '';
+                    let defaultVal = '';
+                    allowedDays.forEach(obj => {
+                        if((obj.d.getMonth() + 1) === selM && obj.d.getFullYear() === selY) {
+                            let dayVal = obj.d.getDate();
+                            let monthVal = obj.d.getMonth() + 1;
+                            let yearVal = obj.d.getFullYear();
+                            
+                            let displayDate = `${dayVal < 10 ? '0' + dayVal : dayVal}-${monthVal < 10 ? '0' + monthVal : monthVal}-${yearVal}`;
+                            
+                            opts += `<option value="${dayVal}">${displayDate}</option>`;
+                            if (obj.type === 'today') defaultVal = dayVal.toString();
+                        }
+                    });
+
+                    if(opts === '') {
+                        opts = `<option value="0">-- या महिन्यात अहवाल उपलब्ध नाही --</option>`;
                     }
+
+                    let previousVal = dSelect.value;
+                    
+                    dSelect.innerHTML = opts;
+
+                    let hasPrevVal = Array.from(dSelect.options).some(opt => opt.value === previousVal);
+
+                    if (prevPeriodType === 'daily' && hasPrevVal && previousVal !== "0") {
+                        dSelect.value = previousVal;
+                    } else if(defaultVal !== '') {
+                        dSelect.value = defaultVal;
+                    } else if (dSelect.options.length > 0) {
+                        dSelect.value = dSelect.options[0].value;
+                    }
+                    
+                    dSelect.setAttribute('data-type', 'daily');
                     dDiv.classList.remove('hidden');
                 } else if (freq === 'weekly') {
                     if(prevPeriodType !== 'weekly') {
@@ -397,12 +434,23 @@
                 }
             }
 
-            let pVal = parseInt(dSelect.value) || 1;
+            let pVal = parseInt(dSelect.value);
+            if(isNaN(pVal)) pVal = 1;
+
+            if (freq === 'daily' && dSelect.value === "0") {
+                vSelect.innerHTML = '<option value="">-- अवैध महिना --</option>';
+                container.innerHTML = '<p class="text-center text-red-500 font-bold py-10 text-lg">⚠️ दैनिक अहवाल फक्त काल, आज आणि उद्याच्या तारखेसाठीच भरता येतो. कृपया चालू महिना निवडा.</p>';
+                return;
+            }
 
             if (currentFormObj.form_type === 'subcenter') {
                 let isFilled = currentMonthResponses.some(r => 
                     r.form_id === formId && 
-                    (currentFormObj.data_entry_mode === 'shared' ? true : r.employee_id === loggedInUser.id)
+                    (currentFormObj.data_entry_mode === 'individual' ? r.employee_id === loggedInUser.id : true) &&
+                    ((freq === 'daily' && r.report_fortnight === pVal) ||
+                     (freq === 'weekly' && r.report_fortnight === pVal) ||
+                     (freq === 'fortnightly' && r.report_fortnight === pVal) ||
+                     (freq !== 'daily' && freq !== 'weekly' && freq !== 'fortnightly'))
                 );
                 
                 if (!isFilled && userVillages.length > 0) {
@@ -416,11 +464,11 @@
                 userVillages.forEach(v => {
                     let isFilled = false;
                     if (currentFormObj.form_type === 'list') {
-                        isFilled = false; // 🟢 'List' फॉर्म गाव लपवणार नाही
+                        isFilled = false; 
                     } else {
                         isFilled = onetimeResponses.some(r => 
                             r.form_id === formId && r.village_id === v.id && 
-                            (currentFormObj.data_entry_mode === 'shared' ? true : r.employee_id === loggedInUser.id)
+                            (currentFormObj.data_entry_mode === 'individual' ? r.employee_id === loggedInUser.id : true)
                         );
                     }
                     
@@ -435,17 +483,15 @@
                 userVillages.forEach(v => {
                     let isFilled = false;
                     
-                    // डेटा तपासणी
                     let hasDataMatch = currentMonthResponses.some(r => 
                         r.form_id === formId && r.village_id === v.id && 
-                        (currentFormObj.data_entry_mode === 'shared' ? true : r.employee_id === loggedInUser.id) &&
+                        (currentFormObj.data_entry_mode === 'individual' ? r.employee_id === loggedInUser.id : true) &&
                         ((freq === 'daily' && r.report_fortnight === pVal) ||
                          (freq === 'weekly' && r.report_fortnight === pVal) ||
                          (freq === 'fortnightly' && r.report_fortnight === pVal) ||
                          (freq !== 'daily' && freq !== 'weekly' && freq !== 'fortnightly'))
                     );
                     
-                    // निरंक (NIL) तपासणी
                     let hasNilMatch = currentMonthResponses.some(r => 
                         r.form_id === formId && r.village_id === v.id && 
                         r.response_data && r.response_data.is_nil === true &&
@@ -456,8 +502,7 @@
                     );
 
                     if (currentFormObj.form_type === 'list') {
-                        isFilled = false; // 🟢 ड्रॉपडाऊनमध्ये गाव नेहमी दिसेल
-                        // पण जर आधीच डेटा किंवा NIL भरला असेल, तर 'निरंक बटण' साठी यादीत टाकू नका
+                        isFilled = false; 
                         if (!hasNilMatch && !hasDataMatch) globalNilVillages.push(v); 
                     } else {
                         isFilled = hasDataMatch;
@@ -480,7 +525,6 @@
                 });
             }
             
-            // 🟢 'निरंक बटण' फक्त उरलेल्या गावांसाठी (globalNilVillages) दिसेल
             if (globalNilVillages.length > 0) {
                 btnNilAll.classList.remove('hidden');
                 if (currentFormObj.form_type === 'subcenter') {
@@ -492,7 +536,7 @@
                 btnNilAll.classList.add('hidden');
             }
 
-            if (hiddenCount > 0) {
+            if (hiddenCount > 0 && currentFormObj.form_type !== 'list') {
                 vHint.innerText = `✓ ${hiddenCount} अहवाल भरून झाले आहेत (ते लपवले आहेत).`;
                 vHint.classList.remove('hidden');
             } else {
@@ -738,7 +782,6 @@
             }
         }
 
-        // 🟢 सर्व गावांचा एकत्रित 'निरंक (NIL)' सबमिट करण्यासाठीचे फंक्शन
         async function submitNilForAll() {
             const formId = document.getElementById('formSelect').value;
             const repMonth = document.getElementById('reportMonth').value;
@@ -764,7 +807,6 @@
 
             let payloads = [];
             let freq = currentFormObj.schema_json && currentFormObj.schema_json.frequency ? currentFormObj.schema_json.frequency : (currentFormObj.form_type === 'fortnightly' ? 'fortnightly' : 'monthly');
-            let isOnetime = freq === 'onetime';
             let targetFortnight = (freq === 'fortnightly' || freq === 'weekly' || freq === 'daily') ? parseInt(periodVal) : 0;
 
             globalNilVillages.forEach(v => {
@@ -772,8 +814,8 @@
                     form_id: formId,
                     village_id: v.id,
                     employee_id: loggedInUser.id,
-                    report_month: isOnetime ? 0 : parseInt(repMonth),
-                    report_year: isOnetime ? 0 : parseInt(repYear),
+                    report_month: parseInt(repMonth),
+                    report_year: parseInt(repYear),
                     report_fortnight: targetFortnight,
                     response_data: { is_nil: true }
                 };
@@ -861,19 +903,26 @@
 
             let payloads = [];
             let freq = currentFormObj.schema_json && currentFormObj.schema_json.frequency ? currentFormObj.schema_json.frequency : (currentFormObj.form_type === 'fortnightly' ? 'fortnightly' : 'monthly');
-            let isOnetime = freq === 'onetime';
             let targetFortnight = (freq === 'fortnightly' || freq === 'weekly' || freq === 'daily') ? parseInt(periodVal) : 0;
 
             if (currentFormObj.form_type !== 'list') {
                 const villageIds = currentPendingVillages.map(v => v.id);
-                const { data: existingRecords, error: checkError } = await supabaseClient
+                
+                // 🟢 FIX: जर फॉर्म 'वैयक्तिक (individual)' असेल तर डुप्लिकेट तपासताना फक्त याच कर्मचाऱ्याचा डेटा तपासा
+                let query = supabaseClient
                     .from('form_responses')
                     .select('id, village_id')
                     .eq('form_id', formId)
-                    .eq('report_month', isOnetime ? 0 : parseInt(repMonth))
-                    .eq('report_year', isOnetime ? 0 : parseInt(repYear))
+                    .eq('report_month', parseInt(repMonth))
+                    .eq('report_year', parseInt(repYear))
                     .eq('report_fortnight', targetFortnight)
                     .in('village_id', villageIds);
+
+                if (currentFormObj.data_entry_mode === 'individual') {
+                    query = query.eq('employee_id', loggedInUser.id);
+                }
+
+                const { data: existingRecords, error: checkError } = await query;
 
                 if (checkError) {
                     document.getElementById('loader').classList.add('hidden');
@@ -902,8 +951,8 @@
                     form_id: formId,
                     village_id: v.id,
                     employee_id: loggedInUser.id,
-                    report_month: isOnetime ? 0 : parseInt(repMonth),
-                    report_year: isOnetime ? 0 : parseInt(repYear),
+                    report_month: parseInt(repMonth),
+                    report_year: parseInt(repYear),
                     report_fortnight: targetFortnight,
                     response_data: responseDataObj
                 };
@@ -934,7 +983,7 @@
                             currentPendingVillages.forEach(vill => calculateFormulas(vill.id));
                         }, 100);
                         
-                        if(currentFormObj.form_type !== 'list') updateFormDropdown(); 
+                        updateFormDropdown(); 
                         if(btnSubmit) btnSubmit.disabled = false;
                         if(btnAddMore) btnAddMore.disabled = false;
                     } else {
