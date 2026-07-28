@@ -130,6 +130,9 @@
         let currentDataFields = []; 
         let currentFormObj = null;
 
+        // 🟢 दुहेरी क्लिक थांबवण्यासाठी ग्लोबल फ्लॅग
+        let isSubmittingData = false;
+
         window.onload = async function() {
             const userDataString = localStorage.getItem('loggedInUser');
             if (!userDataString) { window.location.href = "index.html"; return; }
@@ -783,6 +786,8 @@
         }
 
         async function submitNilForAll() {
+            if (isSubmittingData) return; // 🟢 दुहेरी क्लिक टाळण्यासाठी
+            
             const formId = document.getElementById('formSelect').value;
             const repMonth = document.getElementById('reportMonth').value;
             const repYear = document.getElementById('reportYear').value;
@@ -799,11 +804,19 @@
 
             if(!confirm(confirmMsg)) return;
 
+            isSubmittingData = true; // 🟢 लॉक चालू करा
+
             let btn = document.getElementById('btnNilAllReport');
-            if(btn) btn.disabled = true;
+            if(btn) { btn.disabled = true; btn.classList.add('opacity-50', 'cursor-not-allowed'); }
 
             document.getElementById('loaderText').innerText = "सर्व गावांसाठी निरंक रिपोर्ट सेव्ह होत आहे...";
             document.getElementById('loader').classList.remove('hidden');
+
+            const restoreUI = () => {
+                isSubmittingData = false;
+                document.getElementById('loader').classList.add('hidden');
+                if(btn) { btn.disabled = false; btn.classList.remove('opacity-50', 'cursor-not-allowed'); }
+            };
 
             let payloads = [];
             let freq = currentFormObj.schema_json && currentFormObj.schema_json.frequency ? currentFormObj.schema_json.frequency : (currentFormObj.form_type === 'fortnightly' ? 'fortnightly' : 'monthly');
@@ -824,8 +837,7 @@
 
             try {
                 const { error } = await supabaseClient.from('form_responses').insert(payloads);
-                document.getElementById('loader').classList.add('hidden');
-                if(btn) btn.disabled = false;
+                restoreUI(); // 🟢 लॉक उघडा
 
                 if (error) {
                     alert("माहिती सेव्ह करताना त्रुटी आली: " + error.message);
@@ -839,13 +851,14 @@
                     updateFormDropdown(); 
                 }
             } catch (err) {
-                document.getElementById('loader').classList.add('hidden');
-                if(btn) btn.disabled = false;
+                restoreUI(); // 🟢 लॉक उघडा
                 alert("नेटवर्क किंवा सिस्टीम एरर: " + err.message);
             }
         }
 
         async function submitData(isNilReport, isAddMore) {
+            if (isSubmittingData) return; // 🟢 दुहेरी क्लिक टाळण्यासाठी
+
             const formId = document.getElementById('formSelect').value;
             const repMonth = document.getElementById('reportMonth').value;
             const repYear = document.getElementById('reportYear').value;
@@ -853,16 +866,25 @@
 
             if (!formId || currentPendingVillages.length === 0) return;
 
+            isSubmittingData = true; // 🟢 लॉक चालू करा
+
             const btnSubmit = document.getElementById('submitBtn');
             const btnAddMore = document.getElementById('btnSaveAndAddMore');
-            if(btnSubmit) btnSubmit.disabled = true;
-            if(btnAddMore) btnAddMore.disabled = true;
+            
+            if(btnSubmit) { btnSubmit.disabled = true; btnSubmit.classList.add('opacity-50', 'cursor-not-allowed'); }
+            if(btnAddMore) { btnAddMore.disabled = true; btnAddMore.classList.add('opacity-50', 'cursor-not-allowed'); }
+
+            const restoreUI = () => {
+                isSubmittingData = false;
+                document.getElementById('loader').classList.add('hidden');
+                if(btnSubmit) { btnSubmit.disabled = false; btnSubmit.classList.remove('opacity-50', 'cursor-not-allowed'); }
+                if(btnAddMore) { btnAddMore.disabled = false; btnAddMore.classList.remove('opacity-50', 'cursor-not-allowed'); }
+            };
 
             const formEl = document.getElementById('dynamicDataForm');
             if (!formEl.checkValidity()) { 
                 formEl.reportValidity(); 
-                if(btnSubmit) btnSubmit.disabled = false;
-                if(btnAddMore) btnAddMore.disabled = false;
+                restoreUI(); // 🟢 लॉक उघडा
                 return; 
             }
 
@@ -879,8 +901,7 @@
                         if (maxVal !== null && val > maxVal) {
                             alert(`⚠️ चूक: ${v.name} साठी '${f.label}' मधील आकडा ${maxVal} पेक्षा जास्त असू शकत नाही!`);
                             el.focus();
-                            if(btnSubmit) btnSubmit.disabled = false;
-                            if(btnAddMore) btnAddMore.disabled = false;
+                            restoreUI(); // 🟢 लॉक उघडा
                             return;
                         }
                     }
@@ -890,8 +911,7 @@
                         if (minVal !== null && val < minVal) {
                             alert(`⚠️ चूक: ${v.name} साठी '${f.label}' मधील आकडा ${minVal} पेक्षा कमी असू शकत नाही!`);
                             el.focus();
-                            if(btnSubmit) btnSubmit.disabled = false;
-                            if(btnAddMore) btnAddMore.disabled = false;
+                            restoreUI(); // 🟢 लॉक उघडा
                             return;
                         }
                     }
@@ -908,7 +928,6 @@
             if (currentFormObj.form_type !== 'list') {
                 const villageIds = currentPendingVillages.map(v => v.id);
                 
-                // 🟢 FIX: जर फॉर्म 'वैयक्तिक (individual)' असेल तर डुप्लिकेट तपासताना फक्त याच कर्मचाऱ्याचा डेटा तपासा
                 let query = supabaseClient
                     .from('form_responses')
                     .select('id, village_id')
@@ -925,16 +944,14 @@
                 const { data: existingRecords, error: checkError } = await query;
 
                 if (checkError) {
-                    document.getElementById('loader').classList.add('hidden');
                     alert("डेटा तपासताना त्रुटी आली: " + checkError.message);
-                    if(btnSubmit) btnSubmit.disabled = false;
-                    if(btnAddMore) btnAddMore.disabled = false;
+                    restoreUI(); // 🟢 लॉक उघडा
                     return;
                 }
 
                 if (existingRecords && existingRecords.length > 0) {
-                    document.getElementById('loader').classList.add('hidden');
                     alert("⚠️ सावधगिरी: तुम्ही निवडलेल्या गावांपैकी काहींचा अहवाल आधीच सिस्टीममध्ये सबमिट झाला आहे! कृपया एकाच महिन्याचा डेटा दोनदा भरू नका.");
+                    restoreUI(); // 🟢 लॉक उघडा
                     await handleMonthYearChange();
                     return;
                 }
@@ -962,12 +979,10 @@
             try {
                 const { error } = await supabaseClient.from('form_responses').insert(payloads);
 
-                document.getElementById('loader').classList.add('hidden');
+                restoreUI(); // 🟢 सेव्ह झाल्यानंतर लॉक उघडा
 
                 if (error) {
                     alert("माहिती सेव्ह करताना त्रुटी आली: " + error.message);
-                    if(btnSubmit) btnSubmit.disabled = false;
-                    if(btnAddMore) btnAddMore.disabled = false;
                 } else {
                     if (freq === 'onetime') {
                         onetimeResponses.push(...payloads);
@@ -984,18 +999,14 @@
                         }, 100);
                         
                         updateFormDropdown(); 
-                        if(btnSubmit) btnSubmit.disabled = false;
-                        if(btnAddMore) btnAddMore.disabled = false;
                     } else {
                         alert("✅ माहिती यशस्वीरीत्या सेव्ह झाली!");
                         window.location.href = "dashboard.html"; 
                     }
                 }
             } catch (err) {
-                document.getElementById('loader').classList.add('hidden');
+                restoreUI(); // 🟢 लॉक उघडा
                 alert("नेटवर्क किंवा सिस्टीम एरर: " + err.message);
-                if(btnSubmit) btnSubmit.disabled = false;
-                if(btnAddMore) btnAddMore.disabled = false;
             }
         }
     </script>
