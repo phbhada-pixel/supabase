@@ -191,7 +191,7 @@ function getCustomHeader(rep) {
         }
         
         l1 = `${formName}`;
-        l2 = `कर्मचारी: ${empName} | उपकेंद्र: ${scName} | कालावधी: ${period}`;
+        l2 = `कर्मचारी: ${empName} | उपकेंद्र: ${scName} | کاलावधी: ${period}`;
         l3 = "";
     }
     return { l1, l2, l3 };
@@ -250,8 +250,16 @@ function renderMultipleTables(reports, groupType) {
                 tbodyHtml += `<tr class="hover:bg-gray-50 text-xs"><td class="border p-2 text-center font-bold">${vIndex+1}</td><td class="border p-2 font-bold text-gray-800 text-left">${fLabel}</td>`;
                 rows.forEach(r => {
                     let val = r.values[c.id];
-                    if(typeof val === 'object' && val !== null) { tbodyHtml += `<td class="border p-2 text-center text-blue-700">${val.M}</td><td class="border p-2 font-medium bg-orange-50/30 text-center text-orange-700">${val.P}</td>`; } 
-                    else { tbodyHtml += `<td class="border p-2 text-center">${val !== '' ? val : '-'}</td>`; }
+                    let isNumCol = (c.type === 'number');
+                    if(typeof val === 'object' && val !== null) { 
+                        let vM = (val.M === 'निरंक' || val.M === 'NIL') && isNumCol ? 0 : val.M;
+                        let vP = (val.P === 'निरंक' || val.P === 'NIL') && isNumCol ? 0 : val.P;
+                        tbodyHtml += `<td class="border p-2 text-center text-blue-700">${vM}</td><td class="border p-2 font-medium bg-orange-50/30 text-center text-orange-700">${vP}</td>`; 
+                    } 
+                    else { 
+                        let vS = (val === 'निरंक' || val === 'NIL') && isNumCol ? 0 : val;
+                        tbodyHtml += `<td class="border p-2 text-center">${vS !== '' ? vS : '-'}</td>`; 
+                    }
                 });
                 
                 if(rep.formType !== 'list') {
@@ -382,8 +390,18 @@ function renderMultipleTables(reports, groupType) {
                 
                 columns.forEach(c => {
                     let val = r.values[c.id];
-                    if(typeof val === 'object' && val !== null) { tbodyHtml += `<td class="border p-2 text-blue-800 text-center font-bold">${val.M}</td><td class="border p-2 font-bold bg-orange-50/30 text-orange-800 text-center">${val.P}</td>`; } 
-                    else { tbodyHtml += `<td class="border p-2 text-center">${val !== '' ? val : '-'}</td>`; }
+                    let isNumCol = (c.type === 'number');
+                    if(typeof val === 'object' && val !== null) { 
+                        let vM = val.M; let vP = val.P;
+                        if ((vM === 'निरंक' || vM === 'NIL') && isNumCol) vM = 0;
+                        if ((vP === 'निरंक' || vP === 'NIL') && isNumCol) vP = 0;
+                        tbodyHtml += `<td class="border p-2 text-blue-800 text-center font-bold">${vM}</td><td class="border p-2 font-bold bg-orange-50/30 text-orange-800 text-center">${vP}</td>`; 
+                    } 
+                    else { 
+                        let vS = val;
+                        if ((vS === 'निरंक' || vS === 'NIL') && isNumCol) vS = 0;
+                        tbodyHtml += `<td class="border p-2 text-center">${vS !== '' ? vS : '-'}</td>`; 
+                    }
                 });
                 tbodyHtml += `</tr>`;
             });
@@ -475,7 +493,6 @@ function renderMultipleTables(reports, groupType) {
                 subRows.forEach((r, rIdx) => {
                     let actionHtml = '';
                     
-                    // 🟢 FIX: 'एकदाच' (Onetime) फॉर्म असल्यास PHC Admin ला नेहमी Edit/Delete करता येईल.
                     let canEdit = (rep.periodText.includes("All Time") || (typeof isEditingAllowed === 'function' && isEditingAllowed(r.report_month, r.report_year)));
                     if (user.role === 'phc_admin' && r.response_id && canEdit) {
                         actionHtml = `<div class="mt-1 flex gap-1 justify-start no-print"><button onclick="openEditModal('${r.response_id}')" class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-[10px] font-bold shadow-sm hover:bg-blue-200">✏️</button><button onclick="deleteResponse('${r.response_id}')" class="bg-red-100 text-red-700 px-2 py-0.5 rounded text-[10px] font-bold shadow-sm hover:bg-red-200">🗑️</button></div>`;
@@ -496,8 +513,18 @@ function renderMultipleTables(reports, groupType) {
                     
                     columns.forEach(c => {
                         let val = r.values[c.id];
-                        if(typeof val === 'object' && val !== null) { tbodyHtml += `<td class="border p-2 text-blue-800 text-center font-bold">${val.M}</td><td class="border p-2 font-bold bg-orange-50/30 text-orange-800 text-center">${val.P}</td>`; } 
-                        else { tbodyHtml += `<td class="border p-2 text-center">${val !== '' ? val : '-'}</td>`; }
+                        let isNumCol = (c.type === 'number');
+                        if(typeof val === 'object' && val !== null) { 
+                            let vM = val.M; let vP = val.P;
+                            if ((vM === 'निरंक' || vM === 'NIL') && isNumCol) vM = 0;
+                            if ((vP === 'निरंक' || vP === 'NIL') && isNumCol) vP = 0;
+                            tbodyHtml += `<td class="border p-2 text-blue-800 text-center font-bold">${vM}</td><td class="border p-2 font-bold bg-orange-50/30 text-orange-800 text-center">${vP}</td>`; 
+                        } 
+                        else { 
+                            let vS = val;
+                            if ((vS === 'निरंक' || vS === 'NIL') && isNumCol) vS = 0;
+                            tbodyHtml += `<td class="border p-2 text-center">${vS !== '' ? vS : '-'}</td>`; 
+                        }
                     });
                     tbodyHtml += `</tr>`;
                 });
