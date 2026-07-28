@@ -241,6 +241,10 @@
 
             await fetchMonthResponses();
             updateFormDropdown();
+            
+            if(document.getElementById('formSelect').value) {
+                loadFormSchema();
+            }
         }
 
         function updateFormDropdown() {
@@ -264,7 +268,7 @@
                 } else if (form.form_type === 'subcenter' && userVillages.length > 0) {
                     let isFilled = currentMonthResponses.some(r => 
                         r.form_id === form.id && 
-                        (form.data_entry_mode === 'shared' ? true : r.employee_id === loggedInUser.id)
+                        (form.data_entry_mode === 'individual' ? r.employee_id === loggedInUser.id : true)
                     );
                     if (isFilled) showForm = false;
                 } else if (freq === 'onetime' && userVillages.length > 0) {
@@ -272,7 +276,7 @@
                     userVillages.forEach(v => {
                         let isFilled = onetimeResponses.some(r => 
                             r.form_id === form.id && r.village_id === v.id && 
-                            (form.data_entry_mode === 'shared' ? true : r.employee_id === loggedInUser.id)
+                            (form.data_entry_mode === 'individual' ? r.employee_id === loggedInUser.id : true)
                         );
                         if (isFilled) filledCount++;
                     });
@@ -282,7 +286,7 @@
                     userVillages.forEach(v => {
                         let isFilled = currentMonthResponses.some(r => 
                             r.form_id === form.id && r.village_id === v.id && 
-                            (form.data_entry_mode === 'shared' ? true : r.employee_id === loggedInUser.id)
+                            (form.data_entry_mode === 'individual' ? r.employee_id === loggedInUser.id : true)
                         );
                         if (isFilled) filledCount++;
                     });
@@ -439,11 +443,10 @@
                 return;
             }
 
-            // 🟢 सर्वांत महत्त्वाचा बदल: उपकेंद्र स्तराच्या फॉर्मसाठी 'तारीख' तपासणे
             if (currentFormObj.form_type === 'subcenter') {
                 let isFilled = currentMonthResponses.some(r => 
                     r.form_id === formId && 
-                    (currentFormObj.data_entry_mode === 'shared' ? true : r.employee_id === loggedInUser.id) &&
+                    (currentFormObj.data_entry_mode === 'individual' ? r.employee_id === loggedInUser.id : true) &&
                     ((freq === 'daily' && r.report_fortnight === pVal) ||
                      (freq === 'weekly' && r.report_fortnight === pVal) ||
                      (freq === 'fortnightly' && r.report_fortnight === pVal) ||
@@ -465,7 +468,7 @@
                     } else {
                         isFilled = onetimeResponses.some(r => 
                             r.form_id === formId && r.village_id === v.id && 
-                            (currentFormObj.data_entry_mode === 'shared' ? true : r.employee_id === loggedInUser.id)
+                            (currentFormObj.data_entry_mode === 'individual' ? r.employee_id === loggedInUser.id : true)
                         );
                     }
                     
@@ -482,7 +485,7 @@
                     
                     let hasDataMatch = currentMonthResponses.some(r => 
                         r.form_id === formId && r.village_id === v.id && 
-                        (currentFormObj.data_entry_mode === 'shared' ? true : r.employee_id === loggedInUser.id) &&
+                        (currentFormObj.data_entry_mode === 'individual' ? r.employee_id === loggedInUser.id : true) &&
                         ((freq === 'daily' && r.report_fortnight === pVal) ||
                          (freq === 'weekly' && r.report_fortnight === pVal) ||
                          (freq === 'fortnightly' && r.report_fortnight === pVal) ||
@@ -804,7 +807,6 @@
 
             let payloads = [];
             let freq = currentFormObj.schema_json && currentFormObj.schema_json.frequency ? currentFormObj.schema_json.frequency : (currentFormObj.form_type === 'fortnightly' ? 'fortnightly' : 'monthly');
-            let isOnetime = freq === 'onetime';
             let targetFortnight = (freq === 'fortnightly' || freq === 'weekly' || freq === 'daily') ? parseInt(periodVal) : 0;
 
             globalNilVillages.forEach(v => {
@@ -901,19 +903,26 @@
 
             let payloads = [];
             let freq = currentFormObj.schema_json && currentFormObj.schema_json.frequency ? currentFormObj.schema_json.frequency : (currentFormObj.form_type === 'fortnightly' ? 'fortnightly' : 'monthly');
-            let isOnetime = freq === 'onetime';
             let targetFortnight = (freq === 'fortnightly' || freq === 'weekly' || freq === 'daily') ? parseInt(periodVal) : 0;
 
             if (currentFormObj.form_type !== 'list') {
                 const villageIds = currentPendingVillages.map(v => v.id);
-                const { data: existingRecords, error: checkError } = await supabaseClient
+                
+                // 🟢 FIX: जर फॉर्म 'वैयक्तिक (individual)' असेल तर डुप्लिकेट तपासताना फक्त याच कर्मचाऱ्याचा डेटा तपासा
+                let query = supabaseClient
                     .from('form_responses')
                     .select('id, village_id')
                     .eq('form_id', formId)
-                    .eq('report_month', isOnetime ? 0 : parseInt(repMonth))
-                    .eq('report_year', isOnetime ? 0 : parseInt(repYear))
+                    .eq('report_month', parseInt(repMonth))
+                    .eq('report_year', parseInt(repYear))
                     .eq('report_fortnight', targetFortnight)
                     .in('village_id', villageIds);
+
+                if (currentFormObj.data_entry_mode === 'individual') {
+                    query = query.eq('employee_id', loggedInUser.id);
+                }
+
+                const { data: existingRecords, error: checkError } = await query;
 
                 if (checkError) {
                     document.getElementById('loader').classList.add('hidden');
@@ -942,8 +951,8 @@
                     form_id: formId,
                     village_id: v.id,
                     employee_id: loggedInUser.id,
-                    report_month: isOnetime ? 0 : parseInt(repMonth),
-                    report_year: isOnetime ? 0 : parseInt(repYear),
+                    report_month: parseInt(repMonth),
+                    report_year: parseInt(repYear),
                     report_fortnight: targetFortnight,
                     response_data: responseDataObj
                 };
@@ -992,4 +1001,3 @@
     </script>
 </body>
 </html>
-
