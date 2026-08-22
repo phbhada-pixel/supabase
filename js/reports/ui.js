@@ -702,6 +702,74 @@ function generatePendingReport() {
 
     let rawPendingData = [];
 
+    // 🟢 नवीन आणि अत्यंत अचूक: डेटा तपासणीचे मुख्य फंक्शन
+    const checkIsFilled = (h, f, vId, uId, freq) => {
+        if (String(h.form_id) !== String(f.id)) return false;
+        if (vId && String(h.village_id) !== String(vId)) return false;
+
+        let mode = f.data_entry_mode || 'shared';
+        if (mode === 'individual' && String(h.employee_id) !== String(uId)) return false;
+
+        if (freq === 'onetime') return true; 
+
+        // 1. वर्ष तपासणी
+        let rYear = parseInt(h.report_year);
+        if (isNaN(rYear) || rYear === 0) {
+            rYear = h.created_at ? new Date(h.created_at).getFullYear() : parseInt(selYear);
+        }
+        if (rYear !== parseInt(selYear)) return false;
+
+        // 2. महिना तपासणी
+        let dbMonthNum = parseInt(h.report_month);
+        if (isNaN(dbMonthNum) || dbMonthNum === 0) {
+            let mStr = String(h.report_month || "").trim().toLowerCase();
+            for (const [mName, mNum] of Object.entries(monthMap)) {
+                if (mStr.includes(mName.toLowerCase())) { dbMonthNum = mNum; break; }
+            }
+            if (isNaN(dbMonthNum) || dbMonthNum === 0) {
+                dbMonthNum = h.created_at ? new Date(h.created_at).getMonth() + 1 : parseInt(selMonthNum);
+            }
+        }
+        if (dbMonthNum !== parseInt(selMonthNum)) return false;
+
+        // 3. दैनिक / पंधरवाडा / साप्ताहिक तपासणी
+        let dbFn = 1; 
+        let fnRaw = h.report_fortnight !== undefined && h.report_fortnight !== null ? h.report_fortnight : h.fortnight;
+        
+        if (fnRaw !== undefined && fnRaw !== null && String(fnRaw).trim() !== "") {
+            let fnStr = String(fnRaw).trim();
+            let pFn = parseInt(fnStr);
+            
+            if (freq === 'daily' || freq === 'weekly') {
+                if (!isNaN(pFn) && pFn > 0) dbFn = pFn;
+            } else {
+                if (fnStr === "2" || fnStr === "२" || fnStr.includes("16") || fnStr.includes("१६") || fnStr.includes("अखेर") || fnStr.includes("दुसरा")) {
+                    dbFn = 2;
+                } else if (fnStr === "3" || fnStr === "३" || fnStr.includes("तिसरा")) {
+                    dbFn = 3;
+                } else if (fnStr === "4" || fnStr === "४" || fnStr.includes("चौथा")) {
+                    dbFn = 4;
+                } else if (fnStr === "5" || fnStr === "५" || fnStr.includes("पाचवा")) {
+                    dbFn = 5;
+                } else {
+                    if (!isNaN(pFn) && pFn > 0) dbFn = pFn;
+                }
+            }
+        } else if (h.created_at) {
+            // जर report_fortnight रिकामा असेल (जुन्या नोंदी), तर फॉर्म भरल्याची तारीख वापरा
+            let dDate = new Date(h.created_at);
+            if (freq === 'daily') dbFn = dDate.getDate();
+            else if (freq === 'fortnightly') dbFn = dDate.getDate() <= 15 ? 1 : 2;
+        }
+
+        // फायनल जुळणी
+        if (freq === 'fortnightly' && dbFn !== parseInt(selFortnight)) return false;
+        if (freq === 'weekly' && dbFn !== parseInt(selWeek)) return false;
+        if (freq === 'daily' && dbFn !== parseInt(selDaily)) return false;
+
+        return true; // जर सर्व अटी पूर्ण झाल्या, तर फॉर्म भरलेला आहे
+    };
+
     formsToCheck.forEach(f => {
         let freq = f.schema_json && f.schema_json.frequency ? f.schema_json.frequency : (f.form_type === 'fortnightly' ? 'fortnightly' : 'monthly');
 
@@ -728,61 +796,8 @@ function generatePendingReport() {
                 let scVillageIDs = masterData.villages.filter(v => String(v.sub_center_id) === String(u.sub_center_id)).map(v => String(v.id));
 
                 let isFilled = masterData.filledStats.some(h => {
-                    if (String(h.form_id) !== String(f.id)) return false;
                     if (!scVillageIDs.includes(String(h.village_id))) return false;
-
-                    let mode = f.data_entry_mode || 'shared';
-                    if (mode === 'individual' && String(h.employee_id) !== String(u.id)) return false;
-
-                    if (freq === 'onetime') return true; 
-
-                    let rYear = parseInt(h.report_year);
-                    if (isNaN(rYear) || rYear === 0) {
-                        if(h.created_at) rYear = new Date(h.created_at).getFullYear();
-                        else rYear = parseInt(selYear);
-                    }
-                    let matchY = (rYear === parseInt(selYear));
-
-                    let mStr = String(h.report_month).trim().toLowerCase();
-                    let dbMonthNum = parseInt(mStr);
-                    if (isNaN(dbMonthNum) || dbMonthNum === 0) {
-                        for (const [mName, mNum] of Object.entries(monthMap)) {
-                            if (mStr.includes(mName.toLowerCase())) { dbMonthNum = mNum; break; }
-                        }
-                        if (isNaN(dbMonthNum) || dbMonthNum === 0) {
-                            if(h.created_at) dbMonthNum = new Date(h.created_at).getMonth() + 1;
-                            else dbMonthNum = parseInt(selMonthNum);
-                        }
-                    }
-                    let matchM = (dbMonthNum === parseInt(selMonthNum));
-
-                    let fnStr = String(h.report_fortnight || h.fortnight || "").trim();
-                    let dbFn = 1; 
-
-                    if (freq === 'daily' || freq === 'weekly') {
-                        let pFn = parseInt(fnStr);
-                        if (!isNaN(pFn) && pFn > 0) dbFn = pFn;
-                    } else {
-                        if (fnStr === "2" || fnStr === "२" || fnStr.includes("16") || fnStr.includes("१६") || fnStr.includes("अखेर") || fnStr.includes("दुसरा")) {
-                            dbFn = 2;
-                        } else if (fnStr === "3" || fnStr === "३" || fnStr.includes("तिसरा")) {
-                            dbFn = 3;
-                        } else if (fnStr === "4" || fnStr === "४" || fnStr.includes("चौथा")) {
-                            dbFn = 4;
-                        } else if (fnStr === "5" || fnStr === "५" || fnStr.includes("पाचवा")) {
-                            dbFn = 5;
-                        } else {
-                            let pFn = parseInt(fnStr);
-                            if (!isNaN(pFn) && pFn > 0) dbFn = pFn;
-                        }
-                    }
-
-                    let matchFreq = true;
-                    if (freq === 'fortnightly') matchFreq = (dbFn === parseInt(selFortnight));
-                    else if (freq === 'weekly') matchFreq = (dbFn === parseInt(selWeek));
-                    else if (freq === 'daily') matchFreq = (dbFn === parseInt(selDaily));
-
-                    return matchM && matchY && matchFreq;
+                    return checkIsFilled(h, f, null, u.id, freq);
                 });
 
                 if (!isFilled) {
@@ -797,62 +812,7 @@ function generatePendingReport() {
             } else {
                 let userVillages = masterData.villages.filter(v => String(v.sub_center_id) === String(u.sub_center_id));
                 userVillages.forEach(v => {
-                    let isFilled = masterData.filledStats.some(h => {
-                        if (String(h.form_id) !== String(f.id) || String(h.village_id) !== String(v.id)) return false;
-
-                        let mode = f.data_entry_mode || 'shared';
-                        if (mode === 'individual' && String(h.employee_id) !== String(u.id)) return false;
-
-                        if (freq === 'onetime') return true; 
-
-                        let rYear = parseInt(h.report_year);
-                        if (isNaN(rYear) || rYear === 0) {
-                            if(h.created_at) rYear = new Date(h.created_at).getFullYear();
-                            else rYear = parseInt(selYear);
-                        }
-                        let matchY = (rYear === parseInt(selYear));
-
-                        let mStr = String(h.report_month).trim().toLowerCase();
-                        let dbMonthNum = parseInt(mStr);
-                        if (isNaN(dbMonthNum) || dbMonthNum === 0) {
-                            for (const [mName, mNum] of Object.entries(monthMap)) {
-                                if (mStr.includes(mName.toLowerCase())) { dbMonthNum = mNum; break; }
-                            }
-                            if (isNaN(dbMonthNum) || dbMonthNum === 0) {
-                                if(h.created_at) dbMonthNum = new Date(h.created_at).getMonth() + 1;
-                                else dbMonthNum = parseInt(selMonthNum);
-                            }
-                        }
-                        let matchM = (dbMonthNum === parseInt(selMonthNum));
-
-                        let fnStr = String(h.report_fortnight || h.fortnight || "").trim();
-                        let dbFn = 1; 
-
-                        if (freq === 'daily' || freq === 'weekly') {
-                            let pFn = parseInt(fnStr);
-                            if (!isNaN(pFn) && pFn > 0) dbFn = pFn;
-                        } else {
-                            if (fnStr === "2" || fnStr === "२" || fnStr.includes("16") || fnStr.includes("१६") || fnStr.includes("अखेर") || fnStr.includes("दुसरा")) {
-                                dbFn = 2;
-                            } else if (fnStr === "3" || fnStr === "३" || fnStr.includes("तिसरा")) {
-                                dbFn = 3;
-                            } else if (fnStr === "4" || fnStr === "४" || fnStr.includes("चौथा")) {
-                                dbFn = 4;
-                            } else if (fnStr === "5" || fnStr === "५" || fnStr.includes("पाचवा")) {
-                                dbFn = 5;
-                            } else {
-                                let pFn = parseInt(fnStr);
-                                if (!isNaN(pFn) && pFn > 0) dbFn = pFn;
-                            }
-                        }
-
-                        let matchFreq = true;
-                        if (freq === 'fortnightly') matchFreq = (dbFn === parseInt(selFortnight));
-                        else if (freq === 'weekly') matchFreq = (dbFn === parseInt(selWeek));
-                        else if (freq === 'daily') matchFreq = (dbFn === parseInt(selDaily));
-
-                        return matchM && matchY && matchFreq;
-                    });
+                    let isFilled = masterData.filledStats.some(h => checkIsFilled(h, f, v.id, u.id, freq));
 
                     if (!isFilled) {
                         rawPendingData.push({
