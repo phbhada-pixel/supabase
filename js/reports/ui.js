@@ -191,7 +191,7 @@ function getCustomHeader(rep) {
         }
         
         l1 = `${formName}`;
-        l2 = `कर्मचारी: ${empName} | उपकेंद्र: ${scName} | کاलावधी: ${period}`;
+        l2 = `कर्मचारी: ${empName} | उपकेंद्र: ${scName} | कालावधी: ${period}`;
         l3 = "";
     }
     return { l1, l2, l3 };
@@ -362,7 +362,6 @@ function renderMultipleTables(reports, groupType) {
             dataRowsToRender.forEach((r, rIdx) => {
                 let actionHtml = '';
                 
-                // 🟢 FIX: 'एकदाच' (Onetime) फॉर्म असल्यास PHC Admin ला नेहमी Edit/Delete करता येईल.
                 let canEdit = (rep.periodText.includes("All Time") || (typeof isEditingAllowed === 'function' && isEditingAllowed(r.report_month, r.report_year)));
                 if (user.role === 'phc_admin' && r.response_id && canEdit) {
                     actionHtml = `<div class="mt-1 flex gap-1 justify-start no-print"><button onclick="openEditModal('${r.response_id}')" class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-[10px] font-bold shadow-sm hover:bg-blue-200">✏️</button><button onclick="deleteResponse('${r.response_id}')" class="bg-red-100 text-red-700 px-2 py-0.5 rounded text-[10px] font-bold shadow-sm hover:bg-red-200">🗑️</button></div>`;
@@ -392,14 +391,12 @@ function renderMultipleTables(reports, groupType) {
                     let val = r.values[c.id];
                     let isNumCol = (c.type === 'number');
                     if(typeof val === 'object' && val !== null) { 
-                        let vM = val.M; let vP = val.P;
-                        if ((vM === 'निरंक' || vM === 'NIL') && isNumCol) vM = 0;
-                        if ((vP === 'निरंक' || vP === 'NIL') && isNumCol) vP = 0;
+                        let vM = (val.M === 'निरंक' || val.M === 'NIL') && isNumCol ? 0 : val.M;
+                        let vP = (val.P === 'निरंक' || val.P === 'NIL') && isNumCol ? 0 : val.P;
                         tbodyHtml += `<td class="border p-2 text-blue-800 text-center font-bold">${vM}</td><td class="border p-2 font-bold bg-orange-50/30 text-orange-800 text-center">${vP}</td>`; 
                     } 
                     else { 
-                        let vS = val;
-                        if ((vS === 'निरंक' || vS === 'NIL') && isNumCol) vS = 0;
+                        let vS = (val === 'निरंक' || val === 'NIL') && isNumCol ? 0 : val;
                         tbodyHtml += `<td class="border p-2 text-center">${vS !== '' ? vS : '-'}</td>`; 
                     }
                 });
@@ -515,14 +512,12 @@ function renderMultipleTables(reports, groupType) {
                         let val = r.values[c.id];
                         let isNumCol = (c.type === 'number');
                         if(typeof val === 'object' && val !== null) { 
-                            let vM = val.M; let vP = val.P;
-                            if ((vM === 'निरंक' || vM === 'NIL') && isNumCol) vM = 0;
-                            if ((vP === 'निरंक' || vP === 'NIL') && isNumCol) vP = 0;
+                            let vM = (val.M === 'निरंक' || val.M === 'NIL') && isNumCol ? 0 : val.M;
+                            let vP = (val.P === 'निरंक' || val.P === 'NIL') && isNumCol ? 0 : val.P;
                             tbodyHtml += `<td class="border p-2 text-blue-800 text-center font-bold">${vM}</td><td class="border p-2 font-bold bg-orange-50/30 text-orange-800 text-center">${vP}</td>`; 
                         } 
                         else { 
-                            let vS = val;
-                            if ((vS === 'निरंक' || vS === 'NIL') && isNumCol) vS = 0;
+                            let vS = (val === 'निरंक' || val === 'NIL') && isNumCol ? 0 : val;
                             tbodyHtml += `<td class="border p-2 text-center">${vS !== '' ? vS : '-'}</td>`; 
                         }
                     });
@@ -611,12 +606,17 @@ function updateDailyDropdown() {
     
     if (!monthSelect || !yearSelect || !dailySelect) return;
 
-    let selMonthName = monthSelect.value; 
+    let selMonthName = monthSelect.options[monthSelect.selectedIndex].text; 
+    let selMonthVal = monthSelect.value;
     let selYear = parseInt(yearSelect.value);
     if(isNaN(selYear)) selYear = new Date().getFullYear();
     
     const months = {"जानेवारी":1,"फेब्रुवारी":2,"मार्च":3,"एप्रिल":4,"मे":5,"जून":6,"जुलै":7,"ऑगस्ट":8,"सप्टेंबर":9,"ऑक्टोबर":10,"नोव्हेंबर":11,"डिसेंबर":12};
-    let mNum = months[selMonthName] || (new Date().getMonth() + 1);
+    
+    let mNum = parseInt(selMonthVal);
+    if (isNaN(mNum)) {
+        mNum = months[selMonthVal] || months[selMonthName] || (new Date().getMonth() + 1);
+    }
     
     let daysInMonth = new Date(selYear, mNum, 0).getDate();
     let userSelected = dailySelect.getAttribute('data-user-selected');
@@ -660,44 +660,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 500);
 });
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 function generatePendingReport() {
     let periodType = document.getElementById('periodType').value;
     if (periodType === 'custom') {
@@ -705,9 +667,17 @@ function generatePendingReport() {
         return;
     }
 
-    const selMonth = document.getElementById('reportMonth').value;
-    const selMonthNum = monthNamesMarathi[selMonth];
+    const selMonthElement = document.getElementById('reportMonth');
+    const selMonthVal = selMonthElement.value;
+    const selMonthText = selMonthElement.options[selMonthElement.selectedIndex].text;
     const selYear = document.getElementById('reportYear').value;
+
+    const monthMap = {"जानेवारी":1,"फेब्रुवारी":2,"मार्च":3,"एप्रिल":4,"मे":5,"जून":6,"जुलै":7,"ऑगस्ट":8,"सप्टेंबर":9,"ऑक्टोबर":10,"नोव्हेंबर":11,"डिसेंबर":12};
+    
+    let selMonthNum = parseInt(selMonthVal);
+    if (isNaN(selMonthNum)) {
+        selMonthNum = monthMap[selMonthVal] || monthMap[selMonthText] || (new Date().getMonth() + 1);
+    }
 
     let selFortnight = document.getElementById('reportFortnight') ? document.getElementById('reportFortnight').value : "1";
     let selWeek = document.getElementById('reportWeek') ? document.getElementById('reportWeek').value : "1";
@@ -775,9 +745,8 @@ function generatePendingReport() {
 
                     let mStr = String(h.report_month).trim().toLowerCase();
                     let dbMonthNum = parseInt(mStr);
-
                     if (isNaN(dbMonthNum) || dbMonthNum === 0) {
-                        for (const [mName, mNum] of Object.entries(monthNamesMarathi)) {
+                        for (const [mName, mNum] of Object.entries(monthMap)) {
                             if (mStr.includes(mName.toLowerCase())) { dbMonthNum = mNum; break; }
                         }
                         if (isNaN(dbMonthNum) || dbMonthNum === 0) {
@@ -787,15 +756,13 @@ function generatePendingReport() {
                     }
                     let matchM = (dbMonthNum === parseInt(selMonthNum));
 
-                    let fnStr = String(h.report_fortnight).trim();
+                    let fnStr = String(h.report_fortnight || h.fortnight || "").trim();
                     let dbFn = 1; 
 
-                    // 🟢 FIX: दैनिक आणि साप्ताहिक तारखांची अचूक तपासणी
                     if (freq === 'daily' || freq === 'weekly') {
                         let pFn = parseInt(fnStr);
                         if (!isNaN(pFn) && pFn > 0) dbFn = pFn;
                     } else {
-                        // पंधरवाडा तपासणी सुधारित केली
                         if (fnStr === "2" || fnStr === "२" || fnStr.includes("16") || fnStr.includes("१६") || fnStr.includes("अखेर") || fnStr.includes("दुसरा")) {
                             dbFn = 2;
                         } else if (fnStr === "3" || fnStr === "३" || fnStr.includes("तिसरा")) {
@@ -847,9 +814,8 @@ function generatePendingReport() {
 
                         let mStr = String(h.report_month).trim().toLowerCase();
                         let dbMonthNum = parseInt(mStr);
-
                         if (isNaN(dbMonthNum) || dbMonthNum === 0) {
-                            for (const [mName, mNum] of Object.entries(monthNamesMarathi)) {
+                            for (const [mName, mNum] of Object.entries(monthMap)) {
                                 if (mStr.includes(mName.toLowerCase())) { dbMonthNum = mNum; break; }
                             }
                             if (isNaN(dbMonthNum) || dbMonthNum === 0) {
@@ -859,10 +825,9 @@ function generatePendingReport() {
                         }
                         let matchM = (dbMonthNum === parseInt(selMonthNum));
 
-                        let fnStr = String(h.report_fortnight).trim();
+                        let fnStr = String(h.report_fortnight || h.fortnight || "").trim();
                         let dbFn = 1; 
 
-                        // 🟢 FIX: दैनिक आणि साप्ताहिक तारखांची अचूक तपासणी
                         if (freq === 'daily' || freq === 'weekly') {
                             let pFn = parseInt(fnStr);
                             if (!isNaN(pFn) && pFn > 0) dbFn = pFn;
@@ -915,7 +880,7 @@ function generatePendingReport() {
     let isDyVisible = document.getElementById('dailyInputs') && !document.getElementById('dailyInputs').classList.contains('hidden');
     let isOnetime = freqFilter === 'onetime';
 
-    let periodDisplay = isOnetime ? "संपूर्ण अहवाल (All Time)" : `${selMonth} ${selYear}`;
+    let periodDisplay = isOnetime ? "संपूर्ण अहवाल (All Time)" : `${selMonthText} ${selYear}`;
     if(isFnVisible && !isOnetime) periodDisplay += ` (पंधरवाडा: ${selFortnight == "1" ? '१ ते १५ तारीख' : '१६ ते महिनाअखेर'})`;
     if(isWnVisible && !isOnetime) periodDisplay += ` (आठवडा: ${selWeek})`;
     
@@ -1040,22 +1005,6 @@ function generatePendingReport() {
     container.innerHTML = html + `</div>`; 
     document.getElementById('reportContentArea').classList.remove('hidden');
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 function copyPendingListText() {
     let textToCopy = `*अपूर्ण अहवाल यादी*\n\n`;
