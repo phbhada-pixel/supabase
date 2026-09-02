@@ -66,12 +66,16 @@
                 </div>
             </div>
 
-            <div>
+            <div class="md:col-span-2">
                 <label class="block text-gray-700 font-bold mb-2 text-sm">अतिरिक्त पर्याय</label>
-                <div class="flex items-center gap-2 bg-green-50 border-green-300 p-2 border rounded min-h-[42px]">
+                <div class="flex flex-col gap-2 bg-green-50 border-green-300 p-2 border rounded min-h-[42px]">
                     <label class="flex items-center gap-2 font-bold text-sm text-green-800 cursor-pointer">
                         <input type="checkbox" id="showPopConfig" class="w-4 h-4 text-green-600"> 
                         लोकसंख्या व घरे दाखवा
+                    </label>
+                    <label class="flex items-center gap-2 font-bold text-sm text-red-800 cursor-pointer">
+                        <input type="checkbox" id="isUrgentConfig" class="w-4 h-4 text-red-600"> 
+                        🚨 हा तातडीचा (Urgent) अहवाल आहे
                     </label>
                 </div>
             </div>
@@ -142,7 +146,7 @@
             document.getElementById('formName').value = data.form_name;
             document.getElementById('formType').value = data.form_type;
             if(data.data_entry_mode) document.getElementById('dataEntryMode').value = data.data_entry_mode;
-            
+
             if(data.active_from) document.getElementById('formActiveFrom').value = data.active_from;
             if(data.active_to) document.getElementById('formActiveTo').value = data.active_to;
 
@@ -171,6 +175,12 @@
                 document.getElementById('showPopConfig').checked = false;
             }
 
+            if (data.schema_json && data.schema_json.is_urgent === true) {
+                document.getElementById('isUrgentConfig').checked = true;
+            } else {
+                document.getElementById('isUrgentConfig').checked = false;
+            }
+
             const fields = data.schema_json.fields;
 
             fields.forEach(field => {
@@ -190,6 +200,13 @@
                 document.getElementById(`${field.id}_options`).value = field.options ? field.options.join(', ') : '';
                 document.getElementById(`${field.id}_cond_field`).value = field.cond_field || '';
                 document.getElementById(`${field.id}_cond_val`).value = field.cond_val || '';
+
+                // 🟢 नवीन: ऑटो-फील लोड करा
+                if (field.auto_fill) {
+                    document.getElementById(`${field.id}_af_trigger`).value = field.auto_fill.trigger_field || '';
+                    document.getElementById(`${field.id}_af_val`).value = field.auto_fill.trigger_val || '';
+                    document.getElementById(`${field.id}_af_fill`).value = field.auto_fill.fill_val || '';
+                }
 
                 toggleDropdownInput(field.id);
             });
@@ -276,6 +293,22 @@
                         </div>
                     </div>
 
+                    <!-- 🟢 नवीन: ऑटो-फील (Auto-fill) सेट करण्यासाठी ब्लॉक -->
+                    <div class="mt-2 grid grid-cols-1 md:grid-cols-3 gap-2 bg-green-50/70 border border-green-200 p-2 rounded text-xs">
+                        <div>
+                            <label class="text-[10px] text-green-800 font-bold">ऑटो-फील ट्रिगर ID (उदा. f2)</label>
+                            <input type="text" id="${fId}_af_trigger" placeholder="कोणत्या प्रश्नावर? (ID)" class="w-full p-1 border border-green-300 rounded bg-white">
+                        </div>
+                        <div>
+                            <label class="text-[10px] text-green-800 font-bold">ट्रिगर व्हॅल्यू (उदा. सरकारी)</label>
+                            <input type="text" id="${fId}_af_val" placeholder="काय निवडल्यावर?" class="w-full p-1 border border-green-300 rounded bg-white">
+                        </div>
+                        <div>
+                            <label class="text-[10px] text-green-800 font-bold">ऑटो-फील मजकूर</label>
+                            <input type="text" id="${fId}_af_fill" placeholder="उदा. ग्रामपंचायत" class="w-full p-1 border border-green-300 rounded bg-white">
+                        </div>
+                    </div>
+
                     <div class="mt-2 grid grid-cols-1 md:grid-cols-3 gap-2 text-xs">
                          <input type="text" id="${fId}_formula" placeholder="फॉर्म्युला उदा. [f1]+[f2]" class="md:col-span-2 p-1 border border-blue-50 bg-blue-50/50 rounded font-mono font-bold text-blue-800">
                          <div class="flex gap-1">
@@ -311,6 +344,7 @@
             const schema = { 
                 fields: [],
                 show_population: document.getElementById('showPopConfig').checked,
+                is_urgent: document.getElementById('isUrgentConfig').checked,
                 frequency: document.getElementById('formFrequency').value 
             };
 
@@ -342,6 +376,19 @@
                         if(optsStr) fieldObj.options = optsStr.split(',').map(s => s.trim()).filter(s => s !== "");
                     }
 
+                    // 🟢 नवीन: ऑटो-फील सेव्ह करा
+                    let afTrigger = document.getElementById(`${fId}_af_trigger`).value.trim();
+                    let afVal = document.getElementById(`${fId}_af_val`).value.trim();
+                    let afFill = document.getElementById(`${fId}_af_fill`).value.trim();
+
+                    if (afTrigger && afVal && afFill) {
+                        fieldObj.auto_fill = {
+                            trigger_field: afTrigger,
+                            trigger_val: afVal,
+                            fill_val: afFill
+                        };
+                    }
+
                     schema.fields.push(fieldObj);
                 }
             });
@@ -357,7 +404,7 @@
 
             let allowedRoles = checkedRoles.join(',');
             const selectedMode = document.getElementById('dataEntryMode').value;
-            
+
             let activeFromVal = document.getElementById('formActiveFrom').value;
             let activeToVal = document.getElementById('formActiveTo').value;
 
