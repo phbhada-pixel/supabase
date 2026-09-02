@@ -96,8 +96,15 @@
         <!-- 🧑‍⚕️ युझर / कर्मचारी सेक्शन -->
         <div id="userSection" class="hidden">
             <h2 id="userSectionTitle" class="text-lg font-extrabold mb-4 text-gray-800 border-b-2 border-gray-200 pb-2">📋 माझे कामकाज (Data Entry & Reports)</h2>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
+            <!-- 🟢 येथे md:grid-cols-3 च्या जागी md:grid-cols-4 केले आहे -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-5 mb-8">
                 
+                <!-- 🚨 नवीन: तातडीचा अहवाल (Urgent Form) - सर्वात आधी दिसेल -->
+                <div id="cardUrgentForm" onclick="openUrgentForm()" class="bg-red-50 p-6 rounded-xl shadow-lg border-t-4 border-red-600 cursor-pointer hover:bg-red-100 transition transform hover:-translate-y-1 animate-pulse">
+                    <h3 class="font-extrabold text-xl mb-2 text-red-700">🚨 तातडीचा अहवाल</h3>
+                    <p class="text-sm text-red-600 font-bold">साथरोग किंवा आपत्कालीन माहिती त्वरित भरण्यासाठी येथे क्लिक करा.</p>
+                </div>
+
                 <!-- जनरल डेटा एंट्री (OPD सेविकेला दिसणार नाही) -->
                 <div id="cardDataEntry" onclick="window.location.href='data-entry.html'" class="bg-white p-6 rounded-xl shadow-md border-t-4 border-indigo-500 cursor-pointer hover:bg-indigo-50 transition transform hover:-translate-y-1">
                     <h3 class="font-bold text-xl mb-2 text-indigo-800">✍️ नवीन माहिती भरा</h3>
@@ -190,13 +197,19 @@
                     document.getElementById('userSectionTitle').innerText = "🩺 क्षयरोग (TB) नियंत्रण विभाग";
                     document.getElementById('cardDataEntry').classList.add('hidden'); // जनरल फॉर्म्स लपवा
                     document.getElementById('cardReports').classList.add('hidden'); // जनरल रिपोर्ट लपवा
+                    document.getElementById('cardUrgentForm').classList.add('hidden'); // तातडीचा अहवाल लपवा (OPD ला TB काम असते)
                     
                     // कार्ड मध्यभागी दिसण्यासाठी CSS ॲडजस्टमेंट
-                    document.getElementById('cardTBProgram').parentElement.classList.remove('md:grid-cols-3');
+                    document.getElementById('cardTBProgram').parentElement.classList.remove('md:grid-cols-4');
                     document.getElementById('cardTBProgram').parentElement.classList.add('md:grid-cols-1', 'max-w-md');
                 }
             }
         };
+
+        // 🟢 नवीन: तातडीचा फॉर्म उघडण्यासाठी फंक्शन
+        function openUrgentForm() {
+            window.location.href = 'data-entry.html?urgent=true';
+        }
 
         // 🟢 क्लिक केल्यावर फॉर्म्सचा टेबल उघडणे व बंद करणे
         function toggleFormsList() {
