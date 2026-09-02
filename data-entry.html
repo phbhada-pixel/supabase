@@ -635,6 +635,7 @@
         };
 
         // 🟢 नवीन फंक्शन: ऑटो-फील (Auto-fill) लॉजिक हाताळण्यासाठी
+        // 🟢 नवीन फंक्शन: ऑटो-फील (Auto-fill) आणि टेक्स्ट एकत्र (Concatenate) करण्यासाठी
         window.checkAutoFill = function(vid) {
             if(!currentFormObj) return;
             const allFields = currentFormObj.schema_json.fields;
@@ -645,19 +646,40 @@
                     let targetEl = document.getElementById(`${f.id}_v${vid}`);
                     
                     if (triggerEl && targetEl) {
+                        // जर ड्रॉपडाऊनची व्हॅल्यू जुळली तर
                         if (triggerEl.value === f.auto_fill.trigger_val) {
-                            targetEl.value = f.auto_fill.fill_val;
-                            targetEl.style.backgroundColor = "#dcfce3"; 
+                            
+                            let finalFillValue = f.auto_fill.fill_val;
+                            
+                            // 🟢 जर मजुकारामध्ये [f1], [f2] असे काही असेल, तर मूळ रकान्यातील नावाने रिप्लेस करा
+                            if (finalFillValue.includes('[')) {
+                                allFields.forEach(af => {
+                                    let ph1 = `[${af.id}]`;               // उदा. [f1]
+                                    let ph2 = `[${af.id.toLowerCase()}]`; // उदा. [F1]
+                                    
+                                    if (finalFillValue.includes(ph1) || finalFillValue.toLowerCase().includes(ph2)) {
+                                        let sourceEl = document.getElementById(`${af.id}_v${vid}`);
+                                        let sourceVal = sourceEl ? sourceEl.value : "";
+                                        
+                                        // टॅगच्या जागी प्रत्यक्ष व्हॅल्यू टाका
+                                        finalFillValue = finalFillValue.split(ph1).join(sourceVal);
+                                        finalFillValue = finalFillValue.split(ph2).join(sourceVal);
+                                    }
+                                });
+                            }
+
+                            targetEl.value = finalFillValue.trim();
+                            targetEl.style.backgroundColor = "#dcfce3"; // ओळखण्यासाठी हलका हिरवा रंग
                         } 
-                        else if (targetEl.value === f.auto_fill.fill_val) {
+                        // जर युझरने पुन्हा 'खाजगी' निवडले, तर रकाना रिकामा करा (फक्त जर आधी ऑटो-फील झाला असेल तर)
+                        else if (targetEl.style.backgroundColor) {
                             targetEl.value = "";
-                            targetEl.style.backgroundColor = ""; 
+                            targetEl.style.backgroundColor = ""; // रंग मूळ स्थितीत आणा
                         }
                     }
                 }
             });
         };
-
         function evaluateValidationFormula(formulaStr, vid, fields) {
             let fStr = String(formulaStr).toLowerCase().trim();
             if (fStr.includes('[')) {
