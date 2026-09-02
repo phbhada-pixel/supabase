@@ -37,7 +37,7 @@
 
             <div class="md:col-span-4">
                 <label class="block text-gray-700 font-bold mb-2 text-sm">अहवाल / फॉर्म निवडा <span class="text-red-500">*</span></label>
-                <select id="formSelect" onchange="loadFormSchema()" class="w-full p-2.5 border-2 border-indigo-400 rounded bg-indigo-50 font-extrabold text-indigo-900 shadow-sm text-base">
+                <select id="formSelect" onchange="loadFormSchema()" class="w-full p-2.5 border-2 border-indigo-400 rounded bg-indigo-50 font-extrabold text-indigo-900 shadow-sm text-base transition-all">
                     <option value="">-- फॉर्म लोड होत आहेत --</option>
                 </select>
             </div>
@@ -145,6 +145,37 @@
             await fetchMonthResponses(); 
 
             updateFormDropdown(); 
+
+            // 🟢 नवीन जोडलेला कोड: URL मध्ये 'urgent=true' असल्यास 'is_urgent' टिक केलेला फॉर्म शोधा
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('urgent') === 'true') {
+                const formSelect = document.getElementById('formSelect');
+                let urgentFound = false;
+                
+                for (let i = 0; i < formSelect.options.length; i++) {
+                    if (!formSelect.options[i].value) continue; 
+
+                    let fId = formSelect.options[i].value;
+                    let fObj = allFormsMap[fId];
+                    
+                    if (fObj && fObj.schema_json && fObj.schema_json.is_urgent === true) {
+                        formSelect.selectedIndex = i;
+                        urgentFound = true;
+                        break;
+                    }
+                }
+
+                if (urgentFound) {
+                    loadFormSchema(); 
+                    
+                    formSelect.classList.remove('border-indigo-400', 'bg-indigo-50', 'text-indigo-900');
+                    formSelect.classList.add('border-red-500', 'bg-red-50', 'text-red-900', 'ring-4', 'ring-red-300');
+                    
+                    document.getElementById('dynamicFieldsContainer').classList.add('border-2', 'border-red-400', 'p-4', 'rounded-lg', 'bg-red-50/30');
+                } else {
+                    alert('⚠️ तातडीचा फॉर्म (Urgent Form) सध्या उपलब्ध नाही किंवा तो तुम्ही आधीच भरलेला आहे.');
+                }
+            }
         };
 
         function getFieldHierarchyChain(fields, fieldObj) {
@@ -185,43 +216,37 @@
         }
 
        async function fetchAvailableForms() {
-    const { data, error } = await supabaseClient.from('dynamic_forms').select('*').eq('is_active', true);
-    
-    if (!error && data) {
-        let userRole = loggedInUser.role ? String(loggedInUser.role).trim().toUpperCase() : "ALL";
-        
-        // आजची तारीख (वेळ शून्यावर सेट करून)
-        let today = new Date();
-        today.setHours(0, 0, 0, 0);
+            const { data, error } = await supabaseClient.from('dynamic_forms').select('*').eq('is_active', true);
+            
+            if (!error && data) {
+                let userRole = loggedInUser.role ? String(loggedInUser.role).trim().toUpperCase() : "ALL";
+                
+                let today = new Date();
+                today.setHours(0, 0, 0, 0);
 
-        allowedForms = data.filter(form => {
-            // १. रोल (Role) नुसार फिल्टर
-            let rolesStr = form.allowed_roles ? String(form.allowed_roles).trim().toUpperCase() : "ALL";
-            let roleAllowed = false;
-            if (rolesStr === "ALL" || loggedInUser.role === "admin") {
-                roleAllowed = true;
-            } else {
-                roleAllowed = rolesStr.split(',').map(r => r.trim()).includes(userRole);
+                allowedForms = data.filter(form => {
+                    let rolesStr = form.allowed_roles ? String(form.allowed_roles).trim().toUpperCase() : "ALL";
+                    let roleAllowed = false;
+                    if (rolesStr === "ALL" || loggedInUser.role === "admin") {
+                        roleAllowed = true;
+                    } else {
+                        roleAllowed = rolesStr.split(',').map(r => r.trim()).includes(userRole);
+                    }
+                    if (!roleAllowed) return false;
+
+                    let activeFrom = form.active_from ? new Date(form.active_from) : null;
+                    let activeTo = form.active_to ? new Date(form.active_to) : null;
+                    
+                    if(activeFrom) activeFrom.setHours(0, 0, 0, 0);
+                    if(activeTo) activeTo.setHours(23, 59, 59, 999);
+
+                    if (activeFrom && today < activeFrom) return false;
+                    if (activeTo && today > activeTo) return false;
+
+                    return true;
+                });
             }
-            if (!roleAllowed) return false;
-
-            // २. विशिष्ट कालावधी (Seasonal Date Range) फिल्टर
-            let activeFrom = form.active_from ? new Date(form.active_from) : null;
-            let activeTo = form.active_to ? new Date(form.active_to) : null;
-            
-            if(activeFrom) activeFrom.setHours(0, 0, 0, 0);
-            if(activeTo) activeTo.setHours(23, 59, 59, 999);
-
-            // जर आजची तारीख 'सुरुवातीच्या तारखेच्या' आधीची असेल, तर फॉर्म लपवा
-            if (activeFrom && today < activeFrom) return false;
-            
-            // जर आजची तारीख 'शेवटच्या तारखेच्या' नंतरची असेल (मुदत संपली असेल), तर फॉर्म लपवा
-            if (activeTo && today > activeTo) return false;
-
-            return true;
-        });
-    }
-}
+        }
 
         async function fetchOnetimeResponses() {
             if (userVillages.length === 0) return;
@@ -267,7 +292,7 @@
             document.getElementById('villageHint').classList.add('hidden');
 
             await fetchMonthResponses();
-            updateFormDropdown();
+            updateFormDropdown(); 
             
             if(document.getElementById('formSelect').value) {
                 loadFormSchema();
@@ -609,6 +634,30 @@
             });
         };
 
+        // 🟢 नवीन फंक्शन: ऑटो-फील (Auto-fill) लॉजिक हाताळण्यासाठी
+        window.checkAutoFill = function(vid) {
+            if(!currentFormObj) return;
+            const allFields = currentFormObj.schema_json.fields;
+            
+            allFields.forEach(f => {
+                if (f.auto_fill) {
+                    let triggerEl = document.getElementById(`${f.auto_fill.trigger_field}_v${vid}`);
+                    let targetEl = document.getElementById(`${f.id}_v${vid}`);
+                    
+                    if (triggerEl && targetEl) {
+                        if (triggerEl.value === f.auto_fill.trigger_val) {
+                            targetEl.value = f.auto_fill.fill_val;
+                            targetEl.style.backgroundColor = "#dcfce3"; 
+                        } 
+                        else if (targetEl.value === f.auto_fill.fill_val) {
+                            targetEl.value = "";
+                            targetEl.style.backgroundColor = ""; 
+                        }
+                    }
+                }
+            });
+        };
+
         function evaluateValidationFormula(formulaStr, vid, fields) {
             let fStr = String(formulaStr).toLowerCase().trim();
             if (fStr.includes('[')) {
@@ -744,7 +793,8 @@
                     let inputId = `${col.id}_v${v.id}`;
                     let inputHtml = '';
                     
-                    let onInputAttr = (col.type === 'number' && !isFormula) ? `oninput="calculateFormulas('${v.id}')"` : '';
+                    // 🟢 नवीन: ड्रॉपडाऊन किंवा टेक्स्ट बदलल्यावर ऑटो-फील आणि फॉर्म्युला दोन्ही चेक करा
+                    let onInputAttr = (!isFormula) ? `oninput="calculateFormulas('${v.id}'); checkAutoFill('${v.id}')" onchange="calculateFormulas('${v.id}'); checkAutoFill('${v.id}')"` : '';
 
                     if (col.type === 'number') {
                         if (isFormula) {
@@ -935,7 +985,6 @@
             if (currentFormObj.form_type !== 'list') {
                 const villageIds = currentPendingVillages.map(v => v.id);
                 
-                // 🟢 FIX: जर फॉर्म 'वैयक्तिक (individual)' असेल तर डुप्लिकेट तपासताना फक्त याच कर्मचाऱ्याचा डेटा तपासा
                 let query = supabaseClient
                     .from('form_responses')
                     .select('id, village_id')
